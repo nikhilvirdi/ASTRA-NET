@@ -59,3 +59,7 @@ logs/
 *.log
 coverage/
 .nyc_output/
+
+# Temporary Frontend Exclusion
+frontend/
+ASNT-frontend/
