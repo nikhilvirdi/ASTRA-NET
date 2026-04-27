@@ -1,0 +1,395 @@
+
+
+<canvas id="bgCanvas"></canvas>
+<div className="vignette"></div>
+
+<div className="root">
+  {/*  ──────────────── TOPBAR ────────────────  */}
+  <header className="topbar">
+    <div className="logo-block">
+      <div className="logo">ASTRA-NET</div>
+      <div className="logo-sub">PLANETARY THREAT INTELLIGENCE</div>
+    </div>
+    <div className="sep"></div>
+    <div className="module-tag">
+      <div className="mt-icon"></div>
+      <div className="mt-text">
+        <div className="mt-name">ASTRA-ADITYA</div>
+        <div className="mt-full">SOLAR INTELLIGENCE MODULE</div>
+      </div>
+    </div>
+    <div className="sep"></div>
+    <nav>
+      <div className="nl">Dashboard</div>
+      <div className="nl active">Solar</div>
+      <div className="nl">Earth</div>
+      <div className="nl">Orbital</div>
+      <div className="nl">History</div>
+    </nav>
+    <div className="topbar-r">
+      <div className="live-pill"><div className="live-dot"></div>LIVE</div>
+      <div className="clock" id="clk">--:--:-- IST</div>
+      <div className="score-chip">
+        <div>
+          <div className="sc-lbl">ADITYA SCORE</div>
+          <div className="sc-val" id="topScore">68</div>
+        </div>
+        <div className="sc-lvl">WARNING</div>
+      </div>
+    </div>
+  </header>
+
+  <div className="body">
+    {/*  ──────────────── LEFT ────────────────  */}
+    <aside className="left">
+
+      {/*  Sun Hero  */}
+      <div className="sun-hero">
+        <div className="sun-scene">
+          <div className="cr cr1"></div>
+          <div className="cr cr2"></div>
+          <div className="cr cr3"></div>
+          <div className="cr cr4"></div>
+          <div className="cr-glow"></div>
+          <div className="spikes" id="spikes"></div>
+          <div className="sun-core"></div>
+        </div>
+        <div className="sun-region">ACTIVE REGION AR3664</div>
+        <div className="sun-class-row">
+          <div className="sun-class">M2.3</div>
+          <div className="sun-class-lbl">FLARE CLASS</div>
+        </div>
+        <div className="flare-alert">
+          <div className="fa-dot"></div>
+          <div className="fa-text">CME EARTH-DIRECTED · ARRIVAL ~28H</div>
+        </div>
+      </div>
+
+      {/*  Live Readings  */}
+      <div className="lsec">
+        <div className="lsec-title">LIVE SENSOR READINGS</div>
+        <div className="stat">
+          <div className="stat-lbl">SOLAR WIND</div>
+          <div><span className="stat-val" id="swL">847</span><span className="stat-unit">km/s</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">Bz COMPONENT</div>
+          <div><span className="stat-val" id="bzL" style={{"color":"var(--red)"}}>-12.4</span><span className="stat-unit">nT</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">PROTON FLUX</div>
+          <div><span className="stat-val">4.2e+2</span><span className="stat-unit">pfu</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">X-RAY FLUX</div>
+          <div><span className="stat-val">2.3e-5</span><span className="stat-unit">W/m²</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">CME SPEED</div>
+          <div><span className="stat-val">847</span><span className="stat-unit">km/s</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">DENSITY</div>
+          <div><span className="stat-val">18.4</span><span className="stat-unit">n/cm³</span></div>
+        </div>
+        <div className="stat">
+          <div className="stat-lbl">TEMPERATURE</div>
+          <div><span className="stat-val">1.4e+5</span><span className="stat-unit">K</span></div>
+        </div>
+      </div>
+
+      {/*  Score  */}
+      <div className="lsec">
+        <div className="lsec-title">ADITYA SUB-SCORE</div>
+        <div className="score-blk">
+          <div className="sb-row">
+            <div className="sb-lbl">CURRENT SCORE</div>
+            <div className="sb-num" id="scoreNum">68</div>
+          </div>
+          <div className="sb-track"><div className="sb-fill" id="scoreFill" style={{"width":"68%"}}></div></div>
+        </div>
+        <div style={{"display":"grid","gridTemplateColumns":"1fr 1fr","gap":"5px","marginTop":"8px"}}>
+          <div className="cms"><div className="cms-l">KP CONTRIB</div><div className="cms-v">+28</div></div>
+          <div className="cms"><div className="cms-l">FLARE BONUS</div><div className="cms-v">+15</div></div>
+          <div className="cms"><div className="cms-l">CME INBOUND</div><div className="cms-v">+20</div></div>
+          <div className="cms"><div className="cms-l">CME &lt;24H</div><div className="cms-v">+5</div></div>
+        </div>
+      </div>
+
+      {/*  Infrastructure  */}
+      <div className="lsec">
+        <div className="lsec-title">INFRASTRUCTURE IMPACT</div>
+        <div className="infra-row"><div className="id r"></div><div className="iname">Chennai Intl Airport</div><div className="itype">AVIATION</div></div>
+        <div className="infra-row"><div className="id r"></div><div className="iname">Bengaluru Airport</div><div className="itype">AVIATION</div></div>
+        <div className="infra-row"><div className="id r"></div><div className="iname">Southern Grid Node-4</div><div className="itype">POWER</div></div>
+        <div className="infra-row"><div className="id o"></div><div className="iname">Hyderabad Airport</div><div className="itype">AVIATION</div></div>
+        <div className="infra-row"><div className="id o"></div><div className="iname">BSNL South Hub</div><div className="itype">TELECOM</div></div>
+        <div className="infra-row"><div className="id g"></div><div className="iname">Mumbai Airport</div><div className="itype">AVIATION</div></div>
+        <div className="infra-row"><div className="id g"></div><div className="iname">Delhi NDRF Command</div><div className="itype">EMERGENCY</div></div>
+      </div>
+
+    </aside>
+
+    {/*  ──────────────── MAIN ────────────────  */}
+    <main className="main">
+
+      {/*  ROW 1: KP + Bz + Wind Speed  */}
+      <div className="row r3">
+
+        <div className="card">
+          <div className="clbl">KP INDEX — PLANETARY</div>
+          <div className="kp-num" id="kpNum">4.2</div>
+          <div className="kp-sub">NOAA SWPC · REAL-TIME</div>
+          <div className="kp-scale" id="kpScale">
+            <div className="ks on"></div><div className="ks on"></div>
+            <div className="ks on"></div><div className="ks on"></div>
+            <div className="ks"></div><div className="ks"></div>
+            <div className="ks"></div><div className="ks"></div>
+            <div className="ks"></div>
+          </div>
+          <div className="ks-labels">
+            <span>0</span><span>3</span><span>6</span><span>9</span>
+          </div>
+        </div>
+
+        <div className="card danger">
+          <div className="clbl red">Bz COMPONENT — IMF</div>
+          <div className="bz-num bz-neg" id="bzNum">-12.4</div>
+          <div className="kp-sub" style={{"color":"var(--muted)"}}>DSCOVR · nT · SOUTHWARD</div>
+          <div className="bz-info">Southward Bz opens Earth's magnetosphere, amplifying storm impact.</div>
+          <div className="bz-tag">STORM COUPLING ACTIVE</div>
+        </div>
+
+        <div className="card">
+          <div className="clbl">SOLAR WIND SPEED</div>
+          <div className="sw-num" id="swNum">847</div>
+          <div className="kp-sub">NOAA DSCOVR · km/s</div>
+          <div style={{"marginTop":"10px"}}>
+            <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginBottom":"4px"}}>
+              <span>QUIET 300</span><span>ELEVATED 500</span><span>STORM 800</span>
+            </div>
+            <div className="speed-bar">
+              <div className="speed-needle" id="spdNeedle" style={{"left":"73%"}}></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/*  ROW 2: Solar Wind 24H Chart — full width  */}
+      <div className="card">
+        <div className="clbl">SOLAR WIND SPEED — 24H CONTINUOUS (km/s) · NOAA DSCOVR L1</div>
+        <div style={{"position":"relative"}}>
+          <svg id="sw24" className="chart-svg" height="72" viewBox="0 0 900 72" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="swGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#e07520" stopOpacity=".30"/>
+                <stop offset="100%" stopColor="#e07520" stopOpacity="0"/>
+              </linearGradient>
+            </defs>
+            {/*  grid  */}
+            <line x1="0" y1="18" x2="900" y2="18" stroke="rgba(255,255,255,.03)" strokeWidth="1"/>
+            <line x1="0" y1="36" x2="900" y2="36" stroke="rgba(255,255,255,.03)" strokeWidth="1"/>
+            <line x1="0" y1="54" x2="900" y2="54" stroke="rgba(255,255,255,.03)" strokeWidth="1"/>
+            {/*  storm threshold  */}
+            <line id="swThresh" x1="0" y1="16" x2="900" y2="16"
+                  stroke="rgba(192,57,43,.25)" strokeWidth="1" strokeDasharray="5,4"/>
+            <path id="swArea" fill="url(#swGrad)"/>
+            <path id="swLine" fill="none" stroke="#e07520" strokeWidth="1.8" opacity=".88"/>
+            {/*  live cursor  */}
+            <line id="swCursor" x1="898" y1="0" x2="898" y2="72"
+                  stroke="rgba(255,255,255,.12)" strokeWidth="1" strokeDasharray="2,3"/>
+          </svg>
+        </div>
+        <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginTop":"4px"}}>
+          <span>-24H</span><span>-18H</span><span>-12H</span><span>-6H</span><span>NOW</span>
+        </div>
+      </div>
+
+      {/*  ROW 3: Kp 48H + Bz 12H  */}
+      <div className="row r2e">
+        <div className="card">
+          <div className="clbl">KP INDEX — 48H HISTORY</div>
+          <svg id="kp48" className="chart-svg" height="60" viewBox="0 0 480 60" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="kpGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#e07520" stopOpacity=".22"/>
+                <stop offset="100%" stopColor="#e07520" stopOpacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="20" x2="480" y2="20" stroke="rgba(255,255,255,.03)" strokeWidth="1"/>
+            <line x1="0" y1="40" x2="480" y2="40" stroke="rgba(255,255,255,.03)" strokeWidth="1"/>
+            {/*  storm threshold Kp=5  */}
+            <line id="kpThresh" x1="0" y1="27" x2="480" y2="27"
+                  stroke="rgba(192,57,43,.2)" strokeWidth="1" strokeDasharray="4,4"/>
+            <path id="kpArea" fill="url(#kpGrad)"/>
+            <path id="kpLine" fill="none" stroke="#e07520" strokeWidth="1.5" opacity=".75"/>
+          </svg>
+          <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginTop":"4px"}}>
+            <span>-48H</span><span>-36H</span><span>-24H</span><span>-12H</span><span>NOW</span>
+          </div>
+        </div>
+
+        <div className="card danger">
+          <div className="clbl red">Bz COMPONENT — 12H HISTORY (nT)</div>
+          <svg id="bz12" className="chart-svg" height="60" viewBox="0 0 480 60" preserveAspectRatio="none">
+            {/*  zero line  */}
+            <line x1="0" y1="30" x2="480" y2="30"
+                  stroke="rgba(255,255,255,.08)" strokeWidth="1"/>
+            {/*  negative zone fill  */}
+            <path id="bzNegFill" fill="rgba(192,57,43,0.06)"/>
+            <path id="bzLine" fill="none" stroke="#c0392b" strokeWidth="1.6" opacity=".80"/>
+            {/*  current Bz marker  */}
+            <circle id="bzDot" cx="476" cy="30" r="3" fill="#c0392b"/>
+          </svg>
+          <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginTop":"4px"}}>
+            <span>-12H</span><span>-9H</span><span>-6H</span><span>-3H</span><span>NOW</span>
+          </div>
+        </div>
+      </div>
+
+      {/*  ROW 4: X-Ray Flux chart  */}
+      <div className="card">
+        <div className="clbl">X-RAY FLUX — 6H (W/m²) · GOES-16 · FLARE CLASSIFICATION BANDS</div>
+        <svg id="xray6" className="chart-svg" height="70" viewBox="0 0 900 70" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="xrGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f0a040" stopOpacity=".25"/>
+              <stop offset="100%" stopColor="#f0a040" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          {/*  Class bands  */}
+          <rect x="0" y="0"  width="900" height="14" fill="rgba(192,57,43,.04)"/>
+          <rect x="0" y="14" width="900" height="14" fill="rgba(224,117,32,.04)"/>
+          <rect x="0" y="28" width="900" height="14" fill="rgba(240,160,40,.03)"/>
+          <text x="3" y="10"  font-family="JetBrains Mono" font-size="7" fill="rgba(192,57,43,.5)">X</text>
+          <text x="3" y="24"  font-family="JetBrains Mono" font-size="7" fill="rgba(224,117,32,.5)">M</text>
+          <text x="3" y="38"  font-family="JetBrains Mono" font-size="7" fill="rgba(240,160,40,.5)">C</text>
+          <text x="3" y="52"  font-family="JetBrains Mono" font-size="7" fill="rgba(100,180,100,.5)">B</text>
+          <path id="xrArea" fill="url(#xrGrad)"/>
+          <path id="xrLine" fill="none" stroke="#f0a040" strokeWidth="1.6" opacity=".85"/>
+          {/*  spike for M2.3  */}
+          <line id="flareSpike" x1="820" y1="14" x2="820" y2="70"
+                stroke="rgba(224,117,32,.4)" strokeWidth="1" strokeDasharray="2,2"/>
+          <text x="822" y="20" font-family="JetBrains Mono" font-size="7" fill="rgba(224,117,32,.7)">M2.3</text>
+        </svg>
+      </div>
+
+      {/*  ROW 5: Flare Timeline  */}
+      <div className="card">
+        <div className="clbl">SOLAR FLARE TIMELINE — TODAY (IST)</div>
+        <div className="tl-wrap">
+          <div className="tl-axis"></div>
+          <div className="tl-row" id="tlRow"></div>
+        </div>
+      </div>
+
+      {/*  ROW 6: Flare Log + Geo Storm  */}
+      <div className="row r2">
+        <div className="card">
+          <div className="clbl">FLARE EVENT LOG — NASA DONKI API</div>
+          <div id="flLog"></div>
+        </div>
+
+        <div className="card danger">
+          <div className="clbl red">GEOMAGNETIC STORM STATUS</div>
+          <div className="g-level">
+            <div className="g-num">G2</div>
+            <div className="g-lbl">MODERATE STORM · NOAA SCALE</div>
+          </div>
+          <div className="g-grid">
+            <div className="gg-item"><div className="gg-l">STORM LEVEL</div><div className="gg-v" style={{"color":"var(--red)"}}>G2</div></div>
+            <div className="gg-item"><div className="gg-l">DURATION</div><div className="gg-v" style={{"color":"var(--a4)"}}>4.2H</div></div>
+            <div className="gg-item"><div className="gg-l">ONSET TIME</div><div className="gg-v" style={{"color":"var(--a3)"}}>08:14 IST</div></div>
+            <div className="gg-item"><div className="gg-l">PEAK KP</div><div className="gg-v" style={{"color":"var(--red)"}}>6.3</div></div>
+          </div>
+          {/*  G-scale bar  */}
+          <div className="g-scale">
+            <div className="gsc" style={{"background":"var(--green)"}}><div className="gsc-lbl">G1</div></div>
+            <div className="gsc gsc-active" style={{"background":"var(--a3)"}}><div className="gsc-lbl">G2</div></div>
+            <div className="gsc" style={{"background":"#e05010"}}><div className="gsc-lbl">G3</div></div>
+            <div className="gsc" style={{"background":"#d03010"}}><div className="gsc-lbl">G4</div></div>
+            <div className="gsc" style={{"background":"var(--red)"}}><div className="gsc-lbl">G5</div></div>
+          </div>
+
+          {/*  Proton events  */}
+          <div style={{"marginTop":"10px"}}>
+            <div className="rlbl" style={{"marginBottom":"6px"}}>PROTON EVENT STATUS</div>
+            <div className="proton-status">
+              <div className="proton-dot pd-clear"></div>
+              <div className="proton-lbl">10 MeV Proton Event</div>
+              <div className="proton-val">BELOW THRESHOLD</div>
+            </div>
+            <div className="proton-status">
+              <div className="proton-dot pd-warn"></div>
+              <div className="proton-lbl">100 MeV Proton Event</div>
+              <div className="proton-val">WATCH</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    {/*  ──────────────── RIGHT ────────────────  */}
+    <aside className="right">
+
+      {/*  CME 2D propagation  */}
+      <div className="rlbl">CME PROPAGATION MODEL</div>
+      <canvas id="cme2d"></canvas>
+
+      {/*  CME countdown  */}
+      <div className="cme-box">
+        <div className="cme-countdown" id="cmeCD">28:41:10</div>
+        <div className="cme-lbl">ESTIMATED EARTH ARRIVAL · COUNTDOWN</div>
+        <div className="cme-track"><div className="cme-prog"></div></div>
+      </div>
+      <div className="cme-stats">
+        <div className="cms"><div className="cms-l">TYPE</div><div className="cms-v">Full Halo</div></div>
+        <div className="cms"><div className="cms-l">SPEED</div><div className="cms-v">847 km/s</div></div>
+        <div className="cms"><div className="cms-l">SOURCE</div><div className="cms-v">AR3664</div></div>
+        <div className="cms"><div className="cms-l">DIRECTION</div><div className="cms-v" style={{"color":"var(--red)"}}>EARTH</div></div>
+        <div className="cms"><div className="cms-l">WINDOW</div><div className="cms-v">14:00–18:00</div></div>
+        <div className="cms"><div className="cms-l">CONFIDENCE</div><div className="cms-v" style={{"color":"var(--green)"}}>HIGH</div></div>
+      </div>
+
+      {/*  GPS alert  */}
+      <div className="gps-alert">
+        <div className="gps-title">GPS DEGRADATION ALERT</div>
+        <div className="gps-body">Upon CME arrival, GPS accuracy over India may degrade 15–40 m. Aviation and disaster relief should activate backup navigation protocols for the impact window.</div>
+      </div>
+
+      {/*  Forecast  */}
+      <div className="rlbl">ADITYA SCORE FORECAST</div>
+      <div className="fc-strip">
+        <div className="fc-item"><div className="fc-t">NOW</div><div className="fc-v" style={{"color":"var(--a3)"}}>68</div><div className="fc-l">WARNING</div></div>
+        <div className="fc-item"><div className="fc-t">+6H</div><div className="fc-v" style={{"color":"var(--a3)"}}>74</div><div className="fc-l">WARNING</div></div>
+        <div className="fc-item"><div className="fc-t">+12H</div><div className="fc-v" style={{"color":"var(--red)"}}>88</div><div className="fc-l">CRITICAL</div></div>
+        <div className="fc-item"><div className="fc-t">+24H</div><div className="fc-v" style={{"color":"var(--red)"}}>94</div><div className="fc-l">CRITICAL</div></div>
+        <div className="fc-item"><div className="fc-t">+48H</div><div className="fc-v" style={{"color":"var(--a4)"}}>55</div><div className="fc-l">ADVISORY</div></div>
+      </div>
+
+      {/*  NOAA Feed  */}
+      <div className="rlbl">NOAA SPACE WEATHER FEED</div>
+      <div>
+        <div className="feed-item"><div className="fd fdr"></div><div className="feed-body">G2 geomagnetic storm in progress. Kp reached 6.0 at 11:52 IST.</div><div className="feed-ts">11:52</div></div>
+        <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">M2.3 flare peak from AR3664. CME confirmed Earth-directed.</div><div className="feed-ts">11:44</div></div>
+        <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">Solar wind speed elevated to 847 km/s at L1 point.</div><div className="feed-ts">10:30</div></div>
+        <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">Bz turned southward -12.4 nT — storm coupling active.</div><div className="feed-ts">09:55</div></div>
+        <div className="feed-item"><div className="fd fdg"></div><div className="feed-body">10 MeV proton event below threshold. No radiation storm.</div><div className="feed-ts">08:00</div></div>
+      </div>
+
+      {/*  AI Brief  */}
+      <div className="brief">
+        <div className="br-head">
+          <div className="br-title">AI MISSION BRIEF · ADITYA</div>
+          <div className="br-ts" id="brTs">-- : -- IST</div>
+        </div>
+        <div className="br-body" id="brBody"><span className="cur"></span></div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+

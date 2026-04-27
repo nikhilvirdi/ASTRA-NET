@@ -1,0 +1,562 @@
+
+<canvas id="bgCanvas"></canvas>
+<div className="vignette"></div>
+
+<div className="root">
+  <!-- TOPBAR -->
+  <header className="topbar">
+    <div className="logo-block">
+      <div className="logo">ASTRA-NET</div>
+      <div className="logo-sub">PLANETARY THREAT INTELLIGENCE</div>
+    </div>
+    <div className="sep"></div>
+    <div className="module-tag">
+      <div className="mt-icon"></div>
+      <div className="mt-text">
+        <div className="mt-name">ASTRA-BHUMI</div>
+        <div className="mt-full">EARTH HAZARD INTELLIGENCE MODULE</div>
+      </div>
+    </div>
+    <div className="sep"></div>
+    <nav>
+      <div className="nl">Dashboard</div>
+      <div className="nl">Solar</div>
+      <div className="nl active">Earth</div>
+      <div className="nl">Orbital</div>
+      <div className="nl">History</div>
+    </nav>
+    <div className="topbar-r">
+      <div className="live-pill"><div className="live-dot"></div>LIVE</div>
+      <div className="clock" id="clk">--:--:-- IST</div>
+      <div className="score-chip">
+        <div>
+          <div className="sc-lbl">BHUMI SCORE</div>
+          <div className="sc-val" id="topScore">74</div>
+        </div>
+        <div className="sc-lvl">WARNING</div>
+      </div>
+    </div>
+  </header>
+
+  <div className="body">
+    <!-- ══════════ LEFT ══════════ -->
+    <aside className="left">
+
+      <!-- Earth Hero -->
+      <div className="earth-hero">
+        <div className="earth-scene">
+          <div className="atm atm1"></div>
+          <div className="atm atm2"></div>
+          <div className="atm atm3"></div>
+          <div className="atm-glow"></div>
+          <canvas id="earthCanvas" width="72" height="72"></canvas>
+          <div className="cloud-wrap">
+            <div className="cloud" style={{"width":"40px","height":"12px","top":"15%","left":"0","animationDuration":"22s","animationDelay":"-4s"}}></div>
+            <div className="cloud" style={{"width":"28px","height":"9px","top":"45%","left":"0","animationDuration":"16s","animationDelay":"-8s","opacity":"0.6"}}></div>
+            <div className="cloud" style={{"width":"34px","height":"10px","top":"70%","left":"0","animationDuration":"26s","animationDelay":"-12s","opacity":"0.5"}}></div>
+          </div>
+        </div>
+        <div className="earth-status">INDIA HAZARD MONITOR</div>
+        <div className="earth-hazard-row">
+          <div className="earth-active" id="activeCount">4</div>
+          <div className="earth-active-lbl">ACTIVE HAZARD TYPES</div>
+        </div>
+        <div className="hazard-pills">
+          <div className="hpill hp-flood">FLOOD</div>
+          <div className="hpill hp-fire">WILDFIRE</div>
+          <div className="hpill hp-land">LANDSLIDE</div>
+          <div className="hpill hp-heat">HEATWAVE</div>
+          <div className="hpill hp-quake">SEISMIC</div>
+        </div>
+      </div>
+
+      <!-- Hazard Severity -->
+      <div className="lsec">
+        <div className="lsec-title">HAZARD SEVERITY INDEX</div>
+        <div className="haz-row">
+          <div className="haz-dot" style={{"background":"var(--flood)"}}></div>
+          <div className="haz-name">Flooding</div>
+          <div className="haz-bar-wrap"><div className="haz-bar" style={{"width":"82%","background":"var(--flood)"}}></div></div>
+          <div className="haz-lvl rb-crit">CRIT</div>
+        </div>
+        <div className="haz-row">
+          <div className="haz-dot" style={{"background":"var(--fire)"}}></div>
+          <div className="haz-name">Wildfire</div>
+          <div className="haz-bar-wrap"><div className="haz-bar" style={{"width":"65%","background":"var(--fire)"}}></div></div>
+          <div className="haz-lvl rb-high">HIGH</div>
+        </div>
+        <div className="haz-row">
+          <div className="haz-dot" style={{"background":"var(--heatwave)"}}></div>
+          <div className="haz-name">Heatwave</div>
+          <div className="haz-bar-wrap"><div className="haz-bar" style={{"width":"58%","background":"var(--heatwave)"}}></div></div>
+          <div className="haz-lvl rb-mod">MOD</div>
+        </div>
+        <div className="haz-row">
+          <div className="haz-dot" style={{"background":"var(--landslide)"}}></div>
+          <div className="haz-name">Landslide</div>
+          <div className="haz-bar-wrap"><div className="haz-bar" style={{"width":"44%","background":"var(--landslide)"}}></div></div>
+          <div className="haz-lvl rb-mod">MOD</div>
+        </div>
+        <div className="haz-row">
+          <div className="haz-dot" style={{"background":"var(--quake)"}}></div>
+          <div className="haz-name">Seismic</div>
+          <div className="haz-bar-wrap"><div className="haz-bar" style={{"width":"22%","background":"var(--quake)"}}></div></div>
+          <div className="haz-lvl rb-low">LOW</div>
+        </div>
+      </div>
+
+      <!-- Live Readings -->
+      <div className="lsec">
+        <div className="lsec-title">LIVE SENSOR READINGS</div>
+        <div className="stat"><div className="stat-lbl">RAINFALL ANOMALY</div><div><span className="stat-val" id="rainfallVal">+340</span><span className="stat-unit">mm/day</span></div></div>
+        <div className="stat"><div className="stat-lbl">LAND SURFACE TEMP</div><div><span className="stat-val" id="lstVal" style={{"color":"var(--heatwave)"}}>46.2</span><span className="stat-unit">°C</span></div></div>
+        <div className="stat"><div className="stat-lbl">FIRE HOTSPOTS</div><div><span className="stat-val" id="fireVal" style={{"color":"var(--fire)"}}>847</span><span className="stat-unit">pts</span></div></div>
+        <div className="stat"><div className="stat-lbl">NDVI STRESS</div><div><span className="stat-val" id="ndviVal">-0.32</span><span className="stat-unit">index</span></div></div>
+        <div className="stat"><div className="stat-lbl">FLOOD EXTENT</div><div><span className="stat-val">12,840</span><span className="stat-unit">km²</span></div></div>
+        <div className="stat"><div className="stat-lbl">POPULATION AT RISK</div><div><span className="stat-val" style={{"color":"var(--red)"}}>4.2M</span></div></div>
+        <div className="stat"><div className="stat-lbl">DISTRICTS CRITICAL</div><div><span className="stat-val" style={{"color":"var(--red)"}}>3</span></div></div>
+      </div>
+
+      <!-- Bhumi Score -->
+      <div className="lsec">
+        <div className="lsec-title">BHUMI SUB-SCORE</div>
+        <div className="score-blk">
+          <div className="sb-row">
+            <div className="sb-lbl">CURRENT SCORE</div>
+            <div className="sb-num" id="scoreNum">74</div>
+          </div>
+          <div className="sb-track"><div className="sb-fill" id="scoreFill" style={{"width":"74%"}}></div></div>
+        </div>
+        <div style={{"display":"grid","gridTemplateColumns":"1fr 1fr","gap":"5px","marginTop":"8px"}}>
+          <div className="land-item"><div className="land-l">SEVERITY BASE</div><div className="land-v" style={{"color":"var(--b3)"}}>+48</div></div>
+          <div className="land-item"><div className="land-l">POP DENSITY ×</div><div className="land-v" style={{"color":"var(--b4)"}}>+18</div></div>
+          <div className="land-item"><div className="land-l">MULTI-HAZARD</div><div className="land-v" style={{"color":"var(--g3)"}}>+5</div></div>
+          <div className="land-item"><div className="land-l">RATE OF CHANGE</div><div className="land-v" style={{"color":"var(--heatwave)"}}>+3</div></div>
+        </div>
+      </div>
+
+      <!-- Affected States -->
+      <div className="lsec">
+        <div className="lsec-title">AFFECTED STATES</div>
+        <div className="state-row"><div className="sd r"></div><div className="sname">Kerala</div><div className="stype">FLOOD · LANDSLIDE</div></div>
+        <div className="state-row"><div className="sd r"></div><div className="sname">Karnataka</div><div className="stype">FLOOD · FIRE</div></div>
+        <div className="state-row"><div className="sd o"></div><div className="sname">Odisha</div><div className="stype">FLOOD</div></div>
+        <div className="state-row"><div className="sd o"></div><div className="sname">Rajasthan</div><div className="stype">HEATWAVE · FIRE</div></div>
+        <div className="state-row"><div className="sd o"></div><div className="sname">Madhya Pradesh</div><div className="stype">FIRE</div></div>
+        <div className="state-row"><div className="sd b"></div><div className="sname">Assam</div><div className="stype">FLOOD</div></div>
+        <div className="state-row"><div className="sd g"></div><div className="sname">Maharashtra</div><div className="stype">MONITOR</div></div>
+        <div className="state-row"><div className="sd g"></div><div className="sname">Tamil Nadu</div><div className="stype">MONITOR</div></div>
+      </div>
+    </aside>
+
+    <!-- ══════════ MAIN ══════════ -->
+    <main className="main">
+
+      <!-- ROW 1: Flood + Fire + Heatwave headline numbers -->
+      <div className="row r3">
+        <div className="card">
+          <div className="clbl">FLOOD RISK INDEX</div>
+          <div className="big-num" style={{"color":"var(--b3)"}} id="floodIdx">82</div>
+          <div className="big-sub">NASA GPM IMERG · INDIA</div>
+          <div style={{"marginTop":"4px","fontSize":"11px","color":"var(--text-dim)"}}>3 districts at critical threshold.<br />Kerala coastline inundation active.</div>
+          <div style={{"marginTop":"10px"}}>
+            <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginBottom":"4px"}}><span>CALM</span><span>ELEVATED</span><span>CRITICAL</span></div>
+            <div style={{"height":"5px","background":"linear-gradient(90deg,var(--g3),var(--b3),var(--red))","position":"relative"}}>
+              <div style={{"position":"absolute","top":"-3px","left":"80%","width":"2px","height":"11px","background":"white","opacity":".85"}}></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card fire-card">
+          <div className="clbl fire">WILDFIRE HOTSPOTS</div>
+          <div className="big-num" style={{"color":"var(--fire)"}} id="fireCount">847</div>
+          <div className="big-sub">NASA FIRMS · ACTIVE DETECTIONS</div>
+          <div style={{"fontSize":"11px","color":"var(--text-dim)"}}>Rajasthan, MP, Karnataka active.<br />FRP peak: 284 MW at 14:22 IST.</div>
+          <div style={{"marginTop":"8px","display":"flex","gap":"4px"}}>
+            <div style={{"flex":"1","background":"rgba(212,80,16,0.12)","border":"1px solid rgba(212,80,16,0.25)","padding":"5px","textAlign":"center"}}>
+              <div style={{"fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)"}}>RAJASTHAN</div>
+              <div style={{"fontFamily":"var(--font-d)","fontSize":"12px","color":"var(--fire)"}}>312</div>
+            </div>
+            <div style={{"flex":"1","background":"rgba(212,80,16,0.12)","border":"1px solid rgba(212,80,16,0.25)","padding":"5px","textAlign":"center"}}>
+              <div style={{"fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)"}}>MP</div>
+              <div style={{"fontFamily":"var(--font-d)","fontSize":"12px","color":"var(--fire)"}}>281</div>
+            </div>
+            <div style={{"flex":"1","background":"rgba(212,80,16,0.12)","border":"1px solid rgba(212,80,16,0.25)","padding":"5px","textAlign":"center"}}>
+              <div style={{"fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)"}}>KARNATAKA</div>
+              <div style={{"fontFamily":"var(--font-d)","fontSize":"12px","color":"var(--fire)"}}>254</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card heat-card">
+          <div className="clbl heat">HEATWAVE INDEX</div>
+          <div className="hw-temp" id="tempVal">46.2</div>
+          <div className="big-sub" style={{"color":"var(--muted)"}}>LAND SURFACE TEMP · °C PEAK</div>
+          <div style={{"fontSize":"11px","color":"var(--text-dim)"}}>Rajasthan, UP, Haryana.<br />Threshold exceeded by +6.2°C</div>
+          <div className="temp-bar" style={{"marginTop":"10px"}}>
+            <div className="temp-needle" id="tempNeedle" style={{"left":"72%"}}></div>
+          </div>
+          <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginTop":"4px"}}>
+            <span>20°C</span><span>35°C</span><span>50°C</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: India Hazard Map + Risk Table -->
+      <div className="row r2">
+        <div className="card">
+          <div className="clbl green">INDIA HAZARD RISK MAP — STATE LEVEL</div>
+          <!-- India schematic map using SVG -->
+          <div style={{"position":"relative"}}>
+            <svg id="indiaMap" viewBox="0 0 340 380" style={{"width":"100%","opacity":"0.92"}}>
+              <!-- background -->
+              <rect width="340" height="380" fill="rgba(1,6,12,0.0)"/>
+              <!-- simplified India outline -->
+              <path d="M120,20 L180,18 L220,30 L260,50 L280,80 L290,110 L285,140
+                        L275,165 L260,185 L245,200 L260,230 L270,260 L260,290
+                        L245,315 L230,335 L210,355 L190,368 L170,372 L155,365
+                        L140,345 L130,320 L125,295 L135,270 L145,245 L130,220
+                        L115,200 L105,180 L95,155 L90,130 L100,100 L110,70 L115,45 Z"
+                    fill="rgba(10,30,20,0.5)" stroke="rgba(46,125,181,0.35)" stroke-width="1.5"/>
+
+              <!-- State regions (simplified boxes as overlays) -->
+              <!-- North -->
+              <rect x="115" y="30" width="155" height="80" fill="rgba(58,158,106,0.06)" stroke="rgba(58,158,106,0.10)" stroke-width="0.5"/>
+              <!-- West -->
+              <rect x="90"  y="110" width="80"  height="100" fill="rgba(232,160,32,0.10)" stroke="rgba(232,160,32,0.15)" stroke-width="0.5"/>
+              <!-- Central -->
+              <rect x="150" y="110" width="120" height="80"  fill="rgba(212,80,16,0.08)"  stroke="rgba(212,80,16,0.12)"  stroke-width="0.5"/>
+              <!-- East -->
+              <rect x="210" y="80"  width="70"  height="100" fill="rgba(46,125,181,0.08)" stroke="rgba(46,125,181,0.12)" stroke-width="0.5"/>
+              <!-- South (flood zone) -->
+              <rect x="115" y="250" width="140" height="100" fill="rgba(46,125,181,0.14)" stroke="rgba(46,125,181,0.25)" stroke-width="0.8"/>
+              <!-- NE -->
+              <rect x="250" y="60"  width="40"  height="60"  fill="rgba(46,125,181,0.08)" stroke="rgba(46,125,181,0.12)" stroke-width="0.5"/>
+
+              <!-- REGION LABELS -->
+              <text x="185" y="75"  text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="rgba(154,184,176,0.7)">NORTH</text>
+              <text x="128" y="165" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="rgba(232,160,32,0.8)">WEST</text>
+              <text x="205" y="155" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="rgba(212,80,16,0.8)">CENTRAL</text>
+              <text x="245" y="135" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="rgba(154,184,176,0.7)">EAST</text>
+              <text x="185" y="310" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="rgba(46,125,181,0.9)">SOUTH</text>
+              <text x="268" y="98"  text-anchor="middle" font-family="JetBrains Mono" font-size="6" fill="rgba(154,184,176,0.6)">NE</text>
+
+              <!-- ANIMATED HOTSPOTS -->
+              <!-- Kerala flood -->
+              <circle cx="155" cy="320" r="7" fill="rgba(46,125,181,0.3)" stroke="var(--b3)" stroke-width="1.2">
+                <animate attributeName="r" values="5;10;5" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="155" cy="320" r="3" fill="var(--b3)"/>
+
+              <!-- Karnataka flood+fire -->
+              <circle cx="160" cy="295" r="6" fill="rgba(212,80,16,0.3)" stroke="var(--fire)" stroke-width="1">
+                <animate attributeName="r" values="4;9;4" dur="1.8s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.8s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="160" cy="295" r="3" fill="var(--fire)"/>
+
+              <!-- Rajasthan fire+heat -->
+              <circle cx="135" cy="130" r="6" fill="rgba(232,160,32,0.3)" stroke="var(--heatwave)" stroke-width="1">
+                <animate attributeName="r" values="4;8;4" dur="2.2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2.2s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="135" cy="130" r="3" fill="var(--heatwave)"/>
+
+              <!-- MP fire -->
+              <circle cx="195" cy="155" r="5" fill="rgba(212,80,16,0.25)" stroke="var(--fire)" stroke-width="1">
+                <animate attributeName="r" values="3;7;3" dur="2.5s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2.5s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="195" cy="155" r="2.5" fill="var(--fire)"/>
+
+              <!-- Odisha flood -->
+              <circle cx="230" cy="185" r="5" fill="rgba(46,125,181,0.25)" stroke="var(--b3)" stroke-width="1">
+                <animate attributeName="r" values="3;8;3" dur="2.8s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="230" cy="185" r="2.5" fill="var(--b3)"/>
+
+              <!-- Assam flood (NE) -->
+              <circle cx="260" cy="90" r="4" fill="rgba(46,125,181,0.25)" stroke="var(--b3)" stroke-width="1">
+                <animate attributeName="r" values="3;6;3" dur="3s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="260" cy="90" r="2" fill="var(--b3)"/>
+
+              <!-- LEGEND -->
+              <circle cx="100" cy="345" r="4" fill="var(--b3)"/>
+              <text x="108" y="349" font-family="JetBrains Mono" font-size="7" fill="rgba(154,184,176,0.7)">FLOOD</text>
+              <circle cx="140" cy="345" r="4" fill="var(--fire)"/>
+              <text x="148" y="349" font-family="JetBrains Mono" font-size="7" fill="rgba(154,184,176,0.7)">FIRE</text>
+              <circle cx="175" cy="345" r="4" fill="var(--heatwave)"/>
+              <text x="183" y="349" font-family="JetBrains Mono" font-size="7" fill="rgba(154,184,176,0.7)">HEAT</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Risk table -->
+        <div className="card">
+          <div className="clbl">STATE RISK ASSESSMENT TABLE</div>
+          <table className="risk-table">
+            <tr>
+              <th>STATE</th><th>PRIMARY</th><th>RISK</th><th>POP AT RISK</th>
+            </tr>
+            <tr><td className="risk-state">Kerala</td><td style={{"color":"var(--b3)","fontSize":"10px"}}>Flood</td><td><span className="risk-badge rb-crit">CRITICAL</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>1.8M</td></tr>
+            <tr><td className="risk-state">Karnataka</td><td style={{"color":"var(--b3)","fontSize":"10px"}}>Flood/Fire</td><td><span className="risk-badge rb-crit">CRITICAL</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>2.1M</td></tr>
+            <tr><td className="risk-state">Rajasthan</td><td style={{"color":"var(--heatwave)","fontSize":"10px"}}>Heatwave</td><td><span className="risk-badge rb-high">HIGH</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>0.8M</td></tr>
+            <tr><td className="risk-state">Odisha</td><td style={{"color":"var(--b3)","fontSize":"10px"}}>Flood</td><td><span className="risk-badge rb-high">HIGH</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>0.6M</td></tr>
+            <tr><td className="risk-state">M. Pradesh</td><td style={{"color":"var(--fire)","fontSize":"10px"}}>Wildfire</td><td><span className="risk-badge rb-high">HIGH</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>0.4M</td></tr>
+            <tr><td className="risk-state">Assam</td><td style={{"color":"var(--b3)","fontSize":"10px"}}>Flood</td><td><span className="risk-badge rb-mod">MOD</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>0.3M</td></tr>
+            <tr><td className="risk-state">Maharashtra</td><td style={{"color":"var(--muted)","fontSize":"10px"}}>Monitor</td><td><span className="risk-badge rb-low">LOW</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>—</td></tr>
+            <tr><td className="risk-state">Tamil Nadu</td><td style={{"color":"var(--muted)","fontSize":"10px"}}>Monitor</td><td><span className="risk-badge rb-nom">NOM</span></td><td style={{"fontFamily":"var(--font-m)","fontSize":"9px","color":"var(--text-dim)"}}>—</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ROW 3: Rainfall chart + Flood districts -->
+      <div className="row r2">
+        <div className="card">
+          <div className="clbl">PRECIPITATION ANOMALY — 7 DAY (mm/day) · NASA GPM IMERG</div>
+          <svg id="rainChart" className="chart-svg" height="80" viewBox="0 0 700 80" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="rainGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2e7db5" stop-opacity=".35"/>
+                <stop offset="100%" stop-color="#2e7db5" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="rainLine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#3a9e6a"/>
+                <stop offset="60%" stop-color="#2e7db5"/>
+                <stop offset="100%" stop-color="#c0392b"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="20" x2="700" y2="20" stroke="rgba(255,255,255,.03)" stroke-width="1"/>
+            <line x1="0" y1="40" x2="700" y2="40" stroke="rgba(255,255,255,.03)" stroke-width="1"/>
+            <line x1="0" y1="60" x2="700" y2="60" stroke="rgba(255,255,255,.03)" stroke-width="1"/>
+            <!-- normal threshold -->
+            <line x1="0" y1="50" x2="700" y2="50" stroke="rgba(58,158,106,.25)" stroke-width="1" stroke-dasharray="4,4"/>
+            <path id="rainArea" fill="url(#rainGrad)"/>
+            <path id="rainLine2" fill="none" stroke="url(#rainLine)" stroke-width="2" opacity=".88"/>
+          </svg>
+          <div style={{"display":"flex","justifyContent":"space-between","fontFamily":"var(--font-m)","fontSize":"7px","color":"var(--muted)","marginTop":"4px"}}>
+            <span>-7D</span><span>-5D</span><span>-3D</span><span>-1D</span><span>NOW</span>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="clbl">FLOOD RISK — DISTRICT LEVEL</div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Thiruvananthapuram</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"92%","background":"var(--red)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--red)"}}>92%</div>
+          </div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Ernakulam</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"88%","background":"var(--red)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--red)"}}>88%</div>
+          </div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Kozhikode</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"76%","background":"var(--fire)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--fire)"}}>76%</div>
+          </div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Dakshina Kannada</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"68%","background":"var(--fire)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--fire)"}}>68%</div>
+          </div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Bhubaneswar</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"54%","background":"var(--heatwave)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--heatwave)"}}>54%</div>
+          </div>
+          <div className="dist-bar-row">
+            <div className="dist-name">Dibrugarh</div>
+            <div className="dist-bar-bg"><div className="dist-bar-fill" style={{"width":"44%","background":"var(--b3)"}}></div></div>
+            <div className="dist-pct" style={{"color":"var(--b3)"}}>44%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 4: Fire Ticker + Landslide + Earthquake -->
+      <div className="row r3">
+        <div className="card fire-card">
+          <div className="clbl fire">FIRE HOTSPOT FEED — NASA FIRMS</div>
+          <div className="fire-stat">
+            <div className="fire-num" id="fireTicker">847</div>
+            <div>
+              <div style={{"fontFamily":"var(--font-m)","fontSize":"8px","color":"var(--text-dim)"}}>ACTIVE DETECTIONS</div>
+              <div style={{"fontFamily":"var(--font-m)","fontSize":"8px","color":"var(--muted)"}}>UPDATING 30 MIN</div>
+            </div>
+          </div>
+          <div className="ticker-wrap">
+            <div className="ticker" id="ticker"></div>
+          </div>
+        </div>
+
+        <div className="card land-card">
+          <div className="clbl land" style={{"color":"var(--muted)"}}>LANDSLIDE RISK SCORING</div>
+          <div className="big-num" style={{"color":"var(--landslide)","fontSize":"36px"}}>44</div>
+          <div className="big-sub">NDVI + SRTM TERRAIN MODEL</div>
+          <div className="land-grid">
+            <div className="land-item"><div className="land-l">NDVI STRESS</div><div className="land-v" style={{"color":"var(--g3)"}}>-0.32</div></div>
+            <div className="land-item"><div className="land-l">SLOPE °</div><div className="land-v" style={{"color":"var(--landslide)"}}>28.4°</div></div>
+            <div className="land-item"><div className="land-l">SOIL SAT</div><div className="land-v" style={{"color":"var(--b3)"}}>87%</div></div>
+            <div className="land-item"><div className="land-l">DEBRIS RISK</div><div className="land-v" style={{"color":"var(--heatwave)"}}>MOD</div></div>
+          </div>
+          <div style={{"marginTop":"8px"}}>
+            <div style={{"fontFamily":"var(--font-d)","fontSize":"7px","letterSpacing":"2px","color":"var(--muted)","marginBottom":"5px"}}>HIGH RISK ZONES</div>
+            <div style={{"fontSize":"10.5px","color":"var(--text-dim)","lineHeight":"1.8"}}>
+              Western Ghats · Munnar<br />
+              Kodagu Hills · Coorg<br />
+              Nilgiri slopes · Ooty
+            </div>
+          </div>
+        </div>
+
+        <div className="card quake-card">
+          <div className="clbl quake" style={{"color":"var(--muted)"}}>SEISMIC ACTIVITY — USGS</div>
+          <div className="quake-num">3.2</div>
+          <div className="big-sub">HIGHEST M · LAST 24H</div>
+          <div className="quake-list">
+            <div className="quake-item">
+              <div className="quake-mag">M3.2</div>
+              <div className="quake-loc">Andaman & Nicobar Islands</div>
+              <div className="quake-time">09:14 IST</div>
+            </div>
+            <div className="quake-item">
+              <div className="quake-mag">M2.8</div>
+              <div className="quake-loc">Uttarakhand, Chamoli</div>
+              <div className="quake-time">06:32 IST</div>
+            </div>
+            <div className="quake-item">
+              <div className="quake-mag">M2.1</div>
+              <div className="quake-loc">Gujarat, Kutch region</div>
+              <div className="quake-time">02:18 IST</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 5: NDVI + Population + Forecast Table -->
+      <div className="row r2">
+        <div className="card">
+          <div className="clbl green">NDVI VEGETATION STRESS INDEX — INDIA ZONES</div>
+          <div className="ndvi-bar-wrap">
+            <div style={{"fontFamily":"var(--font-m)","fontSize":"8px","color":"var(--muted)","marginBottom":"5px"}}>VEGETATION HEALTH (GREEN = HEALTHY · RED = STRESSED)</div>
+            <div id="ndviZones"></div>
+          </div>
+          <div style={{"marginTop":"10px"}}>
+            <div className="clbl green" style={{"marginBottom":"6px"}}>AFFECTED POPULATION DENSITY OVERLAY</div>
+            <div className="pop-grid">
+              <div className="pop-item"><div className="pop-l">CRITICAL ZONE</div><div className="pop-v" style={{"color":"var(--red)"}}>4.2M</div></div>
+              <div className="pop-item"><div className="pop-l">HIGH ZONE</div><div className="pop-v" style={{"color":"var(--fire)"}}>12.8M</div></div>
+              <div className="pop-item"><div className="pop-l">MOD ZONE</div><div className="pop-v" style={{"color":"var(--heatwave)"}}>28.4M</div></div>
+              <div className="pop-item"><div className="pop-l">NDRF TEAMS</div><div className="pop-v" style={{"color":"var(--g3)"}}>14</div></div>
+              <div className="pop-item"><div className="pop-l">DEPLOYED</div><div className="pop-v" style={{"color":"var(--b3)"}}>8</div></div>
+              <div className="pop-item"><div className="pop-l">STANDBY</div><div className="pop-v" style={{"color":"var(--muted)"}}>6</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="clbl">6H / 24H / 72H FORECAST — ALL METRICS</div>
+          <table className="fc-table">
+            <tr>
+              <th style={{"textAlign":"left"}}>METRIC</th>
+              <th>NOW</th><th>+6H</th><th>+24H</th><th>+72H</th>
+            </tr>
+            <tr>
+              <td className="fc-metric">Bhumi Score</td>
+              <td><div className="fc-val" style={{"color":"var(--b3)"}}>74</div></td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>80</div></td>
+              <td><div className="fc-val" style={{"color":"var(--red)"}}>86</div></td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>62</div></td>
+            </tr>
+            <tr>
+              <td className="fc-metric">Rainfall mm</td>
+              <td><div className="fc-val" style={{"color":"var(--b3)"}}>340</div></td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>410</div></td>
+              <td><div className="fc-val" style={{"color":"var(--red)"}}>480</div></td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>180</div></td>
+            </tr>
+            <tr>
+              <td className="fc-metric">Flood Risk %</td>
+              <td><div className="fc-val" style={{"color":"var(--b3)"}}>82%</div></td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>88%</div></td>
+              <td><div className="fc-val" style={{"color":"var(--red)"}}>94%</div></td>
+              <td><div className="fc-val" style={{"color":"var(--g3)"}}>55%</div></td>
+            </tr>
+            <tr>
+              <td className="fc-metric">Fire Hotspots</td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>847</div></td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>910</div></td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>780</div></td>
+              <td><div className="fc-val" style={{"color":"var(--g3)"}}>420</div></td>
+            </tr>
+            <tr>
+              <td className="fc-metric">Temp Peak °C</td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>46.2</div></td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>47.1</div></td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>45.8</div></td>
+              <td><div className="fc-val" style={{"color":"var(--g3)"}}>40.2</div></td>
+            </tr>
+            <tr>
+              <td className="fc-metric">NDRF Alert</td>
+              <td><div className="fc-val" style={{"color":"var(--fire)"}}>HIGH</div></td>
+              <td><div className="fc-val" style={{"color":"var(--red)"}}>CRIT</div></td>
+              <td><div className="fc-val" style={{"color":"var(--red)"}}>CRIT</div></td>
+              <td><div className="fc-val" style={{"color":"var(--heatwave)"}}>MOD</div></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ══════════ RIGHT ══════════ -->
+    <aside className="right">
+
+      <!-- Earth 3D right panel -->
+      <div className="rlbl">EARTH OBSERVATION — LIVE</div>
+      <canvas id="earth3d"></canvas>
+
+      <!-- Bhumi score strip -->
+      <div className="rlbl">BHUMI SCORE FORECAST</div>
+      <div className="fc-strip">
+        <div className="fci"><div className="fci-t">NOW</div><div className="fci-v" style={{"color":"var(--b3)"}}>74</div><div className="fci-l">WARNING</div></div>
+        <div className="fci"><div className="fci-t">+6H</div><div className="fci-v" style={{"color":"var(--fire)"}}>80</div><div className="fci-l">WARNING</div></div>
+        <div className="fci"><div className="fci-t">+12H</div><div className="fci-v" style={{"color":"var(--red)"}}>86</div><div className="fci-l">CRITICAL</div></div>
+        <div className="fci"><div className="fci-t">+24H</div><div className="fci-v" style={{"color":"var(--red)"}}>91</div><div className="fci-l">CRITICAL</div></div>
+        <div className="fci"><div className="fci-t">+72H</div><div className="fci-v" style={{"color":"var(--heatwave)"}}>58</div><div className="fci-l">ADVISORY</div></div>
+      </div>
+
+      <!-- NDRF Alert -->
+      <div className="ndrf-box">
+        <div className="ndrf-title">NDRF ACTIVATION ALERT</div>
+        <div className="ndrf-body">8 NDRF teams deployed to Kerala and Karnataka. 6 teams on standby. Pre-positioning rescue boats in Thiruvananthapuram and Ernakulam districts. Aerial survey scheduled for 16:00 IST.</div>
+      </div>
+
+      <!-- IMD / Agency Feed -->
+      <div className="rlbl">AGENCY FEED — IMD · NDMA · FIRMS</div>
+      <div>
+        <div className="feed-item"><div className="fd fdr"></div><div className="feed-body">Red alert issued for Kerala — extreme rainfall expected next 48H.</div><div className="feed-ts">12:00</div></div>
+        <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">847 fire hotspots detected over India — 312 in Rajasthan alone.</div><div className="feed-ts">11:30</div></div>
+        <div className="feed-item"><div className="fd fdb"></div><div className="feed-body">GPM IMERG shows +340mm anomaly over Kerala basin — critical.</div><div className="feed-ts">10:45</div></div>
+        <div className="feed-item"><div className="fd fdv"></div><div className="feed-body">M3.2 earthquake recorded Andaman & Nicobar. No tsunami risk.</div><div className="feed-ts">09:14</div></div>
+        <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">LST peak 46.2°C recorded over Rajasthan. Heat action plan active.</div><div className="feed-ts">08:30</div></div>
+        <div className="feed-item"><div className="fd fdg"></div><div className="feed-body">NDVI stress index -0.32 over Western Ghats — landslide watch.</div><div className="feed-ts">07:00</div></div>
+      </div>
+
+      <!-- AI Brief -->
+      <div className="brief">
+        <div className="br-head">
+          <div className="br-title">AI MISSION BRIEF · BHUMI</div>
+          <div className="br-ts" id="brTs">-- : -- IST</div>
+        </div>
+        <div className="br-body" id="brBody"><span className="cur"></span></div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+

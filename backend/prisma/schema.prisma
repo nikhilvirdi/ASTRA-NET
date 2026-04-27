@@ -1,0 +1,155 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ASTRA-ADITYA (SOLAR)
+// ============================================================
+
+model SolarFlare {
+  flrID     String   @id
+  classType String
+  region    String?
+  linkedCME Boolean  @default(false)
+  timestamp DateTime
+  @@index([timestamp(sort: Desc)])
+}
+
+model KpReading {
+  id        String   @id @default(uuid())
+  kpIndex   Float
+  timestamp DateTime
+  @@index([timestamp(sort: Desc)])
+}
+
+model SolarWindReading {
+  id        String   @id @default(uuid())
+  speed     Float
+  timestamp DateTime
+  @@index([timestamp(sort: Desc)])
+}
+
+model BzReading {
+  id        String   @id @default(uuid())
+  bz        Float
+  timestamp DateTime
+  @@index([timestamp(sort: Desc)])
+}
+
+// ============================================================
+// ASTRA-BHUMI (EARTH)
+// TimescaleDB hypertables — require composite PK with timestamp
+// ============================================================
+
+model FireHotspot {
+  id         String   @default(uuid())
+  latitude   Float
+  longitude  Float
+  brightness Float    // FRP (Fire Radiative Power) in MW
+  confidence String   // "l" | "n" | "h"  or 0-100 integer string
+  state      String?
+  district   String?
+  timestamp  DateTime
+
+  @@id([id, timestamp])
+  @@index([timestamp(sort: Desc)])
+  @@index([state])
+}
+
+model FloodEvent {
+  id               String   @default(uuid())
+  state            String
+  district         String
+  severity         String   // "MOD" | "HIGH" | "CRIT"
+  rainfall         Float    // Total 7-day rainfall (mm)
+  rainfallMax      Float?   // Worst single-day rainfall (mm)
+  rainfallAnomaly  Float?   // Anomaly vs. normal weekly baseline (mm)
+  timestamp        DateTime
+
+  @@id([id, timestamp])
+  @@index([timestamp(sort: Desc)])
+  @@index([state])
+}
+
+model BhumiIntelligence {
+  id         String   @default(uuid())
+  score      Float    // 0-100 Bhumi UTS Score
+  fireCount  Int
+  floodRisk  Float    // max 7-day rainfall (mm)
+  tempPeak   Float    // LST peak (°C)
+  ndviStress Float    // NDVI stress index
+  alertLevel String   // "NORMAL" | "ADVISORY" | "WARNING" | "CRITICAL"
+  timestamp  DateTime @default(now())
+
+  @@id([id, timestamp])
+  @@index([timestamp(sort: Desc)])
+}
+
+// ============================================================
+// ASTRA-KAKSHA (ORBITAL)
+// TimescaleDB hypertables — composite PK with timestamp
+// ============================================================
+
+model Satellite {
+  id          String   @id @default(uuid())
+  noradId     Int      @unique           // NORAD Catalog Number
+  name        String
+  type        String   // "PAYLOAD" | "DEBRIS" | "ROCKET_BODY" | "UNKNOWN"
+  country     String?
+  tle1        String                     // TLE Line 1
+  tle2        String                     // TLE Line 2
+  epoch       DateTime                   // TLE epoch
+  updatedAt   DateTime @updatedAt
+
+  conjunctions ConjunctionEvent[] @relation("primarySat")
+  kakshaData   KakshaIntelligence[]
+}
+
+model TLERecord {
+  id        String   @default(uuid())
+  noradId   Int
+  tle1      String
+  tle2      String
+  timestamp DateTime @default(now())
+
+  @@id([id, timestamp])
+  @@index([noradId])
+  @@index([timestamp(sort: Desc)])
+}
+
+model ConjunctionEvent {
+  id              String    @default(uuid())
+  primarySatId    String
+  primarySat      Satellite @relation("primarySat", fields: [primarySatId], references: [id])
+  secondarySatName String
+  minDistance     Float     // km
+  tca             DateTime  // Time of Closest Approach
+  probability     Float     // collision probability 0-1
+  riskLevel       String    // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  timestamp       DateTime  @default(now())
+
+  @@id([id, timestamp])
+  @@index([tca])
+  @@index([riskLevel])
+}
+
+model KakshaIntelligence {
+  id               String   @default(uuid())
+  score            Float    // 0-100 Kaksha UTS Score
+  trackedSats      Int
+  criticalConjunctions Int
+  debrisIndex      Float    // 0-1 density index in LEO
+  reentryAlert     Boolean  @default(false)
+  alertLevel       String   // "NORMAL" | "ADVISORY" | "WARNING" | "CRITICAL"
+  topSatId         String?
+  topSat           Satellite? @relation(fields: [topSatId], references: [id])
+  timestamp        DateTime @default(now())
+
+  @@id([id, timestamp])
+  @@index([timestamp(sort: Desc)])
+}
