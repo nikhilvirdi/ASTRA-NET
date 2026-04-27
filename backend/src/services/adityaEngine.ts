@@ -86,9 +86,32 @@ export const getAdityaIntelligence = async () => {
         if (cmeDataStr) {
             const arr = JSON.parse(cmeDataStr);
             if (arr && arr.length > 0) {
+                // Get the most recent CME
+                const latestCme = arr[arr.length - 1];
                 score += 15; // Active CME
                 cmeStatus = 'WARNING';
-                cmeArrivalHours = 28; // Basic mock estimation
+
+                // Live analysis: Calculate arrival time based on CME speed
+                if (latestCme && latestCme.cmeAnalyses && latestCme.cmeAnalyses.length > 0) {
+                    // Usually the first analysis is the primary one
+                    const analysis = latestCme.cmeAnalyses[0];
+                    const speed = analysis.speed; // km/s
+                    if (speed && speed > 0) {
+                        const distanceSunToEarthKm = 150000000; // ~1 AU
+                        const secondsToArrival = distanceSunToEarthKm / speed;
+                        const hoursToArrival = secondsToArrival / 3600;
+
+                        // Time elapsed since CME started
+                        const startTime = new Date(latestCme.startTime).getTime();
+                        const elapsedHours = (Date.now() - startTime) / (1000 * 3600);
+
+                        cmeArrivalHours = Math.max(0, Math.round(hoursToArrival - elapsedHours));
+                    } else {
+                        cmeArrivalHours = 72; // Fallback
+                    }
+                } else {
+                    cmeArrivalHours = 72; // Basic fallback estimation
+                }
             }
         }
 

@@ -1,51 +1,89 @@
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sun, Globe, Orbit, Activity, Clock } from 'lucide-react';
 
-export default function Navbar() {
-    const location = useLocation();
+const Navbar: React.FC = () => {
+  const location = useLocation();
+  const [time, setTime] = useState(new Date());
 
-    const navItems = [
-        { path: '/', name: 'Dashboard', icon: <Activity className="w-4 h-4 mr-2" /> },
-        { path: '/solar', name: 'Astra-Aditya', icon: <Sun className="w-4 h-4 mr-2" /> },
-        { path: '/earth', name: 'Astra-Bhumi', icon: <Globe className="w-4 h-4 mr-2" /> },
-        { path: '/orbital', name: 'Astra-Kaksha', icon: <Orbit className="w-4 h-4 mr-2" /> },
-        { path: '/history', name: 'History', icon: <Clock className="w-4 h-4 mr-2" /> },
-    ];
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    return (
-        <nav className="fixed top-0 left-0 right-0 h-16 bg-gray-950/80 backdrop-blur-md border-b border-gray-800 z-50 flex items-center px-6">
-            <div className="flex items-center space-x-2 mr-8">
-                <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]">
-                    A
-                </div>
-                <span className="text-xl font-bold tracking-widest text-white">ASTRA-NET</span>
-            </div>
+  const navItems = [
+    { path: '/', name: 'DASHBOARD' },
+    { path: '/solar', name: 'SOLAR' },
+    { path: '/earth', name: 'EARTH' },
+    { path: '/orbital', name: 'ORBITAL' },
+    { path: '/history', name: 'HISTORY' },
+  ];
 
-            <div className="hidden md:flex space-x-1">
-                {navItems.map((item) => {
-                    const isActive = location.pathname === item.path;
-                    return (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className={`flex items-center px-4 py-2 rounded-md transition-all duration-200 text-sm font-medium ${isActive
-                                    ? 'bg-gray-800 text-blue-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-900/50'
-                                }`}
-                        >
-                            {item.icon}
-                            {item.name}
-                        </Link>
-                    );
-                })}
-            </div>
+  const getActiveModule = () => {
+    switch (location.pathname) {
+      case '/solar': return { name: 'ASTRA-ADITYA', sub: 'SOLAR INTELLIGENCE MODULE' };
+      case '/earth': return { name: 'ASTRA-BHUMI', sub: 'EARTH HAZARD MODULE' };
+      case '/orbital': return { name: 'ASTRA-KAKSHA', sub: 'ORBITAL SURVEILLANCE MODULE' };
+      default: return { name: 'ASTRA-NET', sub: 'UNIFIED INTELLIGENCE HUB' };
+    }
+  };
 
-            <div className="ml-auto flex items-center space-x-4">
-                <div className="px-3 py-1 rounded bg-green-950/30 border border-green-800/50 flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-xs text-green-400 font-mono tracking-wider">SYSTEMS NOMINAL</span>
-                </div>
-            </div>
-        </nav>
-    );
-}
+  const module = getActiveModule();
+
+  return (
+    <header className="topbar">
+      <div className="logo-block">
+        <div className="logo">ASTRA-NET</div>
+        <div className="logo-sub">PLANETARY THREAT INTELLIGENCE</div>
+      </div>
+      
+      <div className="sep"></div>
+      
+      <div className="module-tag">
+        <div className="mt-icon">
+          <div className="mt-icon-core"></div>
+          <div className="mt-icon-r1"></div>
+          <div className="mt-icon-r2"></div>
+          <div className="mt-icon-r3"></div>
+        </div>
+        <div className="mt-text">
+          <div className="mt-name">{module.name}</div>
+          <div className="mt-full">{module.sub}</div>
+        </div>
+      </div>
+      
+      <div className="sep"></div>
+      
+      <nav>
+        {navItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={`nl ${location.pathname === item.path ? 'active' : ''}`}
+          >
+            {item.name}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="topbar-r">
+        <div className="live-pill">
+          <div className="live-dot"></div>
+          LIVE
+        </div>
+        <div className="clock">
+          {time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })} IST
+        </div>
+        {/* Placeholder for Score - will be updated by pages or global store */}
+        <div className="score-chip">
+          <div>
+            <div className="sc-lbl">GLOBAL THREAT</div>
+            <div className="sc-val">24</div>
+          </div>
+          <div className="sc-lvl">NORMAL</div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;

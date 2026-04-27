@@ -59,16 +59,13 @@ export async function getBhumiIntelligence(): Promise<BhumiObject> {
             }
         });
 
-        // 4. Temperature / NDVI (Phase 2 proxy — real MODIS in Phase 4)
-        // Seasonal model for India: peak heat March-June
-        const month = new Date().getMonth() + 1;
-        const isHeatSeason = month >= 3 && month <= 6;
-        const tempPeak = isHeatSeason
-            ? 42 + Math.random() * 4    // 42-46°C summer range
-            : 28 + Math.random() * 6;   // 28-34°C cooler months
-        const ndviStress = isHeatSeason
-            ? -0.15 - Math.random() * 0.2   // stressed vegetation in summer
-            : -0.05 + Math.random() * 0.1;  // near-normal
+        // 4. Temperature / NDVI
+        // Transitioned from seasonal randomization to reactive calculation based on active fire hotspots
+        const baseTemp = 28;
+        const tempPeak = baseTemp + Math.min(highConfFires / 10, 18); // Max 46°C
+
+        const baseNdvi = -0.05;
+        const ndviStress = baseNdvi - Math.min(highConfFires / 500, 0.25); // Max stress -0.30
 
         // 5. UTS Scoring
         // Fire sub-score: every 100 high-confidence hotspots = ~5 pts, max 35
@@ -97,7 +94,7 @@ export async function getBhumiIntelligence(): Promise<BhumiObject> {
         const activeHazards: string[] = [];
         if (highConfFires > 200) activeHazards.push(`WILDFIRE · ${fireCount} hotspots active`);
         if (maxRain > 100)       activeHazards.push(`FLOOD · ${criticalDistricts} critical districts`);
-        if (isHeatSeason && tempPeak > 43) activeHazards.push(`HEATWAVE · ${tempPeak.toFixed(1)}°C LST peak`);
+        if (tempPeak > 43) activeHazards.push(`HEATWAVE · ${tempPeak.toFixed(1)}°C LST peak`);
         activeHazards.push(...floodHazards);
 
         const intObj: BhumiObject = {

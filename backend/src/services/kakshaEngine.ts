@@ -49,6 +49,7 @@ export async function getKakshaIntelligence(): Promise<KakshaObject> {
 
         // 3. If we have fresh TLEs, run conjunction check via Python service
         let pythonConjunctions: any[] = [];
+        let pythonPropagatedSats: any[] = [];
         if (satellites.length >= 2) {
             try {
                 const payload = {
@@ -61,6 +62,10 @@ export async function getKakshaIntelligence(): Promise<KakshaObject> {
                 };
                 const resp = await axios.post(`${PYTHON_SERVICE_URL}/conjunction`, payload, { timeout: 30000 });
                 pythonConjunctions = resp.data.conjunctions ?? [];
+
+                const propResp = await axios.post(`${PYTHON_SERVICE_URL}/propagate/batch`, { satellites: payload.satellites }, { timeout: 30000 });
+                const propagatedSats = propResp.data.satellites ?? [];
+                pythonPropagatedSats = propagatedSats;
 
                 // Persist new conjunction events to DB
                 const toInsert = pythonConjunctions.slice(0, 20).map((c: any) => {
@@ -93,8 +98,7 @@ export async function getKakshaIntelligence(): Promise<KakshaObject> {
         const debrisIndex = Math.min(debrisObjects / trackedSats, 1.0);
 
         // 5. Re-entry alert: any satellite below 200km altitude is "re-entering soon"
-        // We'd need ephemeris to compute this properly, use a placeholder
-        const reentryAlert = false; // Will be populated once Python service propagates all
+        const reentryAlert = pythonPropagatedSats.some((s: any) => s.altitude_km < 200);
 
         // 6. UTS Scoring
         // Conjunction risk (0-50): each critical = 20pts, each high = 8pts, capped at 50

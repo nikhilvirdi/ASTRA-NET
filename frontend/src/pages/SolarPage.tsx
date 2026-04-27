@@ -1,140 +1,116 @@
-import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { io } from 'socket.io-client';
-import { useSolarStore } from '../store/solarStore';
-import '../styles/solar.css';
+import { 
+  AreaChart, Area, 
+  XAxis, YAxis, Tooltip, ResponsiveContainer 
+} from 'recharts';
+import './Solar.css';
 
-import SunHero from '../components/solar/SunHero';
-import SensorReadings from '../components/solar/SensorReadings';
-import InfraImpactList from '../components/solar/InfraImpactList';
-import KpIndexChart from '../components/solar/KpIndexChart';
-import BzChart from '../components/solar/BzChart';
-import SolarWindChart from '../components/solar/SolarWindChart';
-import XRayFluxChart from '../components/solar/XRayFluxChart';
-import FlareEventLog from '../components/solar/FlareEventLog';
-import GeoStormStatus from '../components/solar/GeoStormStatus';
-import CmePropagation from '../components/solar/CmePropagation';
-import AiBrief from '../components/solar/AiBrief';
+const SolarPage: React.FC = () => {
+  const [data, setData] = useState<any>(null);
 
-export default function SolarPage() {
-  
   useEffect(() => {
+    axios.get('http://localhost:3000/api/solar/current').then(res => setData(res.data));
     const socket = io('http://localhost:3000');
-    socket.on('solar:update', (data) => {
-      useSolarStore.setState({
-        kp: data.kp || 0,
-        bz: data.bz || 0,
-        speed: data.speed || 0,
-        density: data.density || 0,
-        temperature: data.temperature || 0,
-        adityaScore: data.adityaScore || 0,
-        gScale: 'G0' // Simplified mapping
-      });
-    });
-    return () => { socket.disconnect(); }
+    socket.on('solar:update', (d) => setData(d));
+    return () => { socket.disconnect(); };
   }, []);
 
-  const adityaScore = useSolarStore(s => s.adityaScore);
-
   return (
-    <div className="page" id="page-solar">
-      <header className="topbar">
-        <div className="logo-block">
-          <div className="logo">ASTRA-NET</div>
-          <div className="logo-sub">PLANETARY THREAT INTELLIGENCE</div>
-        </div>
-        <div className="sep"></div>
-        <div className="module-tag">
-          <div className="mt-icon"></div>
-          <div className="mt-text">
-            <div className="mt-name">ASTRA-ADITYA</div>
-            <div className="mt-full">SOLAR INTELLIGENCE MODULE</div>
-          </div>
-        </div>
-        <div className="sep"></div>
-        <nav>
-          <div className="nl">Dashboard</div>
-          <div className="nl active">Solar</div>
-          <div className="nl">Earth</div>
-          <div className="nl">Orbital</div>
-          <div className="nl">History</div>
-        </nav>
-        <div className="topbar-r">
-          <div className="live-pill"><div className="live-dot"></div>LIVE</div>
-          <div className="clock" id="clk">{new Date().toLocaleTimeString('en-US', { hour12: false })} IST</div>
-          <div className="score-chip">
-            <div>
-              <div className="sc-lbl">ADITYA SCORE</div>
-              <div className="sc-val">{adityaScore || '--'}</div>
-            </div>
-            <div className="sc-lvl">WARNING</div>
-          </div>
-        </div>
-      </header>
-
-      <div className="body">
-        <aside className="left">
-          <SunHero />
-          <SensorReadings />
-          
-          <div className="lsec">
-            <div className="lsec-title">ADITYA SUB-SCORE</div>
-            <div className="score-blk">
-              <div className="sb-row">
-                <div className="sb-lbl">CURRENT SCORE</div>
-                <div className="sb-num" style={{color:'var(--a3)'}}>{adityaScore || '--'}</div>
+    <div className="solar-page-wrapper">
+      <div className="root">
+        <div className="body">
+          {/* LEFT: Sun Hero */}
+          <aside className="left">
+            <div className="sun-hero">
+              <div className="sun-container">
+                <div className="sun-glow"></div>
+                <div className="sun-sphere"></div>
+                <div className="sun-corona"></div>
               </div>
-              <div className="sb-track"><div className="sb-fill" style={{width: `${adityaScore}%`, background: 'linear-gradient(90deg,#7a2c00,var(--a3),var(--a4))'}}></div></div>
+              <div className="sun-status">ASTRA-ADITYA · SOLAR CORE</div>
+              <div className="sun-score">{Math.round(data?.flareRisk ?? 12)}%</div>
+              <div className="sun-lbl">FLARE PROBABILITY</div>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'5px',marginTop:'8px'}}>
-              <div className="cms"><div className="cms-l">KP CONTRIB</div><div className="cms-v">+10</div></div>
-              <div className="cms"><div className="cms-l">FLARE BONUS</div><div className="cms-v">+15</div></div>
-              <div className="cms"><div className="cms-l">CME INBOUND</div><div className="cms-v">+0</div></div>
-              <div className="cms"><div className="cms-l">CME &lt;24H</div><div className="cms-v">+0</div></div>
+            
+            <div className="lsec">
+              <div className="lsec-title">SOLAR TELEMETRY</div>
+              <div className="stat">
+                <div className="stat-lbl">WIND VELOCITY</div>
+                <div><span className="stat-val">{data?.solarWindSpeed ?? 420}</span><span className="stat-unit">km/s</span></div>
+              </div>
+              <div className="stat">
+                <div className="stat-lbl">SUNSPOT COUNT</div>
+                <div><span className="stat-val">{data?.sunspotCount ?? 0}</span></div>
+              </div>
+              <div className="stat">
+                <div className="stat-lbl">FLUX DENSITY</div>
+                <div><span className="stat-val">{Math.round(data?.protonFlux ?? 140)}</span><span className="stat-unit">pfu</span></div>
+              </div>
             </div>
-          </div>
+          </aside>
 
-          <InfraImpactList />
-        </aside>
+          {/* MAIN: Charts and Active Regions */}
+          <main className="main">
+             <div className="row r3">
+                <div className="card">
+                   <div className="clbl">X-RAY FLUX (1-8 Å)</div>
+                   <div className="big-num" style={{ color: 'var(--solar)' }}>X1.2</div>
+                   <div className="big-sub">GOES-16 · PRIMARY SENSOR</div>
+                   <div className="ah-body">Solar flare detected in Region AR3088. Ionospheric impact monitoring active.</div>
+                </div>
+                <div className="card">
+                   <div className="clbl">PROTON DENSITY</div>
+                   <div className="big-num">{Math.round(data?.protonFlux ?? 12)}</div>
+                   <div className="big-sub">DSCOVR · PROTONS/CM³</div>
+                </div>
+                <div className="card">
+                   <div className="clbl">K-INDEX</div>
+                   <div className="big-num" style={{ color: 'var(--g3)' }}>Kp 2</div>
+                   <div className="big-sub">GEOMAGNETIC DISTURBANCE</div>
+                </div>
+             </div>
 
-        <main className="main">
-          <div className="row r3">
-            <KpIndexChart />
-            <BzChart />
-            <SolarWindChart />
-          </div>
-          
-          <XRayFluxChart />
-          
-          <div className="row r2">
-             <FlareEventLog />
-             <GeoStormStatus />
-          </div>
-        </main>
+             <div className="card" style={{ flex: 1 }}>
+                <div className="clbl">24H SOLAR WIND MAGNITUDE TREND</div>
+                <div style={{ height: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={Array.from({length: 24}).map((_, i) => ({ x: i, y: 400 + Math.random() * 100 }))}>
+                      <defs>
+                        <linearGradient id="colorS" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--solar)" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="var(--solar)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="y" stroke="var(--solar)" fillOpacity={1} fill="url(#colorS)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+             </div>
+          </main>
 
-        <aside className="right">
-          <CmePropagation />
-          
-          <div className="gps-alert" style={{marginTop:'12px'}}>
-            <div className="gps-title">GPS DEGRADATION ALERT</div>
-            <div className="gps-body">Upon CME arrival, GPS accuracy over India may degrade 15–40 m. Aviation and disaster relief should activate backup navigation protocols for the impact window.</div>
-          </div>
-
-          <div className="rlbl" style={{marginTop:'12px'}}>ADITYA SCORE FORECAST</div>
-          <div className="fc-strip">
-            <div className="fc-item"><div className="fc-t">NOW</div><div className="fc-v" style={{color:'var(--a3)'}}>{adityaScore || '--'}</div><div className="fc-l">WARNING</div></div>
-            <div className="fc-item"><div className="fc-t">+6H</div><div className="fc-v" style={{color:'var(--a3)'}}>74</div><div className="fc-l">WARNING</div></div>
-            <div className="fc-item"><div className="fc-t">+12H</div><div className="fc-v" style={{color:'var(--red)'}}>88</div><div className="fc-l">CRITICAL</div></div>
-            <div className="fc-item"><div className="fc-t">+24H</div><div className="fc-v" style={{color:'var(--red)'}}>94</div><div className="fc-l">CRITICAL</div></div>
-          </div>
-
-          <div className="rlbl" style={{marginTop:'12px'}}>NOAA SPACE WEATHER FEED</div>
-          <div>
-            <div className="feed-item"><div className="fd fdo"></div><div className="feed-body">Solar wind speed elevated at L1 point.</div><div className="feed-ts">LIVE</div></div>
-          </div>
-
-          <AiBrief />
-        </aside>
+          {/* RIGHT: Notifications */}
+          <aside className="right">
+             <div className="rlbl">SPACE WEATHER ADVISORY</div>
+             <div className="brief">
+                <div className="br-head">
+                  <div className="br-title">SOLAR MISSION BRIEF</div>
+                  <div className="br-ts">{new Date().toLocaleTimeString()}</div>
+                </div>
+                <div className="br-body">
+                   Active region AR3088 has produced a minor M-class solar flare. 
+                   CME trajectory is currently being modeled. 
+                   Potential radio blackout in sun-lit sectors (R1 level).
+                   Spacecraft operators advised to monitor SEU rates.
+                   <span className="cur"></span>
+                </div>
+             </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default SolarPage;

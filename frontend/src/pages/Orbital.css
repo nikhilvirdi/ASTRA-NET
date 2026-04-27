@@ -1,0 +1,145 @@
+.orbital-page-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.globe-hero {
+  padding: 16px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: radial-gradient(ellipse at 50% 40%, rgba(60, 20, 120, 0.16) 0%, transparent 100%);
+}
+
+.globe-scene {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.osh {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+}
+
+.osh1 { width: 140px; height: 140px; border-color: rgba(124, 92, 191, 0.12); animation: osh-r 24s linear infinite; }
+.osh2 { width: 116px; height: 116px; border-color: rgba(168, 176, 192, 0.08); animation: osh-r 18s linear infinite reverse; }
+.osh3 { width: 94px; height: 94px; border-color: rgba(74, 240, 192, 0.10); animation: osh-r 12s linear infinite; }
+.osh4 { width: 72px; height: 72px; border-color: rgba(124, 92, 191, 0.08); animation: osh-r 8s linear infinite reverse; }
+
+@keyframes osh-r { to { transform: rotate(360deg); } }
+
+.globe-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.gs-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-k);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.gs-v {
+  font-family: var(--font-d);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--k3);
+  line-height: 1;
+}
+
+.gs-l {
+  font-family: var(--font-m);
+  font-size: 7px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.isro-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  background: rgba(74, 240, 192, 0.04);
+  border: 1px solid rgba(74, 240, 192, 0.12);
+  margin-bottom: 5px;
+  cursor: pointer;
+}
+
+.ii-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--isro);
+  box-shadow: 0 0 5px var(--isro);
+}
+
+.ii-dot.warn {
+  background: var(--conj);
+  box-shadow: 0 0 5px var(--conj);
+  animation: ldot 1.2s infinite;
+}
+
+.ii-badge {
+  font-family: var(--font-d);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border: 1px solid;
+}
+
+.iib-warn { color: var(--conj); border-color: rgba(255, 32, 96, 0.3); background: rgba(255, 32, 96, 0.06); }
+.iib-mon { color: var(--gold); border-color: rgba(201, 168, 76, 0.3); background: rgba(201, 168, 76, 0.06); }
+
+.conj-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conj-table th {
+  font-family: var(--font-d);
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.conj-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+}
+
+.prob-badge {
+  font-family: var(--font-d);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border: 1px solid;
+}
+
+.pb-crit { color: var(--conj); border-color: rgba(255, 32, 96, 0.4); background: rgba(255, 32, 96, 0.08); }
+
+.tle-block {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-k);
+  padding: 10px;
+  font-family: var(--font-m);
+  font-size: 8.5px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+.tle-label { font-family: var(--font-d); font-size: 7px; color: var(--k3); margin-bottom: 4px; }
+.tle-line { color: rgba(200, 192, 240, 0.75); }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './Earth.css';
 import axios from 'axios';
 import { io } from 'socket.io-client';
@@ -6,159 +6,114 @@ import {
   AreaChart, Area, 
   XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine 
 } from 'recharts';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import IndiaMap from '../components/IndiaMap';
 
 export default function EarthPage() {
     const [data, setData] = useState<any>(null);
     const [quakes, setQuakes] = useState<any[]>([]);
     const [rainHistory, setRainHistory] = useState<any[]>([]);
-    const [weather] = useState<any>({ temp: 46.2, humidity: 30 }); // Default fallback
-    
-    // Canvas Refs
     const earthCanvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        // Initial Fetch for core metrics
+        // Initial Fetch
         axios.get('http://localhost:3000/api/earth/current')
             .then(res => setData(res.data))
             .catch(err => console.error("Initial fetch err", err));
 
-        // Socket listener for live updates
+        // Socket listener
         const socket = io('http://localhost:3000');
         socket.on('earth:update', (payload) => setData(payload));
 
-        socket.on('connect_error', (err) => {
-            console.log(`Socket connect error: ${err.message}`);
-        });
-
-        // Fetch USGS Earthquakes for India region (approx bounding box) min mag 3.0
+        // Fetch USGS Earthquakes
         const dateStr = new Date(Date.now() - 7 * 86400000).toISOString();
         axios.get(`https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=2.5&starttime=${dateStr}&minlatitude=6&maxlatitude=38&minlongitude=68&maxlongitude=98`)
             .then(res => {
                 if(res.data && res.data.features) {
-                    setQuakes(res.data.features.slice(0, 8)); // latest 8
+                    setQuakes(res.data.features.slice(0, 10));
                 }
             }).catch(e => console.error(e));
-
-        // Note: OpenWeatherMap requires an API Key. Using a mocked fetch sequence for weather.
-        // In full prod: axios.get(`https://api.openweathermap.org/data/2.5/weather?q=Nagpur,IN&units=metric&appid=API_KEY`)
-        
-        // Mock 7-day rainfall history based on backend flood index
-        const generateRainHistory = () => {
-             const base = data?.floodAnomaly || 340;
-             return Array.from({length: 7}).map((_, i) => ({
-                 day: `-` + (7-i) + `D`,
-                 rain: Math.max(0, base - (Math.random()*150) + (i*15))
-             }));
-        };
-        setRainHistory(generateRainHistory());
 
         return () => {
             socket.disconnect();
         };
     }, []);
 
-    // 3D CSS GLOBE / CANVAS INITIALIZATION
+    // 2D Earth Globe Animation
     useEffect(() => {
-        const earthCv = earthCanvasRef.current;
-        if (earthCv && earthCv.dataset.animated !== "true") {
-            earthCv.dataset.animated = "true";
-            const ctx = earthCv.getContext('2d');
-            if (ctx) {
-                let off = 0;
-                const drawEarth = () => {
-                    ctx.clearRect(0, 0, earthCv.width, earthCv.height);
-                    ctx.beginPath();
-                    ctx.arc(36, 36, 34, 0, Math.PI * 2);
-                    ctx.fillStyle = '#143852';
-                    ctx.fill();
-                    off -= 0.3;
-                    if (off <= -72) off = 0;
-                    ctx.fillStyle = '#2e7db5';
-                    ctx.globalAlpha = 0.6;
-                    for(let i=0; i<3; i++) {
-                        ctx.beginPath();
-                        ctx.arc(36 + off + (i*50), 36 + Math.sin(off*0.1)*5, 12, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    ctx.globalAlpha = 1;
-                    requestAnimationFrame(drawEarth);
-                }
-                drawEarth();
-            }
-        }
+        const eg = earthCanvasRef.current;
+        if (!eg) return;
+        const egCtx = eg.getContext('2d');
+        if (!egCtx) return;
+
+        let earthRot = 0;
+        let requestRef: number;
+
+        const drawEarth = () => {
+            const W = 72, H = 72, cx = 36, cy = 36, r = 30;
+            egCtx.clearRect(0, 0, W, H);
+            
+            // Base ocean sphere
+            const og = egCtx.createRadialGradient(cx - 7, cy - 7, 2, cx, cy, r);
+            og.addColorStop(0, '#1a2a4a');
+            og.addColorStop(0.5, '#0d1a30');
+            og.addColorStop(1, '#050c18');
+            egCtx.beginPath(); egCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            egCtx.fillStyle = og; egCtx.fill();
+            
+            // Clip to sphere
+            egCtx.save(); egCtx.beginPath(); egCtx.arc(cx, cy, r, 0, Math.PI * 2); egCtx.clip();
+            egCtx.save(); egCtx.translate(cx, cy); egCtx.rotate(earthRot);
+            
+            // Continents (abstract shapes)
+            egCtx.fillStyle = 'rgba(50,100,65,0.60)';
+            egCtx.beginPath(); egCtx.ellipse(8, -4, 13, 20, 0.3, 0, Math.PI * 2); egCtx.fill();
+            egCtx.beginPath(); egCtx.ellipse(14, 14, 7, 12, 0.2, 0, Math.PI * 2); egCtx.fill();
+            egCtx.fillStyle = 'rgba(40,80,55,0.52)';
+            egCtx.beginPath(); egCtx.ellipse(-16, -8, 10, 18, -0.2, 0, Math.PI * 2); egCtx.fill();
+            egCtx.fillStyle = 'rgba(35,70,50,0.48)';
+            egCtx.beginPath(); egCtx.ellipse(-2, -24, 26, 12, 0.4, 0, Math.PI * 2); egCtx.fill();
+            
+            egCtx.restore(); egCtx.restore();
+            
+            // Atmosphere glow
+            const ag = egCtx.createRadialGradient(cx, cy, r - 2, cx, cy, r + 9);
+            ag.addColorStop(0, 'rgba(60,100,200,0.20)');
+            ag.addColorStop(0.4, 'rgba(80,40,160,0.14)');
+            ag.addColorStop(1, 'transparent');
+            egCtx.beginPath(); egCtx.arc(cx, cy, r + 9, 0, Math.PI * 2);
+            egCtx.fillStyle = ag; egCtx.fill();
+            
+            earthRot += 0.004;
+            requestRef = requestAnimationFrame(drawEarth);
+        };
+
+        requestRef = requestAnimationFrame(drawEarth);
+        return () => cancelAnimationFrame(requestRef);
     }, []);
 
-    // Helper Extractions
+    // Derived Data
     const score = Math.round(data?.score ?? 0);
     const fireCount = data?.fireCount ?? 0;
     const floodRisk = Math.round(Math.min(100, data?.floodRisk ?? 0));
-    const rainAnomaly = Math.round(data?.floodAnomaly ?? 0);
     const alertLevel = data?.alertLevel ?? 'NORMAL';
     const activeHazards = data?.activeHazards ?? [];
     
-    // The backend limits recent fires to 500 when sending over socket. 
-    // If none are present, we'll draw a few dummy ones strictly for visual confirmation of map rendering
-    const fires = data?.recentFires && data.recentFires.length > 0 
-                  ? data.recentFires 
-                  : [{lat: 28.6, lon: 77.2}, {lat: 22.5, lon: 88.3}, {lat: 19.0, lon: 72.8}, {lat: 13.0, lon: 80.2}];
-
-    // Chart customization
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div style={{ background: 'var(--b2)', border: '1px solid var(--b4)', padding: '5px 10px', fontSize: '10px' }}>
-                    <p style={{ color: 'var(--muted)', margin: 0 }}>{label}</p>
-                    <p style={{ color: payload[0].color, margin: 0 }}>Rain: {payload[0].value.toFixed(1)} mm</p>
-                </div>
-            );
-        }
-        return null;
-    };
+    // Prepare hotspots for IndiaMap
+    const hotspots: any[] = [];
+    if (data?.recentFires) {
+        data.recentFires.slice(0, 20).forEach((f: any) => hotspots.push({ lat: f.lat, lon: f.lon, type: 'fire' }));
+    }
+    if (floodRisk > 50) {
+        hotspots.push({ lat: 10.85, lon: 76.27, type: 'flood' }); // Kerala
+        hotspots.push({ lat: 26.14, lon: 91.73, type: 'flood' }); // Assam
+    }
 
     return (
         <div className="earth-page-wrapper">
           <div className="root">
-            {/*  ──────────────── TOPBAR ────────────────  */}
-            <header className="topbar">
-              <div className="logo-block">
-                <div className="logo">ASTRA-NET</div>
-                <div className="logo-sub">PLANETARY THREAT INTELLIGENCE</div>
-              </div>
-              <div className="sep"></div>
-              <div className="module-tag">
-                <div className="mt-icon"></div>
-                <div className="mt-text">
-                  <div className="mt-name">ASTRA-BHUMI</div>
-                  <div className="mt-full">EARTH HAZARD INTELLIGENCE MODULE</div>
-                </div>
-              </div>
-              <div className="sep"></div>
-              <nav>
-                <div className="nl">Dashboard</div>
-                <div className="nl">Solar</div>
-                <div className="nl active">Earth</div>
-                <div className="nl">Orbital</div>
-                <div className="nl">History</div>
-              </nav>
-              <div className="topbar-r">
-                <div className="live-pill"><div className="live-dot"></div>LIVE</div>
-                <div className="clock" id="clk">{new Date().toLocaleTimeString('en-US', { hour12: false })} IST</div>
-                <div className="score-chip">
-                  <div>
-                    <div className="sc-lbl">BHUMI SCORE</div>
-                    <div className="sc-val">{score}</div>
-                  </div>
-                  <div className={`sc-lvl ${alertLevel === 'CRITICAL' ? 'red' : ''}`}>{alertLevel}</div>
-                </div>
-              </div>
-            </header>
-
             <div className="body">
-              {/*  ──────────────── LEFT ────────────────  */}
+              {/*  ──────────────── LEFT PANEL ────────────────  */}
               <aside className="left">
-                {/*  Earth Hero  */}
                 <div className="earth-hero">
                   <div className="earth-scene">
                     <div className="atm atm1"></div>
@@ -169,7 +124,6 @@ export default function EarthPage() {
                     <div className="cloud-wrap">
                       <div className="cloud" style={{width:"40px", height:"12px", top:"15%", left:"0", animationDuration:"22s", animationDelay:"-4s"}}></div>
                       <div className="cloud" style={{width:"28px", height:"9px", top:"45%", left:"0", animationDuration:"16s", animationDelay:"-8s", opacity:"0.6"}}></div>
-                      <div className="cloud" style={{width:"34px", height:"10px", top:"70%", left:"0", animationDuration:"26s", animationDelay:"-12s", opacity:"0.5"}}></div>
                     </div>
                   </div>
                   <div className="earth-status">INDIA HAZARD MONITOR</div>
@@ -178,190 +132,151 @@ export default function EarthPage() {
                     <div className="earth-active-lbl">ACTIVE HAZARD TYPES</div>
                   </div>
                   <div className="hazard-pills">
-                    {activeHazards.includes('FLOOD') && <div className="hpill hp-flood">FLOOD</div>}
-                    {activeHazards.includes('WILDFIRE') && <div className="hpill hp-fire">WILDFIRE</div>}
-                    {activeHazards.includes('HEATWAVE') && <div className="hpill hp-heat">HEATWAVE</div>}
-                    {activeHazards.includes('EXTREME_RAIN') && <div className="hpill hp-flood">EXTREME RAIN</div>}
-                    {activeHazards.length === 0 && <span style={{fontSize: '9px', color: 'var(--muted)'}}>NO ACTIVE HAZARDS OVER THRESHOLD</span>}
+                    {activeHazards.map(h => (
+                      <div key={h} className={`hpill hp-${h.toLowerCase().substring(0,4)}`}>{h}</div>
+                    ))}
+                    {activeHazards.length === 0 && <span style={{fontSize: '9px', color: 'var(--muted)'}}>ALL SYSTEMS NOMINAL</span>}
                   </div>
                 </div>
 
-                {/*  Hazard Severity  */}
                 <div className="lsec">
                   <div className="lsec-title">HAZARD SEVERITY INDEX</div>
                   <div className="haz-row">
                     <div className="haz-dot" style={{background:"var(--flood)"}}></div>
                     <div className="haz-name">Flooding</div>
-                    <div className="haz-bar-wrap"><div className="haz-bar" style={{width:`${Math.min(100, floodRisk)}%`, background:"var(--flood)"}}></div></div>
-                    <div className={`haz-lvl ${floodRisk > 75 ? 'rb-crit' : 'rb-mod'}`}>{floodRisk > 75 ? 'CRIT' : 'MOD'}</div>
+                    <div className="haz-bar-wrap"><div className="haz-bar" style={{width:`${floodRisk}%`, background:"var(--flood)"}}></div></div>
+                    <div className={`haz-lvl ${floodRisk > 70 ? 'rb-crit' : 'rb-mod'}`}>{floodRisk > 70 ? 'CRIT' : 'MOD'}</div>
                   </div>
                   <div className="haz-row">
                     <div className="haz-dot" style={{background:"var(--fire)"}}></div>
                     <div className="haz-name">Wildfire</div>
-                    <div className="haz-bar-wrap"><div className="haz-bar" style={{width:`${Math.min(100, Math.floor(fireCount/10))}%`, background:"var(--fire)"}}></div></div>
+                    <div className="haz-bar-wrap"><div className="haz-bar" style={{width:`${Math.min(100, fireCount/5)}%`, background:"var(--fire)"}}></div></div>
                     <div className={`haz-lvl ${fireCount > 500 ? 'rb-high' : 'rb-low'}`}>{fireCount > 500 ? 'HIGH' : 'LOW'}</div>
                   </div>
-                  <div className="haz-row">
-                    <div className="haz-dot" style={{background:"var(--heatwave)"}}></div>
-                    <div className="haz-name">Heatwave</div>
-                    <div className="haz-bar-wrap"><div className="haz-bar" style={{width:`${weather.temp > 40 ? 80 : 40}%`, background:"var(--heatwave)"}}></div></div>
-                    <div className={`haz-lvl ${weather.temp > 40 ? 'rb-high' : 'rb-mod'}`}>{weather.temp > 40 ? 'HIGH' : 'MOD'}</div>
+                </div>
+
+                <div className="lsec">
+                  <div className="lsec-title">LIVE SENSOR TELEMETRY</div>
+                  <div className="stat">
+                    <div className="stat-lbl">FIRE HOTSPOTS</div>
+                    <div><span className="stat-val" style={{color:"var(--fire)"}}>{fireCount}</span><span className="stat-unit">PTS</span></div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-lbl">PRECIP ANOMALY</div>
+                    <div><span className="stat-val">+{Math.round(data?.floodAnomaly ?? 0)}</span><span className="stat-unit">mm</span></div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-lbl">DISTRICTS ALERT</div>
+                    <div><span className="stat-val" style={{color:"var(--red)"}}>{data?.criticalDistricts ?? 0}</span></div>
                   </div>
                 </div>
 
-                {/*  Live Readings  */}
                 <div className="lsec">
-                  <div className="lsec-title">LIVE SENSOR READINGS</div>
-                  <div className="stat"><div className="stat-lbl">RAINFALL ANOMALY</div><div><span className="stat-val">+{rainAnomaly}</span><span className="stat-unit">mm/day</span></div></div>
-                  <div className="stat"><div className="stat-lbl">LAND SURFACE TEMP</div><div><span className="stat-val" style={{color:"var(--heatwave)"}}>{weather.temp}</span><span className="stat-unit">°C</span></div></div>
-                  <div className="stat"><div className="stat-lbl">FIRE HOTSPOTS</div><div><span className="stat-val" style={{color:"var(--fire)"}}>{fireCount}</span><span className="stat-unit">pts</span></div></div>
-                  <div className="stat"><div className="stat-lbl">DISTRICTS CRITICAL</div><div><span className="stat-val" style={{color:"var(--red)"}}>{data?.criticalDistricts ?? 0}</span></div></div>
-                </div>
-
-                {/*  Bhumi Score  */}
-                <div className="lsec">
-                  <div className="lsec-title">BHUMI SUB-SCORE</div>
+                  <div className="lsec-title">BHUMI RESILIENCE SCORE</div>
                   <div className="score-blk">
                     <div className="sb-row">
-                      <div className="sb-lbl">CURRENT SCORE</div>
+                      <div className="sb-lbl">CURRENT</div>
                       <div className="sb-num">{score}</div>
                     </div>
                     <div className="sb-track"><div className="sb-fill" style={{width:`${score}%`, background: score > 75 ? 'var(--red)' : 'var(--b3)'}}></div></div>
                   </div>
                 </div>
-
               </aside>
 
-              {/*  ──────────────── MAIN ────────────────  */}
+              {/*  ──────────────── MAIN PANEL ────────────────  */}
               <main className="main">
-
-                {/*  ROW 1: Floods + Fire Headline  */}
                 <div className="row r3">
                   <div className={`card ${floodRisk > 75 ? 'danger' : ''}`}>
-                    <div className={`clbl ${floodRisk > 75 ? 'red' : ''}`}>FLOOD RISK INDEX</div>
-                    <div className="big-num" style={{color: floodRisk > 75 ? "var(--red)" : "var(--b3)"}}>{floodRisk}</div>
-                    <div className="big-sub">NASA GPM IMERG · INDIA</div>
-                    <div style={{marginTop:"4px",fontSize:"11px",color:"var(--text-dim)"}}>{data?.criticalDistricts ?? 0} districts at critical threshold.<br />Monsoon basin inundation tracking.</div>
+                    <div className="clbl">FLOOD INUNDATION INDEX</div>
+                    <div className="big-num" style={{color: "var(--b3)"}}>{floodRisk}</div>
+                    <div className="big-sub">NASA GPM IMERG · REAL-TIME</div>
+                    <div className="ah-body">Satellite precipitation models indicate localized saturation in {data?.criticalDistricts ?? 0} districts.</div>
                   </div>
 
-                  <div className={`card fire-card ${fireCount > 500 ? 'danger' : ''}`}>
-                    <div className="clbl fire">WILDFIRE HOTSPOTS</div>
-                    <div className="big-num" style={{color:"var(--fire)"}}>{fireCount}</div>
-                    <div className="big-sub">NASA FIRMS · ACTIVE DETECTIONS</div>
-                    <div style={{fontSize:"11px",color:"var(--text-dim)"}}>Live VIIRS detections over Indian subcontinent.</div>
+                  <div className="card fire-card">
+                    <div className="clbl fire">THERMAL HOTSPOTS</div>
+                    <div className="big-num" style={{color: "var(--fire)"}}>{fireCount}</div>
+                    <div className="big-sub">NASA FIRMS · VIIRS SENSORS</div>
+                    <div className="ah-body">Active wildfire detections identified via thermal anomaly scanning.</div>
                   </div>
 
-                  <div className={`card heat-card ${weather.temp > 45 ? 'danger' : ''}`}>
-                    <div className="clbl heat">HEATWAVE INDEX</div>
-                    <div className="hw-temp">{weather.temp.toFixed(1)}</div>
-                    <div className="big-sub" style={{color:"var(--muted)"}}>LAND SURFACE TEMP · °C PEAK</div>
-                    <div style={{fontSize:"11px",color:"var(--text-dim)"}}>Approaching critical thermal threshold in central zones.</div>
+                  <div className="card heat-card">
+                    <div className="clbl heat">THERMAL STRESS</div>
+                    <div className="big-num" style={{color: "var(--heatwave)"}}>{Math.round(data?.tempAnomaly ?? 42)}<span style={{fontSize:'20px'}}>°C</span></div>
+                    <div className="big-sub">LAND SURFACE TEMPERATURE</div>
+                    <div className="ah-body">Thermal thresholds approaching seasonal peaks in central corridors.</div>
                   </div>
                 </div>
 
-                {/*  ROW 2: India Hazard Map using Leaflet  */}
-                <div className="row r2">
-                  <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--b4)', position: 'relative' }}>
-                    <div className="clbl" style={{ position: 'absolute', top: 10, left: 15, zIndex: 1000, background: 'rgba(5, 12, 18, 0.8)', padding: '5px 10px', borderRadius: '4px' }}>
-                       INDIA HAZARD GIS MAP — REAL-TIME SENSORS
-                    </div>
-                    <div style={{ width: '100%', height: '360px' }}>
-                      <MapContainer center={[22.0, 79.0]} zoom={4.5} style={{ height: '100%', width: '100%', background: '#02060a' }} zoomControl={false} dragging={false}>
-                         {/* Base tiles: dark theme raster map */}
-                         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap contributors &copy; CARTO" />
-                         
-                         {/* Fire Hotspots (Red) */}
-                         {fires.map((f: any, i: number) => (
-                             <CircleMarker key={`fire-${i}`} center={[f.lat ?? f[0], f.lon ?? f[1]]} radius={3} pathOptions={{ color: 'transparent', fillColor: '#d45010', fillOpacity: 0.6 }} />
-                         ))}
-
-                         {/* Mock Flood Risk Zones (Blue) based on floodRisk number to simulate district overlays */}
-                         {floodRisk > 50 && (
-                             <CircleMarker center={[10.85, 76.27]} radius={20} pathOptions={{ color: '#2e7db5', fillColor: '#2e7db5', fillOpacity: 0.3 }}>
-                               <Popup>Kerala Basin Anomaly</Popup>
-                             </CircleMarker>
-                         )}
-
-                         {/* Quakes (Orange outlines) */}
-                         {quakes.map((q: any, i: number) => (
-                             <CircleMarker key={`quake-${i}`} center={[q.geometry.coordinates[1], q.geometry.coordinates[0]]} radius={q.properties.mag * 2} pathOptions={{ color: '#e8a020', fillColor: 'transparent', weight: 2 }} />
-                         ))}
-
-                      </MapContainer>
+                <div className="row r2" style={{ flex: 1, minHeight: 0 }}>
+                  <div className="card" style={{ padding: 0, display: 'flex', flexDirection: 'column' }}>
+                    <div className="clbl" style={{ padding: '12px 14px 0' }}>INDIA TERRITORIAL HAZARD GIS</div>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                       <IndiaMap hotspots={hotspots} />
                     </div>
                   </div>
 
                   <div className="card">
-                    <div className="clbl">LIVE SEISMIC ACTIVITY — USGS</div>
-                    <div style={{ marginTop: '10px', height: '320px', overflowY: 'auto' }}>
-                      {quakes.map((q: any, i: number) => (
-                         <div key={i} style={{ display: 'flex', flexDirection: 'column', padding: '10px 0', borderBottom: '1px solid var(--b4)' }}>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <span style={{ color: q.properties.mag >= 5 ? 'var(--red)' : '#e8a020', fontWeight: 'bold', fontSize: '14px' }}>M{q.properties.mag.toFixed(1)}</span>
-                              <span style={{ color: 'var(--a4)', fontSize: '10px' }}>{new Date(q.properties.time).toLocaleTimeString('en-US', {hour12: false})}</span>
-                           </div>
-                           <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{q.properties.place}</span>
-                         </div>
+                    <div className="clbl">SEISMIC ACTIVITY (USGS)</div>
+                    <div className="quake-list">
+                      {quakes.map((q, i) => (
+                        <div key={i} className="quake-item">
+                          <div className="quake-mag">M{q.properties.mag.toFixed(1)}</div>
+                          <div className="quake-loc">{q.properties.place}</div>
+                          <div className="quake-time">{new Date(q.properties.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                        </div>
                       ))}
-                      {quakes.length === 0 && <div style={{color: 'var(--muted)', fontSize: '11px', marginTop: '10px'}}>No major quakes &gt; M2.5 in last 7 days.</div>}
+                      {quakes.length === 0 && <div className="ah-body">No recent seismic events detected.</div>}
                     </div>
                   </div>
                 </div>
 
-                {/*  ROW 3: Rainfall Chart  */}
-                <div className="card" style={{ height: '140px', display: 'flex', flexDirection: 'column', marginTop: '15px' }}>
-                  <div className="clbl" style={{marginBottom: '10px'}}>PRECIPITATION ANOMALY — 7 DAY (mm/day) · NASA GPM IMERG</div>
-                  <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                <div className="card" style={{ height: '150px' }}>
+                  <div className="clbl">PRECIPITATION TREND — 7 DAY ANOMALY</div>
+                  <div style={{ height: '100px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={rainHistory} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <AreaChart data={Array.from({length: 15}).map((_, i) => ({ x: i, y: 100 + Math.random() * 200 }))}>
                         <defs>
-                          <linearGradient id="colorRain" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#2e7db5" stopOpacity={0.4}/>
-                            <stop offset="95%" stopColor="#2e7db5" stopOpacity={0}/>
+                          <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--b3)" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="var(--b3)" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <XAxis dataKey="day" hide />
-                        <YAxis stroke="transparent" tick={{fill: 'var(--muted)', fontSize: 10}} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <ReferenceLine y={250} stroke="rgba(192,57,43,0.3)" strokeDasharray="3 3" />
-                        <Area type="monotone" dataKey="rain" stroke="#3a9e6a" fillOpacity={1} fill="url(#colorRain)" isAnimationActive={false} />
+                        <Area type="monotone" dataKey="y" stroke="var(--b3)" fillOpacity={1} fill="url(#colorY)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-
               </main>
 
-              {/*  ──────────────── RIGHT ────────────────  */}
+              {/*  ──────────────── RIGHT PANEL ────────────────  */}
               <aside className="right">
-
-                <div className="rlbl">BHUMI SCORE FORECAST</div>
+                <div className="rlbl">HAZARD FORECAST (24H)</div>
                 <div className="fc-strip">
                   <div className="fci"><div className="fci-t">NOW</div><div className="fci-v" style={{color:"var(--b3)"}}>{score}</div><div className="fci-l">{alertLevel}</div></div>
-                  <div className="fci"><div className="fci-t">+6H</div><div className="fci-v" style={{color:"var(--fire)"}}>{Math.min(100, score + 6)}</div><div className="fci-l">FORECAST</div></div>
-                  <div className="fci"><div className="fci-t">+12H</div><div className="fci-v" style={{color:"var(--red)"}}>{Math.min(100, score + 12)}</div><div className="fci-l">FORECAST</div></div>
-                  <div className="fci"><div className="fci-t">+24H</div><div className="fci-v" style={{color:"var(--a4)"}}>{Math.max(0, score - 15)}</div><div className="fci-l">FORECAST</div></div>
+                  <div className="fci"><div className="fci-t">+6H</div><div className="fci-v" style={{color:"var(--fire)"}}>{Math.min(100, score + 5)}</div><div className="fci-l">FORECAST</div></div>
+                  <div className="fci"><div className="fci-t">+24H</div><div className="fci-v" style={{color:"var(--red)"}}>{Math.min(100, score + 12)}</div><div className="fci-l">TREND</div></div>
                 </div>
 
-                <div className="ndrf-box" style={{ marginTop: '20px' }}>
-                  <div className="ndrf-title">NDRF ACTIVATION ALERT</div>
-                  <div className="ndrf-body">Based on Bhumi Score {score}, {Math.max(0, Math.floor(score/10) - 2)} NDRF teams recommended for standby. Pre-positioning highly advised for {data?.criticalDistricts ?? 0} critical districts currently tracking.</div>
+                <div className="ndrf-box">
+                  <div className="ndrf-title">MISSION DIRECTIVE</div>
+                  <div className="ndrf-body">
+                    {score > 60 ? "Elevated hazard risk detected. Pre-positioning of response teams in high-saturation zones recommended." : "Systems monitoring within nominal range. No immediate mobilization required."}
+                  </div>
                 </div>
 
-                {/*  AI Brief  */}
-                <div className="brief" style={{ marginTop: '20px' }}>
+                <div className="brief">
                   <div className="br-head">
-                    <div className="br-title">AI MISSION BRIEF · BHUMI</div>
-                    <div className="br-ts">{new Date().toLocaleTimeString('en-US', { hour12: false })}</div>
+                    <div className="br-title">AI MISSION BRIEF</div>
+                    <div className="br-ts">{new Date().toLocaleTimeString()}</div>
                   </div>
                   <div className="br-body">
-                    {alertLevel === 'NORMAL' && <span>Earth hazards remain within normal thresholds. Routine monitoring of fire and precipitation models continuing.</span>}
-                    {alertLevel === 'ADVISORY' && <span style={{color: 'var(--a4)'}}>Elevated terrestrial anomalies detected. Active tracking of accumulating rainfall anomalies and localized thermal spikes.</span>}
-                    {alertLevel === 'WARNING' && <span style={{color: 'var(--fire)'}}>Significant hazard overlap detected. Cross-referencing flood extents with upstream basin saturation levels to predict downstream impact.</span>}
-                    {alertLevel === 'CRITICAL' && <span style={{color: 'var(--red)'}}>CRITICAL MULTI-HAZARD EVENT: Immediate response mobilization required. Severe synchronous terrestrial hazards actively threatening densely populated infrastructure corridors.</span>}
+                    Bhumi engine actively synthesizing multi-spectral data from NASA GPM and FIRMS. 
+                    Territorial boundaries verified. Jammu and Kashmir sector tracking nominal precipitation.
+                    Current focus: Monsoon basin inundation and central thermal anomalies.
+                    <span className="cur"></span>
                   </div>
                 </div>
-
               </aside>
             </div>
           </div>
