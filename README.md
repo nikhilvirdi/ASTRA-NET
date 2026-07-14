@@ -6,7 +6,6 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Data](https://img.shields.io/badge/data-real%20%26%20verified-brightgreen)]()
-
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white)](https://threejs.org/)
@@ -17,7 +16,6 @@
 [![GSAP](https://img.shields.io/badge/GSAP-88CE02?logo=greensock&logoColor=black)](https://gsap.com/)
 [![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-396CB2)](https://maplibre.org/)
 [![Recharts](https://img.shields.io/badge/Recharts-8884d8)](https://recharts.org/)
-
 [![Express](https://img.shields.io/badge/Express-black?logo=express&logoColor=white)](https://expressjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
@@ -26,7 +24,6 @@
 [![Argon2](https://img.shields.io/badge/hashing-Argon2-blueviolet)]()
 [![SSE](https://img.shields.io/badge/realtime-SSE-blue)]()
 [![Zod](https://img.shields.io/badge/validation-Zod-3E67B1)](https://zod.dev/)
-
 [![CelesTrak](https://img.shields.io/badge/data-CelesTrak-lightgrey)](https://celestrak.org/)
 [![N2YO](https://img.shields.io/badge/data-N2YO-lightgrey)](https://www.n2yo.com/)
 [![NOAA SWPC](https://img.shields.io/badge/data-NOAA_SWPC-lightgrey)](https://www.swpc.noaa.gov/)
@@ -35,7 +32,6 @@
 [![NASA GIBS](https://img.shields.io/badge/data-NASA_GIBS-lightgrey)](https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs)
 [![JPL Horizons](https://img.shields.io/badge/data-JPL_Horizons-lightgrey)](https://ssd.jpl.nasa.gov/horizons/)
 [![Open-Meteo](https://img.shields.io/badge/data-Open--Meteo-lightgrey)](https://open-meteo.com/)
-
 [![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
 [![Playwright](https://img.shields.io/badge/e2e-Playwright-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
 [![ESLint](https://img.shields.io/badge/lint-ESLint-4B32C3?logo=eslint&logoColor=white)](https://eslint.org/)
