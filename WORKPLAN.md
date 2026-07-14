@@ -1,9 +1,9 @@
 # ASTRANET — Development Workplan
 
 **This file is the single source of truth for the build.**
-Humans and agents follow this order. Do not skip ahead. Do not start a phase until the previous phase's *Definition of Done* is fully met.
+Humans and agents follow this order. Do not skip ahead. Do not start a phase until the previous phase's _Definition of Done_ is fully met.
 
-> **Current Phase:** `Phase 0` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
+> **Current Phase:** `Phase 1` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
 
 ---
 
@@ -29,6 +29,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** A running, empty skeleton that every later phase plugs into. No features yet.
 
 **Atomic tasks:**
+
 - Initialize repo, `package.json`, TypeScript config (strict mode on).
 - Set up monorepo/workspace split: `apps/api`, `apps/web`, `packages/shared` (shared types + pure engines live here so both sides import them).
 - `docker-compose.yml` with a Postgres 16 service.
@@ -49,6 +50,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** One isolated, validated client per external API. Each fetches, parses, and returns clean typed data — nothing else.
 
 **Atomic tasks (one sub-task per source):**
+
 - CelesTrak (satellite TLE/OMM) client.
 - N2YO (ISS/visual passes) client.
 - NOAA SWPC client (Kp-index, solar wind, X-ray flux, OVATION oval, 3-day forecast).
@@ -70,6 +72,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The scientific heart of ASTRANET as pure, unit-tested functions. This de-risks the hardest conceptual work before any wiring.
 
 **Atomic tasks:**
+
 - Coordinate + star-position transforms (catalog → 3D; RA/Dec → alt/az; LST; Sun position).
 - Satellite visible-pass logic (elevation + observer-darkness + sunlit test).
 - CME arrival — Drag-Based Model solver (`FORMULAS.md` §6).
@@ -89,6 +92,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** One always-on process that orchestrates Phase-1 clients on a two-tier schedule, holds latest state in memory, and exposes it.
 
 **Atomic tasks:**
+
 - Fast tier (30–60s): ISS position, SWPC solar wind/Kp → refresh in-memory store.
 - Slow tier (5–15min): DONKI, NeoWs, imagery, forecasts.
 - In-memory normalized state store (re-fetched on boot, not persisted).
@@ -97,7 +101,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 - Central polling = constant upstream load regardless of user count; log any 429s.
 - `/health` endpoint (also used for keep-warm).
 
-**Agent expectations:** The poller only *collects and serves* data — no prediction logic here (that's the engines). Respect each source's tier; never move a slow source to the fast tier. Verify one source failing doesn't stall the others.
+**Agent expectations:** The poller only _collects and serves_ data — no prediction logic here (that's the engines). Respect each source's tier; never move a slow source to the fast tier. Verify one source failing doesn't stall the others.
 
 **Definition of Done:** Poller runs continuously, `/stream` emits live fast-tier data with correct freshness tags, and killing one source leaves the rest healthy.
 
@@ -108,7 +112,8 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The product's spine. Compose poller data + engine outputs into the Daily Brief payload.
 
 **Atomic tasks:**
-- Define the degradation contract: Brief = independent cards (Sky Anchor > ISS > space weather > NEO/imagery); any source failure blanks only its card as "unavailable"; Brief renders if *any* card resolves.
+
+- Define the degradation contract: Brief = independent cards (Sky Anchor > ISS > space weather > NEO/imagery); any source failure blanks only its card as "unavailable"; Brief renders if _any_ card resolves.
 - `/api/brief?lat=&lon=` — assembles tonight's summary, aurora odds + confidence, next ISS pass, one solar line, learning moment.
 - Wire the Causal Engine to live poller data for the aurora prediction.
 - Confidence bands and honest freshness surfaced in the payload.
@@ -125,6 +130,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** Secure accounts without a third-party auth provider.
 
 **Atomic tasks:**
+
 - Prisma `users` + `sessions` models.
 - Argon2 password hashing.
 - Custom JWT middleware: 15-min access token + rotated refresh token (httpOnly cookie, hashed + stored for revocation).
@@ -143,6 +149,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The data that makes ASTRANET personal and honest.
 
 **Atomic tasks:**
+
 - Saved locations (add/remove/default), scoped to the authed user.
 - Personal Sky Log (auto-logged passes/aurora nights + manual entries) as JSONB history.
 - Cache table with `expires_at` + cleanup on read + periodic sweep (no Redis).
@@ -162,13 +169,14 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The first thing a user sees, consuming a real backend.
 
 **Atomic tasks:**
+
 - React + Vite app shell, routing, persistent nav (auto-hiding on `/explore`).
 - Zustand store; Tailwind + shadcn/ui base.
 - Auth UI (`/login`, `/signup`) wired to Phase-5 routes; token handling.
 - `/` Daily Brief page rendering `/api/brief`, with per-card loading + "unavailable" states matching the degradation contract.
 - Freshness indicators (live pulse for fast tier, "updated Xm ago" for slow).
 
-**Agent expectations:** Build against the *real* endpoint, not mock data. Respect the degradation contract in the UI exactly as the backend defines it.
+**Agent expectations:** Build against the _real_ endpoint, not mock data. Respect the degradation contract in the UI exactly as the backend defines it.
 
 **Definition of Done:** A logged-in user sees a real, personalized Daily Brief that degrades gracefully when a source is down.
 
@@ -179,6 +187,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The immersive core. Build the proving scene first, then layer objects.
 
 **Atomic tasks:**
+
 - **Ground Truth Sky Anchor first** — real GPS-anchored night sky from the bright-star catalog, correct alt/az, the single scene that proves camera + data + coordinate transforms end-to-end.
 - Clickable ISS/satellites with contextual one-sentence overlays (hold for data).
 - Sun + planets at true current positions (JPL/Horizons via engines).
@@ -198,6 +207,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The share-worthy discovery layer.
 
 **Atomic tasks:**
+
 - MapLibre GL map centered on the user.
 - Candidate-site generation + scoring (clarity × darkness × travel, engine-driven).
 - Ranked list + map markers; filter by tonight's event (aurora/meteor/ISS).
@@ -214,12 +224,13 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** Retention, control, and visible honesty.
 
 **Atomic tasks:**
+
 - `/log` — timeline + simple stats (total sightings, streak, last aurora).
 - `/settings` — saved locations, alert toggles, account, delete-my-data control.
 - `/accuracy` — public Recharts view of predicted vs. actual Kp + rolling hit-rate.
 - Personalized alerts wiring (ISS/aurora/meteor/NEO).
 
-**Agent expectations:** `/accuracy` must reflect the *real* recorded track record from Phase 6 — never fabricated numbers. Delete-my-data must call the real Phase-6 deletion.
+**Agent expectations:** `/accuracy` must reflect the _real_ recorded track record from Phase 6 — never fabricated numbers. Delete-my-data must call the real Phase-6 deletion.
 
 **Definition of Done:** Log and settings work per user; delete-my-data truly erases; accuracy page shows genuine historical performance.
 
@@ -230,6 +241,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** The growth loop.
 
 **Atomic tasks:**
+
 - `/share/:id` public, no-login snapshot of a location's brief.
 - OG/meta tags for rich link previews.
 - One-tap generate/share from the Daily Brief.
@@ -245,6 +257,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 **Objective:** Production-grade finish.
 
 **Atomic tasks:**
+
 - Full outage/resilience pass across every card and scene.
 - Rate-limit budget verification against real source limits under load.
 - Accessibility pass (keyboard nav, screen readers, diegetic-text DOM mirror).
