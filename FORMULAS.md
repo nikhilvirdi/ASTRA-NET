@@ -31,12 +31,15 @@ TWILIGHT_STARS      = -18  deg   (astronomical: faint-star realism)
 ## 1. Star Position (catalog → 3D)
 
 Distance from parallax (mas):
+
 ```
 d_pc = 1000 / parallax_mas
 ```
+
 **Decision — bad parallax:** if `parallax_mas <= 0.2` OR negative → **drop the star**, or pin it to a fixed 100 kpc shell. Never let it produce NaN/negative distance.
 
 Cartesian (RA, Dec in radians; d in parsecs):
+
 ```
 x = d_pc * cos(dec) * cos(ra)
 y = d_pc * cos(dec) * sin(ra)
@@ -44,6 +47,7 @@ z = d_pc * sin(dec)
 ```
 
 Light-travel context:
+
 ```
 years_ago = d_pc * PC_LY
 ```
@@ -53,12 +57,14 @@ years_ago = d_pc * PC_LY
 ## 2. Star Render
 
 Brightness from apparent magnitude:
+
 ```
 m_ref     = 6.0
 brightness = 10 ^ (-0.4 * (m - m_ref))       # clamp to [0, 1]
 ```
 
 Point size:
+
 ```
 m_limit    = 6.5
 k          = 0.35
@@ -66,34 +72,47 @@ point_size = base_size * (1 + k * (m_limit - m))
 ```
 
 Color temperature (Ballesteros; needs B−V). Convert Gaia `bp_rp` → B−V:
+
 ```
 B_V = 0.85 * bp_rp
 
 T_kelvin = 4600 * ( 1 / (0.92 * B_V + 1.7)
                   + 1 / (0.92 * B_V + 0.62) )
 ```
-Then map `T_kelvin` → blackbody RGB.
+
+**RGB rendering — explicitly NOT part of the frozen engine (resolved
+2026-07-15):** Mapping `T_kelvin` to an RGB color is a rendering/visual-
+approximation choice, not a physical constant — competing curves (Tanner
+Helland's piecewise fit, Mitchell Charity's lookup table) disagree at the
+±5-10% level with no single correct answer. This step lives in `apps/web`
+as a rendering-side utility using **Tanner Helland's blackbody-to-RGB
+approximation**, not in `packages/shared`. The shared engine's contract
+ends at `T_kelvin` — do not add an RGB function to `packages/shared`.
 
 ---
 
 ## 3. Local Sky Dome (Ground Truth Sky Anchor)
 
 Julian day offset:
+
 ```
 d_UT1 = JD - 2451545.0
 ```
 
 Local Sidereal Time (degrees; lon_east positive):
+
 ```
 LST_deg = (280.4606 + 360.9857 * d_UT1 + lon_east) mod 360
 ```
 
 Hour angle:
+
 ```
 H = LST - RA            # (in matching units; convert to radians for trig)
 ```
 
 Altitude / azimuth (φ = observer latitude):
+
 ```
 sin(alt) = sin(dec)*sin(φ) + cos(dec)*cos(φ)*cos(H)
 
@@ -108,6 +127,7 @@ az = atan2( -cos(dec)*sin(H),
 Use **Meeus low-precision** solar position (accuracy ≥ 0.01°). Outputs the Sun's RA/Dec and, via §3, its altitude for the observer.
 
 Twilight decisions (Sun elevation for the observer):
+
 ```
 ISS / aurora usable   when  sun_alt < TWILIGHT_ISS_AURORA   (-6°)
 faint-star realism    when  sun_alt < TWILIGHT_STARS        (-18°)
@@ -120,6 +140,7 @@ faint-star realism    when  sun_alt < TWILIGHT_STARS        (-18°)
 satellite.js gives ECI position/velocity; derive look-angles (elevation, azimuth, range) for the observer.
 
 **A pass is "visible" only if ALL three hold:**
+
 ```
 1) elevation >= 10°
 2) sun_alt_observer < -6°                         (observer in darkness, §4)
@@ -136,6 +157,7 @@ satellite.js gives ECI position/velocity; derive look-angles (elevation, azimuth
 ## 6. CME Arrival — Drag-Based Model (Vršnak 2013)
 
 Analytic DBM. Inputs:
+
 ```
 v0    = CME initial speed        (km/s, from DONKI)
 w     = ambient solar wind speed (km/s, from SWPC; default 400 if missing)
@@ -145,6 +167,7 @@ sign  = +1 if v0 > w else -1     (decel if faster than wind, else accel)
 ```
 
 Position over time:
+
 ```
 r(t) - r0 = (1/gamma) * sign * ln( 1 + sign * gamma * (v0 - w) * t )
             + w * t
@@ -159,27 +182,33 @@ Solve `r(t) = 1 AU` for `t` by **bisection** (r is monotonic in t) → arrival t
 ## 7. Aurora Visibility
 
 Geomagnetic latitude (dipole approximation; φ, lon in radians; pole from §0):
+
 ```
 sin(λ_m) = sin(φ)*sin(φ_p) + cos(φ)*cos(φ_p)*cos(θ - θ_p)
 ```
+
 where `(φ_p, θ_p)` = geomagnetic pole lat/lon, `(φ, θ)` = observer lat/lon.
 
 Equatorward auroral-oval boundary (geomagnetic latitude, degrees):
+
 ```
 λ_b = 66 - 2 * Kp
 ```
 
 Horizon-view margin (aurora at ~110 km is visible low on the horizon from further south):
+
 ```
 margin_deg = 4
 ```
 
 **User can see aurora if:**
+
 ```
 |λ_m| >= λ_b - margin_deg
 ```
 
 Strength cue:
+
 ```
 strength = |λ_m| - (λ_b - margin_deg)     # larger = better placed
 ```
@@ -193,23 +222,27 @@ strength = |λ_m| - (λ_b - margin_deg)     # larger = better placed
 Three factors, **multiplicative**. All produce values in (0, 1].
 
 Lead-time factor (`t_remaining` = hours until predicted arrival):
+
 ```
 tau     = 24                                  # hours
 f_lead  = 0.3 + 0.7 * exp(-t_remaining / tau)
 ```
 
 Source-agreement factor:
+
 ```
 sigma   = 2
 f_agree = exp( -|Kp_cme - Kp_swpc| / sigma )
 ```
 
 History factor (Beta posterior mean; `hits`, `trials` from the accuracy loop):
+
 ```
 f_hist  = (hits + 2) / (trials + 4)
 ```
 
 Final confidence and bands:
+
 ```
 C = f_lead * f_agree * f_hist
 
@@ -219,6 +252,7 @@ C < 0.33          -> "low"
 ```
 
 CME-speed → Kp heuristic (used **only** for `Kp_cme` in the agreement factor):
+
 ```
 Kp_cme = clamp( round( 1.5 + 2.3 * log10(v0 / 400) ), 0, 9 )
 ```
@@ -228,9 +262,11 @@ Kp_cme = clamp( round( 1.5 + 2.3 * log10(v0 / 400) ), 0, 9 )
 ## 9. Accuracy Loop
 
 For each stored prediction, once its `target_time` has elapsed, fetch observed Kp and score:
+
 ```
 hit = ( |predicted_kp - actual_kp| <= 1 )
 ```
+
 Rolling `hits` / `trials` feed §8's `f_hist`. Start from the Beta prior (the +2 / +4 in `f_hist`), so early predictions get a neutral, honest prior rather than overconfident 0% or 100%.
 
 ---
@@ -238,11 +274,13 @@ Rolling `hits` / `trials` feed §8's `f_hist`. Start from the Beta prior (the +2
 ## 10. Near-Earth Objects
 
 Diameter from absolute magnitude H (assumed albedo 0.14):
+
 ```
 D_km = (1329 / sqrt(0.14)) * 10 ^ (-0.2 * H)
 ```
 
 Miss distance in lunar distances:
+
 ```
 miss_LD = miss_distance_km / LD
 ```
@@ -252,6 +290,7 @@ miss_LD = miss_distance_km / LD
 ## 11. Best-Spot Score
 
 Each factor in [0, 1]; **multiplicative** so any zero kills the site.
+
 ```
 clarity  = 1 - cloud_fraction                 # Open-Meteo
 darkness = (9 - bortle) / 8                    # Bortle 1 (dark) → 1.0, Bortle 9 → 0
@@ -261,11 +300,30 @@ score    = clarity * darkness * travel
 ```
 
 For aurora nights, multiply by the aurora-visibility factor (from §7 `strength`, normalized to [0,1]):
+
 ```
 score_aurora = score * aurora_factor
 ```
 
-Rank candidate sites by `score` (or `score_aurora`); recommend the maximum.
+**Aurora-strength normalization (resolved 2026-07-15):**
+
+```
+AURORA_STRENGTH_SATURATION_DEG = 20
+aurora_factor = clamp(strength_deg / 20, 0, 1)
+```
+
+Rationale: 20° of margin inside the auroral oval boundary (§7)
+comfortably represents "deep in the oval, excellent view"; 0° is exactly
+at the visibility threshold. `aurora_factor` is only meaningful when
+`strength_deg >= 0` (i.e., §7's `canSeeAurora` is true). **When aurora is
+not visible, do not compute `score_aurora` at all** — use plain `score`
+(clarity × darkness × travel). Passing a clamped-to-0 factor into
+`score_aurora` would incorrectly zero out an otherwise-good site; the
+aurora factor should only ever multiply in when it's actually relevant
+to that night's ranking, not as a universal fourth term.
+
+Rank candidate sites by `score` (or `score_aurora`, on aurora nights);
+recommend the maximum.
 
 ---
 
