@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  settings     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions      Session[]
+  locations     Location[]
+  skyLogEntries SkyLogEntry[]
+  predictions   Prediction[]
+}
+
+model Session {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hashedRefreshToken String   @unique
+  userAgent          String?
+  createdAt          DateTime @default(now())
+  expiresAt          DateTime
+
+  @@index([userId])
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  latitude  Float
+  longitude Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SkyLogEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType String
+  timestamp DateTime
+  source    String
+  details   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId, timestamp])
+}
+
+model Prediction {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  madeAt       DateTime  @default(now())
+  targetTime   DateTime
+  predictedKp  Float
+  confidence   Float
+  context      Json      @default("{}")
+  actualKp     Float?
+  scored       Boolean   @default(false)
+  hit          Boolean?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([scored, targetTime])
+}
+
+model Cache {
+  key       String   @id
+  value     Json
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

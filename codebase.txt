@@ -1,0 +1,2047 @@
+﻿ASTRANET — Codebase Snapshot (2026-07-14 19:08)
+
+=== FILE STRUCTURE ===
+.claude\agents\formula-reviewer.md
+.claude\commands\formula-audit.md
+.claude\commands\phase-check.md
+.claude\hooks\post-edit-check.sh
+.claude\settings.json
+.cursor\rules\rules.mdc
+.env.example
+.eslintrc.json
+.github\workflows\ci.yml
+.gitignore
+.husky\pre-commit
+.lintstagedrc.json
+.prettierrc
+AGENTS.md
+API_SOURCES.md
+ARCHITECTURE.md
+CLAUDE.md
+DECISIONS.md
+docker-compose.yml
+FORMULAS.md
+LICENSE
+NOTES.md
+prisma\schema.prisma
+PROGRESS.md
+README.md
+SCHEMA.md
+TESTING.md
+WORKPLAN.md
+
+=== FILE CONTENTS ===
+
+--- FILE: .claude\agents\formula-reviewer.md ---
+
+---
+name: formula-reviewer
+description: Read-only reviewer of scientific/math engine code against FORMULAS.md. Use PROACTIVELY after any change to files in packages/shared related to orbital, aurora, CME, confidence, or best-spot calculations.
+tools: Read, Grep, Glob
+model: sonnet
+---
+
+You are a specialist reviewer for ASTRANET's scientific engine code. Your only job is fidelity: does the implementation match `FORMULAS.md` exactly?
+
+Rules:
+- `FORMULAS.md` is frozen and authoritative. You are not evaluating whether the formulas are scientifically ideal â€” you are evaluating whether the code matches them.
+- For every function you review, locate the corresponding section in `FORMULAS.md` and check every constant, every clamp, every conditional (e.g. sign flips, bisection vs. other solvers) line by line.
+- Confirm purity: no hidden I/O, no implicit clock reads, `now`/inputs fully injected.
+- Confirm units are handled correctly at boundaries (degrees vs radians, km vs AU, etc.).
+- Flag missing edge-case tests referenced in `FORMULAS.md`'s "Implementation Notes" section.
+- You have read-only tools. You report findings; you do not edit code.
+- Be precise and specific â€” cite file, line, and the `FORMULAS.md` section. Do not pad the report with generic praise or vague concerns.
+- If you find a genuine ambiguity or error in `FORMULAS.md` itself (not the code), say so explicitly and recommend it be logged in `DECISIONS.md` â€” do not resolve it yourself.
+
+Output format: a short pass/fail summary per function, followed by specific findings only where something doesn't match.
+
+--- FILE: .claude\commands\formula-audit.md ---
+
+---
+description: Audit an engine file for fidelity against FORMULAS.md
+---
+
+## File to audit
+$ARGUMENTS
+
+## Reference
+
+!`cat FORMULAS.md`
+
+## Task
+
+Read the file given in $ARGUMENTS. For every constant, threshold, and formula it implements:
+
+1. Identify which `FORMULAS.md` section it corresponds to.
+2. Confirm the constant values match exactly (no rounding drift, no substituted defaults).
+3. Confirm clamping/range rules are applied where `FORMULAS.md` requires them.
+4. Confirm the function is pure â€” no `Date.now()`, no network/DB calls, `now` injected as a parameter.
+5. List any mismatch as a specific line-by-line finding, not a general impression.
+6. If everything matches, say so plainly â€” don't invent findings to seem thorough.
+
+Do not modify the file. Report findings only. If a real mismatch is found, ask before fixing it, and log the finding in `DECISIONS.md` regardless of whether it turns out to be a bug in the code or an ambiguity in `FORMULAS.md` itself.
+
+--- FILE: .claude\commands\phase-check.md ---
+
+---
+description: Verify whether the current WORKPLAN.md phase actually meets its Definition of Done
+---
+
+## Current workplan state
+
+!`grep -A2 "Current Phase" WORKPLAN.md`
+
+## Recent progress
+
+!`tail -30 PROGRESS.md`
+
+## Task
+
+1. Identify the current phase from `WORKPLAN.md`.
+2. Re-read that phase's atomic tasks and Definition of Done â€” don't rely on `PROGRESS.md` entries alone, verify against the actual codebase (run the relevant tests/build).
+3. Report, task by task: done / not done / partially done, with evidence (test output, file existence, etc.).
+4. Only if every task is genuinely done, confirm the phase can be closed and suggest updating the `Current Phase` marker in `WORKPLAN.md` plus a summary entry in `PROGRESS.md`.
+5. If anything is incomplete, list exactly what's missing â€” do not round up "mostly done" to "done."
+
+--- FILE: .claude\hooks\post-edit-check.sh ---
+
+#!/usr/bin/env bash
+# ASTRANET â€” Claude Code PostToolUse hook
+# Fires after Edit/Write/MultiEdit. Reads the tool payload from stdin,
+# and if the touched file is in apps/* or packages/shared, runs lint
+# and the related test(s) immediately â€” instant feedback instead of
+# catching problems three files (or one review) later.
+#
+# Wired up in .claude/settings.json under "hooks" -> "PostToolUse".
+
+set -euo pipefail
+
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | node -e "
+  let data = '';
+  process.stdin.on('data', d => data += d);
+  process.stdin.on('end', () => {
+    try {
+      const json = JSON.parse(data);
+      console.log(json.tool_input?.file_path || '');
+    } catch { console.log(''); }
+  });
+" <<< "$INPUT")
+
+# Only act on files we actually care about
+if [[ "$FILE_PATH" != *"/apps/"* && "$FILE_PATH" != *"/packages/shared/"* ]]; then
+  exit 0
+fi
+
+if [[ "$FILE_PATH" != *.ts && "$FILE_PATH" != *.tsx ]]; then
+  exit 0
+fi
+
+echo "[post-edit-check] Linting $FILE_PATH ..."
+if ! npx eslint "$FILE_PATH" --max-warnings=0; then
+  echo "[post-edit-check] Lint failed on $FILE_PATH" >&2
+  exit 2
+fi
+
+if [[ "$FILE_PATH" == *"/packages/shared/"* ]]; then
+  echo "[post-edit-check] Running related tests for $FILE_PATH ..."
+  if ! npx vitest related "$FILE_PATH" --run; then
+    echo "[post-edit-check] Tests failed for $FILE_PATH" >&2
+    exit 2
+  fi
+fi
+
+echo "[post-edit-check] Clean."
+exit 0
+
+--- FILE: .claude\settings.json ---
+
+{
+    "permissions": {
+        "allow": [
+            "Bash(npm run dev)",
+            "Bash(npm run build)",
+            "Bash(npm test)",
+            "Bash(npm run lint)",
+            "Bash(npx vitest*)",
+            "Bash(npx playwright*)",
+            "Bash(npx prisma migrate dev*)",
+            "Bash(npx prisma generate)",
+            "Bash(npx prisma studio)",
+            "Bash(docker compose up*)",
+            "Bash(docker compose down*)",
+            "Bash(git status)",
+            "Bash(git diff*)",
+            "Bash(git log*)",
+            "Bash(git add*)",
+            "Bash(git commit*)"
+        ],
+        "deny": [
+            "Read(.env)",
+            "Read(.env.*)",
+            "Read(**/*.pem)",
+            "Read(**/id_rsa*)",
+            "Bash(git push --force*)",
+            "Bash(rm -rf /*)"
+        ]
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash .claude/hooks/post-edit-check.sh"
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+--- FILE: .cursor\rules\rules.mdc ---
+
+---
+description: ASTRANET project rules â€” read AGENTS.md first
+alwaysApply: true
+---
+
+This project's shared agent instructions live in `AGENTS.md` at the repo root. Read it before making any change.
+
+In short:
+
+- `WORKPLAN.md` is the single source of truth for build order â€” check the `Current Phase` marker and stay within it.
+- `ARCHITECTURE.md`, `FORMULAS.md`, `API_SOURCES.md`, `SCHEMA.md` are locked reference docs â€” implement them exactly, don't invent alternatives.
+- Pure math/engine code lives in `packages/shared` and must stay side-effect-free (no I/O, no clock reads â€” inject `now`).
+- Validate all external data with Zod at the boundary.
+- Every non-trivial function needs unit tests before a task counts as done.
+- Update `PROGRESS.md` when you finish a task. Log any deviation from a locked doc in `DECISIONS.md` before making it, not after.
+- Deferred/out-of-scope ideas go in `NOTES.md`, never directly into code.
+
+Claude Code is the lead agent on this repo (see `CLAUDE.md`) and is responsible for cross-agent consistency â€” if you're touching code it previously wrote, follow the same standards.
+
+--- FILE: .env.example ---
+
+POSTGRES_USER=astranet
+POSTGRES_PASSWORD=astranet_dev_password
+POSTGRES_DB=astranet
+DATABASE_URL=postgresql://astranet:astranet_dev_password@localhost:5432/astranet
+
+JWT_ACCESS_SECRET=replace_with_a_long_random_secret
+JWT_REFRESH_SECRET=replace_with_a_different_long_random_secret
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=30d
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+
+NASA_API_KEY=
+N2YO_API_KEY=
+
+NODE_ENV=development
+PORT=3000
+WEB_ORIGIN=http://localhost:5173
+
+--- FILE: .eslintrc.json ---
+
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module",
+        "project": [
+            "./tsconfig.json",
+            "./apps/*/tsconfig.json",
+            "./packages/*/tsconfig.json"
+        ]
+    },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "prettier"
+    ],
+    "rules": {
+        "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_"
+            }
+        ],
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-misused-promises": "error",
+        "no-console": [
+            "warn",
+            {
+                "allow": [
+                    "warn",
+                    "error"
+                ]
+            }
+        ]
+    },
+    "ignorePatterns": [
+        "dist",
+        "build",
+        "node_modules",
+        "prisma/generated",
+        "*.config.js",
+        "*.config.ts"
+    ]
+}
+
+--- FILE: .github\workflows\ci.yml ---
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: astranet
+          POSTGRES_PASSWORD: astranet_ci_password
+          POSTGRES_DB: astranet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U astranet"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://astranet:astranet_ci_password@localhost:5432/astranet
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Prisma migrate (CI database)
+        run: npx prisma migrate deploy
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Coverage gate â€” packages/shared must be 100%
+        run: npm run test:coverage --workspace=packages/shared -- --coverage.thresholds.lines=100 --coverage.thresholds.functions=100 --coverage.thresholds.branches=100 --coverage.thresholds.statements=100
+
+      - name: Build
+        run: npm run build
+
+--- FILE: .gitignore ---
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Vite
+apps/web/dist/
+
+# Prisma
+prisma/generated/
+*.db
+*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Docker
+postgres-data/
+
+# Claude Code local state (keep shared settings.json, ignore personal overrides)
+.claude/settings.local.json
+
+# Cursor local state
+.cursor/*.local
+
+# Misc
+*.tsbuildinfo
+.turbo/
+
+--- FILE: .husky\pre-commit ---
+
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged
+
+--- FILE: .lintstagedrc.json ---
+
+{
+    "*.{ts,tsx}": [
+        "eslint --fix",
+        "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+        "prettier --write"
+    ],
+    "packages/shared/**/*.ts": [
+        "vitest related --run"
+    ]
+}
+
+--- FILE: .prettierrc ---
+
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "arrowParens": "always",
+  "endOfLine": "lf"
+}
+
+--- FILE: AGENTS.md ---
+
+# AGENTS.md
+
+Shared instructions for **any** coding agent working on ASTRANET (Codex, Cursor, Antigravity, and others). Claude Code is the primary/lead agent on this project and has its own extended instructions in `CLAUDE.md` â€” but everything in this file applies to it too. If `CLAUDE.md` and this file ever conflict, `CLAUDE.md` wins for Claude Code; this file is the floor everyone stands on.
+
+---
+
+## Project
+
+**ASTRANET** â€” Adaptive Sky Telemetry and Realtime Analysis Network. A live, personalized 3D sky companion. Full product context: `README.md`.
+
+## Read Before Writing Any Code
+
+1. `WORKPLAN.md` â€” **the single source of truth for build order.** Find the `Current Phase` marker at the top and work only within that phase unless told otherwise.
+2. `ARCHITECTURE.md` â€” locked stack, poller design, degradation contract, page layout.
+3. `FORMULAS.md` â€” every formula/constant, **frozen and verbatim.**
+4. `API_SOURCES.md` â€” external APIs: endpoint, key, rate limit, fallback per source.
+5. `SCHEMA.md` â€” data model reasoning (`prisma/schema.prisma` is the literal source of truth).
+
+Do not start writing code from memory or general knowledge of "what a space app needs." These five files are authoritative over any assumption.
+
+---
+
+## Non-Negotiable Rules
+
+- **Phase order is law.** Don't jump ahead to a later phase to "unblock" something â€” fix the blocker in the current phase.
+- **Formulas are frozen.** Implement `FORMULAS.md` exactly. If something looks wrong, log it in `DECISIONS.md` and ask â€” never silently substitute a different constant or formula.
+- **Pure engines stay pure.** Math/prediction code (`packages/shared`) takes explicit inputs and returns outputs â€” no network calls, no DB reads, no `Date.now()` inside the function; inject `now` as a parameter.
+- **Validate all external data with Zod** at the boundary. Never trust an upstream API's shape.
+- **Fail gracefully, per the degradation contract** (`ARCHITECTURE.md` Â§5): one bad source blanks its own card only, never the whole response.
+- **Every non-trivial function ships with tests**, including the edge cases listed in `FORMULAS.md`.
+- **No new datastore, no new major dependency, no architectural deviation** without logging it in `DECISIONS.md` first.
+- **Small, single-purpose commits** with clear messages.
+- **No procedurally generated / invented data.** Every object traces to a real source.
+
+## Definition of Done (every task)
+
+Implemented â†’ typed (no `any`) â†’ validated â†’ unit-tested â†’ lint/format clean â†’ committed â†’ `PROGRESS.md` updated.
+
+---
+
+## Shared Code
+
+`packages/shared` holds cross-cutting TypeScript types **and the pure math engines** (Phase 2). Both `apps/api` and `apps/web` import from here â€” never duplicate a formula or type in either app. If you need a calculation that already exists in `packages/shared`, import it; don't re-derive it.
+
+---
+
+## Working Across Multiple Agents
+
+Several agents may work on this repo in parallel. To avoid collisions:
+
+- Stay inside your assigned task/phase scope â€” don't opportunistically refactor files outside it.
+- Before starting, check `PROGRESS.md` for what's already done or in flight.
+- After finishing a task, update `PROGRESS.md` immediately â€” this is how other agents (and the human) know the current state.
+- If you must deviate from a locked doc (`ARCHITECTURE.md`, `FORMULAS.md`, `SCHEMA.md`), stop and record the proposed change in `DECISIONS.md` rather than just doing it â€” these files are shared contracts, not suggestions.
+- Ideas outside current scope go in `NOTES.md`, not into code.
+
+---
+
+## Tone of the Codebase
+
+Quality over quantity. One correct, tested, reviewed component beats five half-built ones. Don't batch-generate an entire phase in one pass â€” build, test, and commit incrementally within it.
+
+--- FILE: API_SOURCES.md ---
+
+# ASTRANET â€” External Data Sources
+
+Reference for every external API and dataset. All are free. For each: what it powers, base endpoint, key requirement, rate limit, poll tier (from `ARCHITECTURE.md` Â§4), and the **fallback** when it's unavailable (from the degradation contract, `ARCHITECTURE.md` Â§5).
+
+**Binding rules:**
+- Every response is validated with **Zod** at the boundary before use (Phase 1). Never trust upstream shape.
+- Polling is **central** â€” one poller hits each source and fans results to all users via the in-memory store + SSE. Upstream load is constant regardless of user count, which is what keeps every limit below comfortably satisfied.
+- Every client implements timeout + retry-with-backoff and returns its documented fallback on failure â€” it must never throw up the stack.
+- Log all `429`s; if any source ever approaches its limit, raise its poll interval, don't add keys.
+
+---
+
+## Rate-Budget Summary
+
+Because polling is central and shared, real usage is roughly **(one call per source per poll interval)**, not per-user. Sanity check against the tightest limits:
+
+| Source | Limit | Our central usage | Headroom |
+|---|---|---|---|
+| N2YO | 1000 req/hr | ISS at fast tier â‰ˆ 60â€“120/hr | ~10x under |
+| NASA (DONKI/NeoWs, shared key) | ~1000 req/hr (data.gov key) | slow tier, a handful/hr | massive |
+| NOAA SWPC | keyless, no hard limit (be polite) | fast + slow tiers | fine |
+| Open-Meteo | keyless, ~10k/day fair-use | on-demand per Best-Spot query + light caching | fine |
+| CelesTrak | keyless, cache-encouraged | slow tier, cached | fine |
+| JPL Horizons | keyless | slow tier | fine |
+
+---
+
+## Fast Tier (poll every 30â€“60s)
+
+### N2YO â€” ISS & visual satellite passes
+- **Powers:** live ISS position, visible-pass predictions (Explained Passes, overfly alerts).
+- **Endpoint:** `https://api.n2yo.com/rest/v1/satellite/...`
+- **Key:** required (free; register at n2yo.com, generate in profile). Store in `.env`.
+- **Rate limit:** **1000 transactions/hour.** Comfortable at fast tier centrally.
+- **Fallback:** if down, ISS card shows "position unavailable"; fall back to client-side `satellite.js` propagation from the last known TLE (CelesTrak) so the 3D scene still moves. Pass predictions degrade to "unavailable."
+
+### NOAA SWPC â€” solar wind & Kp (real-time)
+- **Powers:** current Kp-index, solar wind speed/density (Heliosphere Pulse, aurora odds input, Causal Engine).
+- **Endpoint:** `https://services.swpc.noaa.gov/...` (JSON products).
+- **Key:** none (keyless, no registration).
+- **Rate limit:** none published â€” poll politely, cache between ticks.
+- **Fallback:** use last cached value with an aged freshness stamp; if never fetched this session, space-weather card shows "unavailable" and aurora confidence drops (no live Kp â†’ engine leans on forecast only).
+
+---
+
+## Slow Tier (poll every 5â€“15 min)
+
+### NOAA SWPC â€” 3-day forecast & OVATION oval
+- **Powers:** `Kp_predicted` (primary Kp for aurora, `FORMULAS.md` Â§7), auroral oval overlay (Auroral Ring).
+- **Endpoint:** `https://services.swpc.noaa.gov/...` (forecast + OVATION products).
+- **Key:** none. **Rate limit:** none published.
+- **Fallback:** if forecast missing, fall back to latest real-time Kp as a proxy and lower confidence; if OVATION missing, render the ring from the Kpâ†’boundary formula (Â§7) instead of the live oval.
+
+### NASA DONKI â€” CME & solar flares
+- **Powers:** CME events feeding the Drag-Based arrival model (`FORMULAS.md` Â§6) and the cross-domain causal chain.
+- **Endpoint:** `https://api.nasa.gov/DONKI/...`
+- **Key:** NASA API key (free from api.nasa.gov; single key shared across DONKI + NeoWs).
+- **Rate limit:** data.gov-style, ~1000 req/hr on a keyed plan â€” trivial at slow tier.
+- **Fallback:** if down, no new CME predictions are generated; existing in-flight predictions continue. Causal card notes "no new solar events detected" vs. falsely implying calm.
+
+### NASA NeoWs â€” near-Earth objects
+- **Powers:** Threat Horizon (close approaches, diameter/miss-distance, `FORMULAS.md` Â§10).
+- **Endpoint:** `https://api.nasa.gov/neo/rest/v1/...`
+- **Key:** same NASA API key. **Rate limit:** ~1000 req/hr.
+- **Fallback:** NEO card shows "unavailable"; never blocks the Brief.
+
+### CelesTrak â€” satellite TLE/OMM
+- **Powers:** orbital elements for all satellites/constellations; ISS fallback propagation.
+- **Endpoint:** `https://celestrak.org/NORAD/elements/...` (JSON/OMM/TLE).
+- **Key:** none. **Rate limit:** none published â€” caching explicitly encouraged; TLEs change slowly, cache aggressively.
+- **Fallback:** use last cached TLE set (valid for hours/days); only if never fetched does satellite rendering degrade.
+
+### JPL Horizons â€” planetary & solar-system positions
+- **Powers:** true current positions of Sun, planets, probes (solar-system scene, Sun position for twilight Â§4).
+- **Endpoint:** `https://ssd.jpl.nasa.gov/api/horizons.api`
+- **Key:** none. **Rate limit:** none published â€” positions change slowly, cache long.
+- **Fallback:** positions are highly cacheable (ephemerides are predictable); serve last computed set. Effectively never user-visible-down.
+
+### NASA GIBS â€” Earth imagery
+- **Powers:** live Earth texture / cloud imagery (Sentinels' Gaze, globe surface).
+- **Endpoint:** `https://gibs.earthdata.nasa.gov/wmts/...` (WMTS tiles).
+- **Key:** none. **Rate limit:** tile-server, generous.
+- **Fallback:** fall back to a static high-res Earth texture from the CDN; scene never breaks.
+
+### Open-Meteo â€” cloud cover
+- **Powers:** clarity factor in Best-Spot score (`FORMULAS.md` Â§11).
+- **Endpoint:** `https://api.open-meteo.com/v1/forecast`
+- **Key:** none at all. **Rate limit:** ~10k calls/day fair-use.
+- **Fallback:** fetched on-demand per Best-Spot query (not central-polled), lightly cached per grid cell; if down, Best-Spot shows "cloud data unavailable" and ranks on darkness + travel only, flagged as reduced confidence.
+
+---
+
+## Static Datasets (ingest once, self-host)
+
+### Light-pollution atlas (Bortle)
+- **Powers:** darkness factor in Best-Spot score (`FORMULAS.md` Â§11).
+- **Source:** David Lorenz Light Pollution Atlas / VIIRS Black Marble (NASA, CC0).
+- **Access:** download once, preprocess, self-host. No live dependency.
+- **Fallback:** none needed â€” local data, always available.
+
+### Bright-star catalog
+- **Powers:** the real night-sky backdrop and Ground Truth Sky Anchor.
+- **Source:** Yale Bright Star Catalog / Hipparcos subset (public domain; a few thousand stars, right-sized â€” no full Gaia pipeline).
+- **Access:** preprocess to a binary `Float32Array`, host on GitHub â†’ jsDelivr CDN.
+- **Fallback:** static local asset â€” the highest-priority card in the degradation contract precisely because it never depends on a live source.
+
+---
+
+## Keys Needed (for `.env.example`)
+
+```
+NASA_API_KEY=        # api.nasa.gov â€” powers DONKI + NeoWs
+N2YO_API_KEY=        # n2yo.com profile â€” powers ISS + passes
+# NOAA SWPC, Open-Meteo, CelesTrak, JPL Horizons, GIBS = keyless
+```
+
+---
+
+## Degradation Priority (recap from ARCHITECTURE Â§5)
+
+```
+Sky Anchor (static star catalog)   â† never fails, always renders
+   > ISS (N2YO, satellite.js fallback)
+      > space weather (SWPC)
+         > NEO / imagery (NeoWs / GIBS)
+```
+The Brief renders if **any** card resolves. A single source failing blanks only its own card.
+
+
+--- FILE: ARCHITECTURE.md ---
+
+# ASTRANET â€” Architecture
+
+Reference document for the locked technical architecture. This is the "what and why" behind the system. Formulas live in `FORMULAS.md`, external APIs in `API_SOURCES.md`, data model in `SCHEMA.md`, build order in `WORKPLAN.md`.
+
+---
+
+## 1. System Shape (high level)
+
+```
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  BROWSER (Cloudflare Pages)                                â”‚
+â”‚  React + Vite + Three.js/R3F + Zustand + Tailwind         â”‚
+â”‚  - Daily Brief, Explore (3D), Best-Spot, Log, Settings    â”‚
+â”‚  - Consumes REST /api/* and subscribes to SSE /stream     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                â”‚ REST (JSON)            â”‚ SSE (live fast-tier)
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  BACKEND (Node + Express + TS)  â€” always-on VPS           â”‚
+â”‚                                                            â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+â”‚  â”‚  POLLER      â”‚â”€â”€â–¶â”‚ IN-MEMORY    â”‚â”€â”€â–¶â”‚  REST + SSE    â”‚  â”‚
+â”‚  â”‚ two-tier     â”‚   â”‚ STATE STORE  â”‚   â”‚  endpoints     â”‚  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+â”‚        â”‚ uses                                   â”‚ uses     â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+â”‚  â”‚ DATA CLIENTS â”‚   â”‚ PURE ENGINES â”‚   â”‚  AUTH (JWT)    â”‚  â”‚
+â”‚  â”‚ (Phase 1)    â”‚   â”‚ (Phase 2)    â”‚   â”‚  + Argon2      â”‚  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+â”‚                            â”‚                    â”‚          â”‚
+â”‚                            â–¼                    â–¼          â”‚
+â”‚                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”‚
+â”‚                    â”‚  PostgreSQL 16 (Docker, self-host) â”‚  â”‚
+â”‚                    â”‚  via Prisma â€” users, sessions,     â”‚  â”‚
+â”‚                    â”‚  locations, sky_log, predictions,  â”‚  â”‚
+â”‚                    â”‚  cache                             â”‚  â”‚
+â”‚                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                â”‚ polls (central, constant load)
+                â–¼
+   External free APIs: CelesTrak Â· N2YO Â· NOAA SWPC Â·
+   NASA DONKI/NeoWs/GIBS Â· JPL Horizons Â· Open-Meteo
+```
+
+**Central-poller principle:** ASTRANET polls each external source *once*, centrally, and fans results out to all users via the in-memory store + SSE. Upstream API load is therefore constant regardless of how many users are online â€” the single most important scaling decision in the system, and what keeps every free-tier rate limit comfortably satisfied.
+
+---
+
+## 2. Locked Stack
+
+### Language
+- **TypeScript everywhere** (frontend, backend, shared package). Strict mode. No `any` in committed code.
+
+### Monorepo layout
+- `apps/api` â€” Express backend, poller, endpoints.
+- `apps/web` â€” React frontend.
+- `packages/shared` â€” shared TypeScript types **and the pure math engines**, imported by both sides. Engines living here means the frontend and backend can never disagree on a calculation.
+
+### Frontend
+| Concern | Choice |
+|---|---|
+| Framework | React + Vite |
+| 3D | Three.js + React Three Fiber (R3F) + drei |
+| State | Zustand |
+| Styling | Tailwind CSS + shadcn/ui |
+| Camera/UI animation | GSAP |
+| Diegetic 3D text | troika-three-text (MSDF) |
+| Maps (Best-Spot) | MapLibre GL JS |
+| Charts (Accuracy) | Recharts |
+| Orbital propagation (client-side) | satellite.js |
+
+### Backend
+| Concern | Choice |
+|---|---|
+| Runtime/framework | Node.js + Express + TypeScript |
+| Database | PostgreSQL 16, self-hosted via Docker |
+| ORM | Prisma |
+| Auth | Custom JWT (15-min access + rotated refresh) + Argon2; optional Google OAuth 2.0 |
+| Realtime | Server-Sent Events (fast tier only) |
+| Validation | Zod (at every external-data boundary) |
+| Process management | pm2 or Docker restart policy |
+
+### Tooling
+- Vitest (unit) + Playwright (e2e), ESLint + Prettier, GitHub Actions CI.
+
+---
+
+## 3. Key Architecture Decisions (and why)
+
+**A. Self-hosted Postgres over Supabase.** Removes the 7-day free-tier pause entirely and the need to babysit it. The only thing Supabase gave us that we now own is auth â€” handled by custom JWT. One system we fully control.
+
+**B. Single Postgres, no MongoDB.** Fluid/semi-structured data (sky-log history, cached payloads) uses JSONB columns; cache expiry uses an `expires_at` table cleaned on read plus a periodic sweep. One datastore, one thing to operate, cleaner to reason about. Mongo would only earn its place with a query pattern Postgres genuinely can't serve â€” none exists here.
+
+**C. Prisma over Drizzle.** Chosen for familiarity and a readable schema/migration story. Schema in `schema.prisma` is the real source of truth; `SCHEMA.md` explains the "why."
+
+**D. Always-on VPS over serverless polling.** Owning the box (Hetzner small instance, or Oracle Always-Free ARM) makes the poller a plain long-running process â€” no GitHub-Actions-cron workaround, no Render cold-start dance. The two-tier poller runs exactly as designed. Frontend still ships to Cloudflare Pages (free, unlimited bandwidth).
+
+**E. Pure engines in a shared package.** All scientific math is pure `(inputs) â†’ outputs` with no I/O and injected `now`. Makes it fully unit-testable and impossible for frontend/backend to diverge. This is also the strongest interview artifact.
+
+**F. Central poller + SSE fan-out.** See Â§1. Constant upstream load, live client updates without WebSocket complexity (one-directional serverâ†’client is all we need).
+
+**G. Custom JWT auth.** Access token (15 min) + refresh token (30 days, httpOnly cookie, rotated on use, stored hashed in `sessions` for revocation). Google OAuth 2.0 is an additive authorization-code path issuing the same token pair â€” never a prerequisite.
+
+---
+
+## 4. Poller Design & Two-Tier Polling
+
+The poller is one always-on process. It orchestrates the Phase-1 data clients on two schedules, writes normalized results to the in-memory store, and never contains prediction logic (that belongs to the engines).
+
+### Fast tier â€” every 30â€“60s
+Data that genuinely moves on that timescale:
+- ISS position
+- SWPC solar wind + Kp-index
+
+Fast-tier updates are pushed to clients over **SSE `/stream`**, each datum tagged with a freshness timestamp. The UI shows a live pulse for these.
+
+### Slow tier â€” every 5â€“15 min
+Data that changes slowly:
+- NASA DONKI (CME/flare events)
+- NASA NeoWs (near-Earth objects)
+- SWPC 3-day forecast / OVATION oval
+- NASA GIBS imagery
+- JPL Horizons planetary positions
+
+Slow-tier data is surfaced with an "updated Xm ago" label. Never promote a slow source into the fast tier.
+
+### State store
+In-memory, normalized. Rebuilt by re-fetching on boot â€” **not** persisted, so a restart self-heals. Per-source health flags live here and feed the degradation contract.
+
+### Honesty rule
+The UI never claims more freshness than the tier delivers: fast-tier = live pulse, slow-tier = explicit relative timestamp. Chronological Synchronicity (Pillar 5) is a promise, so freshness is always visible.
+
+### Keep-warm
+A `/health` endpoint doubles as the keep-warm target and the poller/DB liveness check.
+
+---
+
+## 5. Degradation Contract
+
+The Daily Brief and every composite response are built from **independent cards**. Rules:
+- A single source failure blanks **only its own card** ("unavailable"), never the whole response or page.
+- Priority order: **Sky Anchor (static star catalog, always works) > ISS > space weather > NEO/imagery.**
+- The Brief renders if **any** card resolves.
+- Per-source health flags from the poller drive which cards degrade.
+
+This contract is enforced identically on backend (`/api/brief` composition) and frontend (card rendering).
+
+---
+
+## 6. Data Freshness & Trust
+
+- Every datum carries a freshness signal end-to-end.
+- Forecasts (aurora odds, event predictions) always show honest **confidence bands** (see `FORMULAS.md` Â§8), never false precision.
+- Predictions are recorded and later scored against observed reality; the resulting track record is publicly visible on `/accuracy`. Honesty about uncertainty is a first-class product value, not a footnote.
+
+---
+
+## 7. Security & Privacy
+
+- Passwords hashed with Argon2; never stored or logged in plaintext.
+- Refresh tokens stored hashed, rotated on use, revocable via the `sessions` table.
+- Per-user data access enforced in the API layer (no cross-user reads).
+- Location data is used only to personalize; never sold or shared.
+- **Delete-my-data** performs real, complete removal of a user's locations, sky log, and predictions â€” deletion means deletion, not deactivation.
+
+---
+
+## 8. Pages
+
+Single persistent app shell (logo + minimal top nav: Explore Â· Best Spot Â· Log Â· Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding.
+
+| Route | Auth | Contents |
+|---|---|---|
+| `/` | public | **Daily Brief** â€” tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Logged-out = generic location; logged-in = saved location. |
+| `/explore` | public | **Explorable Universe (3D)** â€” opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation. |
+| `/best-spot` | public | **Best-Spot-Tonight Finder** â€” MapLibre map + ranked nearby viewing spots (clarity Ã— darkness Ã— travel), filterable by tonight's event. |
+| `/log` | required | **Personal Sky Log** â€” timeline of witnessed events + simple stats (total, streak, last aurora). |
+| `/settings` | required | Saved locations, alert toggles, account, **delete-my-data**. |
+| `/login`, `/signup` | public | Single auth page, mode toggle, redirect back after auth. |
+| `/share/:id` | public | **Shareable Sky Card** â€” no-login snapshot of a day's brief, OG-tagged. The growth loop. |
+| `/accuracy` | public | **Track record** â€” predicted vs. actual Kp over time + rolling hit-rate (Recharts). |
+
+---
+
+## 9. Deployment
+
+- **Backend + Postgres:** always-on VPS (Hetzner small instance or Oracle Always-Free ARM), Docker Compose, pm2 or Docker restart policy for the poller/API.
+- **Frontend:** Cloudflare Pages (free, unlimited bandwidth).
+- **Static assets** (star catalog binary, planet textures): jsDelivr via a public GitHub repo.
+- **Keep-warm / liveness:** scheduled ping to `/health`.
+
+---
+
+## 10. Non-Goals (architectural boundaries)
+
+- No procedural/fictional objects â€” everything traces to a real catalog.
+- No deep-sky/cosmological subsystem in scope (deferred to horizon, see `NOTES.md`).
+- No professional satellite-ops tooling.
+- No third-party auth provider dependency.
+- No second datastore unless a real query pattern forces it.
+
+
+--- FILE: CLAUDE.md ---
+
+# CLAUDE.md
+
+Instructions for **Claude Code**, the primary/lead coding agent on ASTRANET. Everything in `AGENTS.md` applies here too â€” read it first. This file adds the extra responsibility that comes with being lead, not a replacement for the shared rules.
+
+---
+
+## Your Role
+
+Other agents (Codex, Cursor, Antigravity) may work on isolated tasks in parallel. Claude Code is the **integration point**: the one expected to hold the whole architecture in view, catch drift between what different agents produce, and keep `packages/shared` â€” the pure engines and shared types â€” as a single, uncontested source of truth.
+
+Concretely, that means:
+
+- **Gatekeeper for phase transitions.** Before marking a `WORKPLAN.md` phase's Definition of Done as met, verify it yourself â€” don't take another agent's word that a phase is finished. Re-check the actual criteria.
+- **Reviewer of cross-agent work.** If Codex/Cursor/Antigravity produced a piece of this codebase, and you're touching an adjacent piece, check it for consistency with `ARCHITECTURE.md`, `FORMULAS.md`, and `SCHEMA.md` before building on top of it. Flag and fix drift rather than building around it.
+- **Conflict resolver.** If two agents implemented overlapping logic differently (e.g., a formula re-derived in two places), consolidate into `packages/shared` and remove the duplicate â€” don't leave both.
+- **Formula fidelity owner.** You are the last line of defense on `FORMULAS.md` fidelity. When reviewing any engine code, trace every constant back to its section number. If a comment citing `FORMULAS.md Â§N` doesn't actually match Â§N, that's a bug regardless of whether the code "looks reasonable."
+
+---
+
+## How You Work
+
+- **Use extended thinking for the hard math** (Phase 2 engines, the Causal Engine's confidence composition, DBM arrival solver). These are the pieces most worth reasoning through carefully rather than pattern-matching to a generic implementation.
+- **Prefer editing over rewriting.** When fixing drift or bugs in another agent's code, make the minimal correct change rather than regenerating the file â€” preserves whatever was already right and keeps diffs reviewable.
+- **Run the actual test suite and linter** before considering any task done â€” don't rely on visual inspection of code correctness for the math-heavy pieces.
+- **Update `PROGRESS.md` and `DECISIONS.md` as you go**, not in a batch at the end. Other agents (and the human) read these to know current state.
+- **When you disagree with a locked doc** (`ARCHITECTURE.md` / `FORMULAS.md` / `SCHEMA.md`), don't silently override it. Log the concern in `DECISIONS.md` with your reasoning and flag it to the human before proceeding differently.
+
+## Commit Discipline
+
+One logical change per commit, imperative mood ("Add CME arrival solver", not "Added" or "Adding"). If a commit touches both a bugfix and a new feature, split it.
+
+## What NOT to Do
+
+- Don't generate an entire phase's files in a single pass "for efficiency" â€” build, test, commit incrementally, per `WORKPLAN.md`'s Definition of Done.
+- Don't add a dependency, service, or datastore not already named in `ARCHITECTURE.md` without logging the decision first.
+- Don't build anything from `NOTES.md` (horizon/deferred features) unless the human explicitly moves it into `WORKPLAN.md`.
+- Don't mark a phase done because "most of it works" â€” the Definition of Done gate is binary.
+
+
+
+--- FILE: DECISIONS.md ---
+
+# DECISIONS.md
+
+Short log of real decisions made on ASTRANET, with a one-line "why." Purpose: six weeks in, don't re-litigate a settled call. New entries go at the bottom, newest last, each dated.
+
+**When to add an entry:** any deviation from a locked doc, any new dependency/service, any time an agent flags something in `FORMULAS.md`/`ARCHITECTURE.md`/`SCHEMA.md` that seems wrong. Log the concern here before changing anything.
+
+---
+
+## 2026-07-14 â€” Project scope: merge original + 34-feature ASTRANET concepts
+**Why:** original idea was too plain, the 34-feature version was spectacle with no return-loop. Merged into one product built around personalization + causal explanation, with deep-sky features deferred to `NOTES.md`.
+
+## 2026-07-14 â€” No versioning / no phased "V1, V2"
+**Why:** building the complete, final-scope product from the start â€” phases in `WORKPLAN.md` are build order, not feature-completeness tiers.
+
+## 2026-07-14 â€” Cut Constellation Symphony, Apollo Echoes, Fluid Time Machine, Magnetic Shield Stress Test
+**Why:** visually impressive but none feed the personalization/return loop. Parked in `NOTES.md`.
+
+## 2026-07-14 â€” Real-time: two-tier polling, not pure SSE-everywhere or pure cron
+**Why:** fast tier (30â€“60s, ISS/solar wind) needs to feel live; slow tier (5â€“15min, DONKI/NeoWs/imagery) doesn't need more. Being honest about which is which (live pulse vs. "updated Xm ago") matters more than faking uniform real-time.
+
+## 2026-07-14 â€” No MongoDB; single Postgres with JSONB
+**Why:** dual-database was unjustified â€” no query pattern that Postgres + JSONB can't serve. One less system to operate, one less free-tier pause to babysit.
+
+## 2026-07-14 â€” Causal Engine confidence = three multiplicative factors (lead Ã— agreement Ã— history)
+**Why:** avoids a fabricated "vibes" percentage; each factor is independently reasoned and testable. See `FORMULAS.md` Â§8.
+
+## 2026-07-14 â€” Dropped Supabase; self-hosted PostgreSQL via Docker
+**Why:** removes the 7-day free-tier pause entirely; user prefers full control and already runs Docker locally.
+
+## 2026-07-14 â€” Auth: custom JWT (access + rotated refresh), not Supabase Auth
+**Why:** direct consequence of dropping Supabase. Refresh tokens stored hashed in `Session` table for revocability. Google OAuth 2.0 added as an additive path, not a dependency.
+
+## 2026-07-14 â€” Backend hosting: always-on VPS (Hetzner or Oracle Free ARM), not Render free tier
+**Why:** self-hosted Postgres can't live on Render's free web service; owning a box also removes Render's 15-min spin-down/cold-start problem and makes the poller a simple long-running process instead of a GitHub-Actions-cron workaround.
+
+## 2026-07-14 â€” ORM: Prisma, not Drizzle
+**Why:** user's existing familiarity; equivalent capability for this project's needs.
+
+## 2026-07-14 â€” Project name kept: ASTRANET
+**Why:** three rounds of refinement built real name equity; renaming now would be restart-disguised-as-progress. Backronym updated instead (see next entry).
+
+## 2026-07-14 â€” Backronym changed: "Adaptive Sky Telemetry and Realtime Analysis Network"
+**Why:** original expansion ("...Atlas Network") implied comprehensive celestial cataloging â€” exactly what was cut. New expansion matches what the product actually is: adaptive, personalized, analytical.
+
+## 2026-07-14 â€” Skipped `ROADMAP.md` as a separate file
+**Why:** fully redundant with `WORKPLAN.md`, which already owns milestone order and the `Current Phase` marker.
+
+## 2026-07-14 â€” Dropped `TECH_STACK.md` as a separate doc
+**Why:** overlapped `ARCHITECTURE.md` Â§2 and the README badges; decided not to maintain two sources of truth for stack info. `ARCHITECTURE.md` is authoritative.
+
+
+--- FILE: docker-compose.yml ---
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: astranet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-astranet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-astranet_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-astranet}
+    ports:
+      - "5432:5432"
+    volumes:
+      - astranet_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-astranet}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  astranet_pg_data:
+
+--- FILE: FORMULAS.md ---
+
+# ASTRANET â€” Formulas (FROZEN)
+
+**This document is non-negotiable.** Every constant, threshold, and formula here is frozen. Agents implement these **exactly** â€” do not invent alternatives, do not "improve," do not substitute different constants. If something appears wrong, **flag it in `DECISIONS.md`**; do not silently change it. Every engine function must cite the section number it implements in a code comment.
+
+All angles are in **radians** internally unless a formula explicitly states degrees. All engine functions are **pure**: inputs in, result out, `now` injected as a parameter â€” no clock reads, no I/O.
+
+---
+
+## 0. Constants
+
+```
+AU        = 1.496e8      km      (astronomical unit)
+R_SUN     = 6.957e5      km      (1 AU â‰ˆ 215 R_SUN)
+R_EARTH   = 6371         km
+C_LIGHT   = 299792       km/s
+PC_KM     = 3.0857e13    km      (1 parsec)
+PC_LY     = 3.26156      ly      (1 parsec in light-years)
+LD        = 384400       km      (lunar distance)
+
+# Geomagnetic dipole North pole (drifts â€” refresh yearly or use IGRF)
+GEOMAG_POLE_LAT = 80.7   deg N
+GEOMAG_POLE_LON = -72.8  deg  (i.e. 72.8 W)
+
+# Twilight thresholds (Sun elevation)
+TWILIGHT_ISS_AURORA = -6   deg   (civil-ish: dark enough for ISS/aurora)
+TWILIGHT_STARS      = -18  deg   (astronomical: faint-star realism)
+```
+
+---
+
+## 1. Star Position (catalog â†’ 3D)
+
+Distance from parallax (mas):
+```
+d_pc = 1000 / parallax_mas
+```
+**Decision â€” bad parallax:** if `parallax_mas <= 0.2` OR negative â†’ **drop the star**, or pin it to a fixed 100 kpc shell. Never let it produce NaN/negative distance.
+
+Cartesian (RA, Dec in radians; d in parsecs):
+```
+x = d_pc * cos(dec) * cos(ra)
+y = d_pc * cos(dec) * sin(ra)
+z = d_pc * sin(dec)
+```
+
+Light-travel context:
+```
+years_ago = d_pc * PC_LY
+```
+
+---
+
+## 2. Star Render
+
+Brightness from apparent magnitude:
+```
+m_ref     = 6.0
+brightness = 10 ^ (-0.4 * (m - m_ref))       # clamp to [0, 1]
+```
+
+Point size:
+```
+m_limit    = 6.5
+k          = 0.35
+point_size = base_size * (1 + k * (m_limit - m))
+```
+
+Color temperature (Ballesteros; needs Bâˆ’V). Convert Gaia `bp_rp` â†’ Bâˆ’V:
+```
+B_V = 0.85 * bp_rp
+
+T_kelvin = 4600 * ( 1 / (0.92 * B_V + 1.7)
+                  + 1 / (0.92 * B_V + 0.62) )
+```
+Then map `T_kelvin` â†’ blackbody RGB.
+
+---
+
+## 3. Local Sky Dome (Ground Truth Sky Anchor)
+
+Julian day offset:
+```
+d_UT1 = JD - 2451545.0
+```
+
+Local Sidereal Time (degrees; lon_east positive):
+```
+LST_deg = (280.4606 + 360.9857 * d_UT1 + lon_east) mod 360
+```
+
+Hour angle:
+```
+H = LST - RA            # (in matching units; convert to radians for trig)
+```
+
+Altitude / azimuth (Ï† = observer latitude):
+```
+sin(alt) = sin(dec)*sin(Ï†) + cos(dec)*cos(Ï†)*cos(H)
+
+az = atan2( -cos(dec)*sin(H),
+             sin(dec)*cos(Ï†) - cos(dec)*sin(Ï†)*cos(H) )
+```
+
+---
+
+## 4. Sun Position
+
+Use **Meeus low-precision** solar position (accuracy â‰¥ 0.01Â°). Outputs the Sun's RA/Dec and, via Â§3, its altitude for the observer.
+
+Twilight decisions (Sun elevation for the observer):
+```
+ISS / aurora usable   when  sun_alt < TWILIGHT_ISS_AURORA   (-6Â°)
+faint-star realism    when  sun_alt < TWILIGHT_STARS        (-18Â°)
+```
+
+---
+
+## 5. Satellite / ISS Visible Pass
+
+satellite.js gives ECI position/velocity; derive look-angles (elevation, azimuth, range) for the observer.
+
+**A pass is "visible" only if ALL three hold:**
+```
+1) elevation >= 10Â°
+2) sun_alt_observer < -6Â°                         (observer in darkness, Â§4)
+3) satellite is sunlit:
+      let  s_hat = unit vector toward Sun
+      let  r     = satellite geocentric position vector
+      in_shadow = (dot(r, s_hat) < 0)  AND
+                  ( | r - dot(r, s_hat) * s_hat | < R_EARTH )
+      sunlit    = NOT in_shadow
+```
+
+---
+
+## 6. CME Arrival â€” Drag-Based Model (VrÅ¡nak 2013)
+
+Analytic DBM. Inputs:
+```
+v0    = CME initial speed        (km/s, from DONKI)
+w     = ambient solar wind speed (km/s, from SWPC; default 400 if missing)
+gamma = 0.5e-7                   (km^-1, drag parameter)
+r0    = 21.5 * R_SUN             (km, DONKI inner boundary)
+sign  = +1 if v0 > w else -1     (decel if faster than wind, else accel)
+```
+
+Position over time:
+```
+r(t) - r0 = (1/gamma) * sign * ln( 1 + sign * gamma * (v0 - w) * t )
+            + w * t
+```
+
+Solve `r(t) = 1 AU` for `t` by **bisection** (r is monotonic in t) â†’ arrival time.
+
+**Arrival uncertainty:** propagate Â±error in `v0` through the same solve â†’ produces the Â±Î”t arrival window.
+
+---
+
+## 7. Aurora Visibility
+
+Geomagnetic latitude (dipole approximation; Ï†, lon in radians; pole from Â§0):
+```
+sin(Î»_m) = sin(Ï†)*sin(Ï†_p) + cos(Ï†)*cos(Ï†_p)*cos(Î¸ - Î¸_p)
+```
+where `(Ï†_p, Î¸_p)` = geomagnetic pole lat/lon, `(Ï†, Î¸)` = observer lat/lon.
+
+Equatorward auroral-oval boundary (geomagnetic latitude, degrees):
+```
+Î»_b = 66 - 2 * Kp
+```
+
+Horizon-view margin (aurora at ~110 km is visible low on the horizon from further south):
+```
+margin_deg = 4
+```
+
+**User can see aurora if:**
+```
+|Î»_m| >= Î»_b - margin_deg
+```
+
+Strength cue:
+```
+strength = |Î»_m| - (Î»_b - margin_deg)     # larger = better placed
+```
+
+**Kp source:** primary = SWPC 3-day forecast Kp (`Kp_predicted`). The CME-derived Kp (Â§8) is used **only** for the agreement factor, never as the primary.
+
+---
+
+## 8. Causal Engine â€” Confidence
+
+Three factors, **multiplicative**. All produce values in (0, 1].
+
+Lead-time factor (`t_remaining` = hours until predicted arrival):
+```
+tau     = 24                                  # hours
+f_lead  = 0.3 + 0.7 * exp(-t_remaining / tau)
+```
+
+Source-agreement factor:
+```
+sigma   = 2
+f_agree = exp( -|Kp_cme - Kp_swpc| / sigma )
+```
+
+History factor (Beta posterior mean; `hits`, `trials` from the accuracy loop):
+```
+f_hist  = (hits + 2) / (trials + 4)
+```
+
+Final confidence and bands:
+```
+C = f_lead * f_agree * f_hist
+
+C > 0.66          -> "high"
+0.33 <= C <= 0.66 -> "moderate"
+C < 0.33          -> "low"
+```
+
+CME-speed â†’ Kp heuristic (used **only** for `Kp_cme` in the agreement factor):
+```
+Kp_cme = clamp( round( 1.5 + 2.3 * log10(v0 / 400) ), 0, 9 )
+```
+
+---
+
+## 9. Accuracy Loop
+
+For each stored prediction, once its `target_time` has elapsed, fetch observed Kp and score:
+```
+hit = ( |predicted_kp - actual_kp| <= 1 )
+```
+Rolling `hits` / `trials` feed Â§8's `f_hist`. Start from the Beta prior (the +2 / +4 in `f_hist`), so early predictions get a neutral, honest prior rather than overconfident 0% or 100%.
+
+---
+
+## 10. Near-Earth Objects
+
+Diameter from absolute magnitude H (assumed albedo 0.14):
+```
+D_km = (1329 / sqrt(0.14)) * 10 ^ (-0.2 * H)
+```
+
+Miss distance in lunar distances:
+```
+miss_LD = miss_distance_km / LD
+```
+
+---
+
+## 11. Best-Spot Score
+
+Each factor in [0, 1]; **multiplicative** so any zero kills the site.
+```
+clarity  = 1 - cloud_fraction                 # Open-Meteo
+darkness = (9 - bortle) / 8                    # Bortle 1 (dark) â†’ 1.0, Bortle 9 â†’ 0
+travel   = exp( -distance_km / 50 )            # decays with travel distance
+
+score    = clarity * darkness * travel
+```
+
+For aurora nights, multiply by the aurora-visibility factor (from Â§7 `strength`, normalized to [0,1]):
+```
+score_aurora = score * aurora_factor
+```
+
+Rank candidate sites by `score` (or `score_aurora`); recommend the maximum.
+
+---
+
+## Implementation Notes (binding)
+
+- **Inject `now`.** No engine reads the system clock directly â€” the current time is always a parameter, so tests are deterministic.
+- **Units at boundaries.** Convert degreesâ†”radians explicitly at function edges; keep internals in radians.
+- **Clamp where stated.** Brightness [0,1], Kp [0,9], factors (0,1]. Never emit out-of-range values.
+- **Monotonic solves use bisection** (Â§6), not Newton â€” no derivative fragility, guaranteed convergence on a bracketed monotonic function.
+- **Edge cases are required tests** (Phase 2): negative parallax, Kp = 0 and 9, v0 â‰¤ w vs v0 > w, cloud_fraction = 0 and 1, observer at/near the geomagnetic pole, arrival window crossing tests.
+
+--- FILE: LICENSE ---
+
+MIT License
+
+Copyright (c) 2026 Nikhil Virdi (@nikhilvirdi)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--- FILE: NOTES.md ---
+
+# NOTES.md
+
+Parking lot for ideas explicitly **not** in current scope. Purpose: capture them so they stop pulling focus, without letting them into `WORKPLAN.md` uninvited. Nothing here gets built unless it's deliberately promoted into a phase by the human.
+
+---
+
+## Horizon: Deep-Sky & Cosmological Expansion
+
+The original 34-feature vision's Zones 3â€“5 (Stellar Neighborhood, Milky Way, Large-Scale Universe). Deferred because none of it feeds the personalization/return loop that differentiates the core product â€” it's spectacle, not utility, until there's a genuine reason to return to it.
+
+- **Zone 3 â€” Stellar Neighborhood:** confirmed exoplanet systems (e.g., stand on TRAPPIST-1e), spectroscopic "break the light into a barcode" feature, cosmic-time-machine light-delay callouts.
+- **Zone 4 â€” Milky Way:** Sagittarius A* approach (EHT imagery), multi-wavelength spectrum toggle, volumetric nebula fly-throughs.
+- **Zone 5 â€” Large-Scale Universe:** cosmic-web filament ride, gravitational lensing distortion engine, CMB "Echoes of Creation" sonification, redshift/dark-energy treadmill, the Pale Blue Dot return-to-Earth moment.
+- **Fermi Paradox / Drake Equation filter** â€” interactive overlay on the Milky Way.
+- **Gravitational Wave Ripple** â€” live LIGO/GWOSC event visualization.
+
+**Promotion condition:** only once the core loop (Brief, Causal Engine, Explore, Best-Spot, Log, Accuracy) is fully live and there's a specific, considered reason to extend outward â€” not because it would look good in a demo.
+
+---
+
+## Cut Features (explicitly rejected, not just deferred)
+
+These were removed for structural reasons, not just prioritization â€” don't reintroduce without a new argument:
+
+- **Constellation Symphony** â€” isolating/illuminating satellite networks as geometric patterns. Spectacle, no personalization value.
+- **Apollo Echoes** â€” historical Moon landing sites + archival audio. Interesting but disconnected from the "now" identity (Pillar 5).
+- **Fluid Time Machine Scrubber** â€” dragging through past/future solar-system events. Conflicts with Chronological Synchronicity as a default state.
+- **Magnetic Shield Stress Test** â€” magnetosphere deformation visual. Redundant with the Auroral Ring's live data story.
+- **Orbital Mechanics Nudge Sandbox** *(from earliest draft)* â€” lets users alter real orbital data. Violates the live-data trust model outright.
+- **Exoplanet Transit Demonstrator** *(from earliest draft)* â€” static pedagogical demo, not a live phenomenon.
+- **Goldilocks Zone Visualizer** *(from earliest draft)* â€” static overlay, no live data, adds nothing over existing educational tools.
+
+---
+
+## Open Ideas (unscored, unscoped â€” just captured)
+
+- Debris Graveyard Reconstructor (time-reverse a collision/ASAT event) â€” could fit the causal-chain identity if ever revisited, currently out of scope.
+- Threat Horizon scale-matched-to-your-city NEO visualization â€” currently folded into the plain NEO card (Â§ workplan Phase 6/10); the "hover a scale model over your city" cinematic version is deferred.
+- Barycenter Tug-of-War (Sun wobble from Jupiter) â€” nice detail, no personalization value, low priority.
+- Possible future: push notifications (native/PWA) for alerts, beyond in-app only â€” infra decision not yet made.
+
+---
+
+## Non-Ideas (considered and rejected outright, don't revisit)
+
+- Second datastore (MongoDB/Redis) â€” see `DECISIONS.md`, only reconsider if a real query pattern demands it.
+- Third-party auth provider â€” custom JWT is the committed path.
+- Procedural/fictional object generation of any kind â€” violates the core "everything is real and verified" identity permanently, not just for now.
+
+--- FILE: prisma\schema.prisma ---
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  settings     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions      Session[]
+  locations     Location[]
+  skyLogEntries SkyLogEntry[]
+  predictions   Prediction[]
+}
+
+model Session {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hashedRefreshToken String   @unique
+  userAgent          String?
+  createdAt          DateTime @default(now())
+  expiresAt          DateTime
+
+  @@index([userId])
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  latitude  Float
+  longitude Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SkyLogEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType String
+  timestamp DateTime
+  source    String
+  details   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId, timestamp])
+}
+
+model Prediction {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references:
+
+--- FILE: PROGRESS.md ---
+
+# PROGRESS.md
+
+Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task â€” immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
+
+**Current Phase:** `Phase 0 â€” Foundation & Tooling` (not yet started)
+
+---
+
+## How to log an entry
+
+```
+## YYYY-MM-DD
+- âœ… Done: <task>, by <agent/human>
+- ðŸš§ In progress: <task>, by <agent/human>
+- â›” Blocked: <task> â€” <why> â€” <who's unblocking>
+- â­ï¸ Next: <task>
+```
+
+Keep entries short â€” one line per item. Detail belongs in commit messages, not here.
+
+---
+
+## 2026-07-14
+- âœ… Done: Full planning/reference doc set â€” `README.md`, `LICENSE`, `WORKPLAN.md`, `ARCHITECTURE.md`, `FORMULAS.md`, `API_SOURCES.md`, `SCHEMA.md`, `AGENTS.md`, `CLAUDE.md`.
+- âœ… Done: Repo scaffold folders + placeholder files created.
+- â­ï¸ Next: Fill `PROGRESS.md`/`DECISIONS.md`/`NOTES.md`, then begin **Phase 0** â€” repo init, Docker Postgres, Prisma scaffold, CI, lint/format config.
+
+--- FILE: README.md ---
+
+# ASTRANET
+### Adaptive Sky Telemetry and Realtime Analysis Network
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-active--development-blue)]()
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Data](https://img.shields.io/badge/data-real%20%26%20verified-brightgreen)]()
+
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white)](https://threejs.org/)
+[![React Three Fiber](https://img.shields.io/badge/React_Three_Fiber-black)](https://docs.pmnd.rs/react-three-fiber)
+[![Zustand](https://img.shields.io/badge/state-Zustand-orange)](https://github.com/pmndrs/zustand)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-black)](https://ui.shadcn.com/)
+[![GSAP](https://img.shields.io/badge/GSAP-88CE02?logo=greensock&logoColor=black)](https://gsap.com/)
+[![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-396CB2)](https://maplibre.org/)
+[![Recharts](https://img.shields.io/badge/Recharts-8884d8)](https://recharts.org/)
+
+[![Express](https://img.shields.io/badge/Express-black?logo=express&logoColor=white)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![JWT Auth](https://img.shields.io/badge/Auth-JWT-black?logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
+[![Argon2](https://img.shields.io/badge/hashing-Argon2-blueviolet)]()
+[![SSE](https://img.shields.io/badge/realtime-SSE-blue)]()
+[![Zod](https://img.shields.io/badge/validation-Zod-3E67B1)](https://zod.dev/)
+
+[![CelesTrak](https://img.shields.io/badge/data-CelesTrak-lightgrey)](https://celestrak.org/)
+[![N2YO](https://img.shields.io/badge/data-N2YO-lightgrey)](https://www.n2yo.com/)
+[![NOAA SWPC](https://img.shields.io/badge/data-NOAA_SWPC-lightgrey)](https://www.swpc.noaa.gov/)
+[![NASA DONKI](https://img.shields.io/badge/data-NASA_DONKI-lightgrey)](https://ccmc.gsfc.nasa.gov/tools/DONKI/)
+[![NASA NeoWs](https://img.shields.io/badge/data-NASA_NeoWs-lightgrey)](https://api.nasa.gov/)
+[![NASA GIBS](https://img.shields.io/badge/data-NASA_GIBS-lightgrey)](https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs)
+[![JPL Horizons](https://img.shields.io/badge/data-JPL_Horizons-lightgrey)](https://ssd.jpl.nasa.gov/horizons/)
+[![Open-Meteo](https://img.shields.io/badge/data-Open--Meteo-lightgrey)](https://open-meteo.com/)
+
+[![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Playwright](https://img.shields.io/badge/e2e-Playwright-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
+[![ESLint](https://img.shields.io/badge/lint-ESLint-4B32C3?logo=eslint&logoColor=white)](https://eslint.org/)
+[![Prettier](https://img.shields.io/badge/code_style-Prettier-F7B93E?logo=prettier&logoColor=black)](https://prettier.io/)
+
+> A live, personalized companion for the sky above you â€” and the universe beyond it.
+
+ASTRANET tells you, in plain language and through a cinematic explorable 3D universe, what is actually happening in space right now â€” above your exact location â€” why it's happening, and whether it's worth going outside to see it.
+
+It is not a satellite tracker, not a space-news dashboard, and not a scientific data portal for experts. Every object shown is real and verified against genuine scientific catalogs â€” nothing is procedurally generated or invented to fill visual gaps.
+
+---
+
+## The Problem
+
+Space-related information today is fragmented, decontextualized, and impersonal:
+
+- Satellite trackers show raw positions with no story â€” a dot moving, not what it means.
+- Aurora forecasting tools show a number (a Kp-index) with no context for what that number means for *you*, standing where you are.
+- Astronomy and stargazing apps assume baseline technical knowledge and lean on jargon without explanation.
+- Nothing connects cause to effect across domains â€” a solar flare, the geomagnetic storm it causes, and the aurora that might appear over your city tonight are treated as three unrelated facts scattered across three different tools.
+- Existing 3D universe explorers are either scientifically fake (inventing stars and objects that don't exist) or scientifically accurate but entirely passive, with nothing to *do* and no reason to return.
+- No single platform combines real-time, personalized, causally-explained space awareness with an experience people actually want to explore rather than just read.
+
+ASTRANET closes all of these gaps at once, for one clearly defined audience.
+
+---
+
+## The Vision
+
+The cosmos is presented as one connected, living system rather than a static catalog of objects. A solar flare is not an isolated fact â€” it's the beginning of a chain that affects satellites, which affects auroras, which affects what a specific person might see in their sky tonight. Making that chain visible and understandable, in real time, is the emotional and functional core of ASTRANET.
+
+---
+
+## Five Guiding Pillars
+
+Every feature in ASTRANET is measured against these five principles:
+
+**1. Contextualization**
+Every fact is anchored to something human-scale and relatable, never left as an abstract number. "17,500 mph" means nothing; "circles Earth every 90 minutes, so it laps your city every 90 minutes" means something.
+
+**2. Visualization as Interface**
+The 3D universe *is* the navigation. There are no traditional dashboards or menus â€” understanding comes from exploring and clicking, not from reading a manual.
+
+**3. Cross-Domain Synthesis**
+Cause and effect across different space domains â€” solar activity, satellites, geomagnetic conditions, visible sky events â€” are shown as one continuous, connected story, not separate silos.
+
+**4. Anthropocentric Scaling**
+Distances, sizes, and events are always tied back to a human frame of reference, never presented as pure abstraction.
+
+**5. Chronological Synchronicity**
+The platform's default state is always *now*. Live, current data is the foundation of trust â€” a user must always be confident that what they're looking at is happening in real time.
+
+---
+
+## Who ASTRANET Is For
+
+- **The curious beginner** â€” fascinated by space, no technical background, wants plain language and zero required prior knowledge.
+- **The space enthusiast** â€” already follows launches, missions, and space news, but currently pieces information together from trackers, subreddits, and separate forecasting tools.
+- **The casual returning user** â€” wants a genuine reason to check back regularly, not just a one-time "wow" experience.
+
+## Who It's Not For
+
+ASTRANET is explicitly not built for scientists, aerospace engineers, or satellite operators. That audience already has professional-grade tools, and designing for them would compromise the plain-language, story-first identity that defines this product.
+
+---
+
+## What ASTRANET Is Not
+
+- Not a space news aggregator or feed of articles.
+- Not a professional satellite-operations tool.
+- Not a procedural space sandbox that invents fictional stars or objects.
+- Not a static educational encyclopedia â€” every explanation is tied to something currently happening, not a textbook entry.
+
+---
+
+## Features
+
+**Daily Brief**
+The entry point. A single, honest summary of tonight's sky: what's visible, whether anything unusual is happening â€” an incoming solar storm, a bright ISS pass, a meteor shower peak â€” and why, delivered as one clear sentence rather than a table of numbers.
+
+**Causal Explanation Engine**
+The reasoning core. Correlates live solar activity with geomagnetic forecasts and your location to produce real, confidence-rated predictions â€” never raw, disconnected data pretending to be an answer.
+
+**The Explorable Universe**
+A seamless cinematic journey that begins from your actual real-time night sky â€” your real location, real star positions â€” and expands outward through live satellites, the ISS, visible solar weather, and the solar system's true current positions. Every object is clickable and explains itself in one plain sentence first, with more depth available to anyone who wants to go further.
+
+**The Auroral Ring & Heliosphere Pulse**
+The aurora rendered as a living ring of light over Earth, and solar wind visualized as a visible pulse washing outward from the Sun â€” both driven by real, live geomagnetic and solar data.
+
+**Best-Spot-Tonight Finder**
+Combines your personalized event odds â€” aurora, meteor showers â€” with light-pollution conditions and cloud-cover forecasts to recommend the nearest genuinely good place to actually go and witness what's happening.
+
+**Personal Sky Log**
+A private, running history of what you've actually seen â€” ISS passes caught, aurora nights witnessed, meteor showers checked â€” giving long-term reasons to keep returning beyond the initial novelty.
+
+**Shareable Sky Card**
+A one-tap, no-login-required shareable summary of tonight's forecast â€” the natural way ASTRANET spreads from one person to a friend.
+
+**Personalized Alerts & Saved Locations**
+Notifications for ISS passes, rising aurora odds, meteor shower peaks, and notable near-Earth object approaches â€” for any location you care about, not just where you happen to be.
+
+**Accuracy & Trust Record**
+Because ASTRANET's core promise depends on live forecasts, honesty about uncertainty is a first-class feature, not a footnote. Predictions are shown with honest confidence levels, and the platform's own track record â€” predicted versus what actually happened â€” is visible, not hidden.
+
+---
+
+## Data Ethics & Privacy
+
+Because ASTRANET is inherently location-aware, its stance on user data is simple and explicit: location data is used only to personalize the experience, is never sold or shared with third parties, and users retain full control â€” including the ability to fully delete their saved locations and personal sky history at any time, with deletion meaning actual removal, not deactivation.
+
+---
+
+## License
+
+MIT
+
+--- FILE: SCHEMA.md ---
+
+# ASTRANET â€” Data Model
+
+Plain-English overview of the data model and the reasoning behind it. **`prisma/schema.prisma` is the real source of truth** â€” this document explains the *why*, not the exact field syntax. When the two disagree, the Prisma schema wins and this doc should be updated.
+
+Guiding principles (from `ARCHITECTURE.md`): single Postgres, no second datastore; JSONB for genuinely fluid data; cache as a table, not Redis; per-user isolation enforced in the API layer.
+
+---
+
+## Overview
+
+Six core models:
+
+```
+User â”€â”€1:Nâ”€â”€ Session          (auth / refresh-token rotation)
+User â”€â”€1:Nâ”€â”€ Location         (saved places, one default)
+User â”€â”€1:Nâ”€â”€ SkyLogEntry      (what the user has witnessed)
+User â”€â”€1:Nâ”€â”€ Prediction       (aurora predictions made for this user's context)
+                Cache          (standalone: TTL'd upstream payloads)
+```
+
+Only four things are truly relational and user-owned (User, Session, Location, SkyLog, Prediction). Cache is independent. There is intentionally nothing else â€” no over-modeling for features that don't exist yet.
+
+---
+
+## User
+
+The account. Holds identity and auth material only.
+
+- Email + Argon2 password hash (nullable hash for OAuth-only users).
+- Optional Google OAuth identifier, so a Google login links to the same User rather than creating a duplicate.
+- Timestamps.
+
+**Why:** kept deliberately thin. Preferences that will grow over time (alert toggles, etc.) live as a JSONB `settings` blob on the User rather than as a wide set of columns â€” these are read/written together and their shape will evolve, which is exactly the JSONB use case. No migration needed every time a new toggle is added.
+
+**Delete-my-data:** deleting a User cascades to their Sessions, Locations, SkyLogEntries, and Predictions. Deletion means real removal (`ARCHITECTURE.md` Â§7), so cascade is the intended behavior, not soft-delete flags.
+
+---
+
+## Session
+
+Backs the custom JWT refresh flow (`ARCHITECTURE.md` Â§3 G).
+
+- Belongs to a User.
+- Stores the **hashed** refresh token (never plaintext), issue/expiry timestamps, and enough context (user agent / created-at) to reason about active sessions.
+- Rotated on every refresh: the old row is invalidated and a new one written.
+
+**Why a table and not stateless JWT-only:** storing refresh tokens hashed makes them **revocable** â€” logout, "log out everywhere," and compromise response all become simple row deletes. A purely stateless refresh token can't be revoked before expiry. This is the reason the access token is short-lived (15 min) and the refresh token is the thing we track.
+
+---
+
+## Location
+
+A place the user cares about.
+
+- Belongs to a User.
+- Latitude, longitude, a human label ("Home", "Parents' place").
+- A `isDefault` flag â€” exactly one default per user (enforced in the API layer on write).
+
+**Why:** the Daily Brief and alerts are location-scoped. People split time between places or want to check somewhere else's sky, so locations are first-class rows, not a single field on User. Latitude/longitude feed directly into the pure engines (`FORMULAS.md` Â§3, Â§5, Â§7) â€” they are the personalization key for the whole product.
+
+---
+
+## SkyLogEntry
+
+The Personal Sky Log â€” what the user has actually witnessed.
+
+- Belongs to a User.
+- An event type (ISS pass, aurora night, meteor shower, NEO approachâ€¦), a timestamp, and a **JSONB `details` blob** capturing whatever that event type needs (magnitude, duration, Kp at the time, notes).
+- A source flag: auto-logged (system detected a pass the user was alerted to) vs. manually added.
+
+**Why JSONB for details:** different event types carry different data. Modeling each as its own table or a giant sparse column set would be over-engineering for a log that's read as a timeline. The blob keeps entries flexible while the queryable fields (user, type, timestamp) stay as real indexed columns. This is the polyglot-in-one-database move â€” structure where you query, flexibility where you don't.
+
+---
+
+## Prediction
+
+Every aurora prediction the Causal Engine makes, stored so it can later be scored â€” the backbone of the honesty/accuracy loop (`ARCHITECTURE.md` Â§6, `FORMULAS.md` Â§8â€“Â§9).
+
+- Belongs to a User (predictions are made for a user's location context).
+- `made_at` (when predicted), `target_time` (when the event was predicted to occur).
+- `predicted_kp`, `confidence` (the C value + band), and a JSONB `context` blob (which CME, user's geomagnetic latitude, lead time, the factor breakdown).
+- `actual_kp` (nullable) + a `scored` flag â€” filled in later by the daily accuracy job.
+- Derived `hit` boolean once scored (`|predicted - actual| <= 1`, Â§9).
+
+**Why store every prediction:** the `/accuracy` page and the Causal Engine's history factor (`f_hist`, Â§8) both depend on a real, growing track record. Without persisting predictions, "we track how right we are" would be an empty claim. The daily job reads unscored, elapsed predictions, fetches observed Kp, and writes back `actual_kp`/`hit` â€” that closed loop is what feeds `hits`/`trials` back into confidence. This table is small but it's the product's integrity made concrete.
+
+---
+
+## Cache
+
+Standalone TTL store for upstream API payloads â€” the "no Redis" decision (`ARCHITECTURE.md` Â§3 B).
+
+- A key (source + query signature), a JSONB `value`, and an `expires_at` timestamp.
+- Cleaned on read (expired row â†’ miss â†’ refetch) plus a periodic sweep.
+
+**Why a table, not Redis:** the cache needs are modest (slow-tier payloads, Open-Meteo per-cell results), Postgres JSONB + a TTL column covers it with zero extra infrastructure, and it survives restarts. Redis's free tiers are stingy and add an operational component for no real gain here. If a genuine high-throughput caching need ever appears, this is the one place a second datastore could later be justified â€” but not preemptively.
+
+---
+
+## What's Deliberately NOT Modeled
+
+- **Live telemetry / poller state** â€” lives in memory, rebuilt on boot, never persisted (`ARCHITECTURE.md` Â§4). The DB stores durable user data and the accuracy record, not the live feed.
+- **Deep-sky / cosmological objects** â€” horizon features, not in scope (`NOTES.md`).
+- **Analytics / event tracking tables** â€” not part of the core product; add only if a real need appears.
+- **Soft-delete flags** â€” deletion is real deletion (Â§7), so we cascade instead.
+
+---
+
+## Indexing & Access Notes (for implementation)
+
+- Index the foreign keys and the common query paths: `Location(userId)`, `SkyLogEntry(userId, timestamp)`, `Prediction(userId)`, `Prediction(scored, target_time)` for the accuracy job, `Cache(expires_at)` for the sweep, `Session(hashedToken)` for refresh lookup.
+- **Per-user isolation is enforced in the API layer** (there's no Row Level Security since we dropped Supabase) â€” every query for user-owned rows must be scoped by the authenticated `userId`. No endpoint may read another user's rows.
+
+
+--- FILE: TESTING.md ---
+
+# ASTRANET â€” Testing Standard
+
+This is what "thoroughly tested" means on this project, made concrete and checkable â€” not a vibe, not a judgment call. Every phase in `WORKPLAN.md` is gated by this document.
+
+---
+
+## The Core Principle
+
+**Quality is a binary, automated check, not a subjective read.** A function either passes its gate (coverage threshold, lint clean, tests green) or it doesn't. Nobody â€” human or agent â€” spends unbounded time "polishing" a file with no defined stopping point. When the gate is green, the task is done. Move on.
+
+---
+
+## Coverage Requirements by Layer
+
+| Layer | Requirement | Why |
+|---|---|---|
+| `packages/shared` (pure engines) | **100%, non-negotiable** | Small, pure, no I/O â€” full coverage is actually achievable, and this is the scientifically load-bearing code (`FORMULAS.md`). A wrong constant here is wrong everywhere it's used. |
+| `apps/api` (routes, poller, auth) | â‰¥85% | I/O-heavy; the missing 15% is acceptable boilerplate (server bootstrap, etc.), not core logic. |
+| `apps/web` (React) | â‰¥70% on logic (hooks, stores); components tested via key interaction, not exhaustively | UI coverage numbers are a weak signal past a point â€” see E2E below for what actually matters. |
+
+CI enforces the `packages/shared` threshold as a hard fail (see `ci.yml`). The other two are tracked but not yet hard-gated â€” revisit once the app has real usage patterns to test against.
+
+---
+
+## What Kind of Test, for What
+
+**Unit tests (Vitest)** â€” every function in `packages/shared`. Pure in, pure out, no mocking needed because there's no I/O to mock. This is where `FORMULAS.md` fidelity gets proven.
+
+**Integration tests (Vitest + supertest or similar)** â€” every API endpoint, with particular attention to the **degradation contract** (`ARCHITECTURE.md` Â§5). For `/api/brief` specifically, test:
+- All sources healthy â†’ full response
+- One source down â†’ only that card blanks, rest intact
+- All sources down â†’ still returns *something* (Sky Anchor never fails, it's static)
+
+**E2E (Playwright)** â€” reserved for a short list of critical user flows, not everything:
+- Sign up â†’ log in â†’ save a location â†’ see a personalized Brief
+- Drop into Ground Truth Sky Anchor, click the ISS, see its story
+- Best-Spot Finder returns a ranked result for a real location
+- Delete-my-data actually removes a user's rows
+
+Adding more E2E tests than this list needs sign-off â€” they're slow and brittle relative to unit/integration; use them for what only a full browser can verify.
+
+---
+
+## Required Edge Cases (mapped from `FORMULAS.md` Â§"Implementation Notes")
+
+Every engine test suite must include these, named explicitly so a reviewer (or `/formula-audit`) can check they exist by name, not infer they're "probably covered":
+
+| Engine | Required test names |
+|---|---|
+| Star position (Â§1) | `handles_negative_parallax`, `handles_parallax_below_0.2mas` |
+| CME arrival (Â§6) | `solves_when_v0_greater_than_w`, `solves_when_v0_less_than_w`, `arrival_uncertainty_widens_with_speed_error` |
+| Aurora visibility (Â§7) | `kp_zero_no_aurora_at_equator`, `kp_nine_aurora_visible_at_mid_latitude`, `observer_at_geomagnetic_pole` |
+| Causal confidence (Â§8) | `lead_factor_approaches_0.3_at_long_horizon`, `agreement_factor_penalizes_kp_mismatch`, `history_factor_neutral_with_no_trials` |
+| Best-spot score (Â§11) | `zero_clarity_kills_score`, `zero_darkness_kills_score`, `travel_decay_at_large_distance` |
+| NEO (Â§10) | `diameter_from_h_matches_reference_value` |
+
+If a required test name is missing, the task is not done â€” this list is the literal Definition of Done for Phase 2, not a suggestion.
+
+---
+
+## Test Data & Fixtures
+
+- Every Phase-1 API client is tested against a **recorded real sample response**, stored as a fixture â€” not a hand-written mock guessing at the shape. Update fixtures if a source's schema changes.
+- Engine tests use **hand-picked, documented inputs** (e.g., "Kp=9, observer at 45Â°N â€” expected: visible, matches known October 2024 storm reports") where a real-world anchor exists, so a reviewer can sanity-check the expected value independently of the code.
+
+---
+
+## What "Near-Perfect" Actually Means Here
+
+Not: infinite refinement, bikeshedding style choices, or hand-wringing over subjective code quality.
+Is:
+- The coverage gate is green.
+- ESLint is clean (`no-explicit-any`, `no-floating-promises` â€” see `.eslintrc.json` â€” are errors, not warnings).
+- Every required edge case from this document is a named, passing test.
+- The pre-commit hook and `.claude/hooks/post-edit-check.sh` catch problems **immediately**, not three files later in review.
+
+If all four hold, the code is done. Don't manufacture more work looking for a subjective "better."
+
+--- FILE: WORKPLAN.md ---
+
+# ASTRANET â€” Development Workplan
+
+**This file is the single source of truth for the build.**
+Humans and agents follow this order. Do not skip ahead. Do not start a phase until the previous phase's *Definition of Done* is fully met.
+
+> **Current Phase:** `Phase 0` â€” update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
+
+---
+
+## Global Operating Rules (apply to every phase, every agent)
+
+1. **Order is law.** Build in phase order. A later phase may not be started to "unblock" a stuck earlier task â€” fix the earlier task.
+2. **Quality over quantity.** One correct, tested, reviewed component beats five half-built ones. Never batch-generate whole phases in one pass.
+3. **Formulas are frozen.** All math comes from `FORMULAS.md` verbatim â€” never invent constants, thresholds, or alternative formulas. If a formula seems wrong, flag it; do not silently change it.
+4. **Pure logic stays pure.** Math/engine code takes data in, returns results out â€” no network calls, no DB, no clock reads passed as hidden globals (inject `now` as a parameter). This is what makes it testable.
+5. **Every non-trivial function ships with tests.** No unit tests â†’ the task is not done.
+6. **Validate all external data** with Zod at the boundary. Never trust an upstream API's shape.
+7. **Fail gracefully.** A single failing data source degrades one card, never the whole response/page. Follow the degradation contract (Phase 5).
+8. **Small commits, clear messages.** One logical change per commit.
+9. **Update tracking.** When a task is done, update `PROGRESS.md`. When a real decision is made, log it in `DECISIONS.md`.
+10. **Don't gold-plate.** Build exactly what the current phase specifies. Deferred/horizon features stay in `NOTES.md`, not in the code.
+
+**Definition of Done (every task):** implemented â†’ typed (no `any`) â†’ validated â†’ unit-tested â†’ lint/format clean â†’ committed â†’ `PROGRESS.md` updated.
+
+---
+
+## Phase 0 â€” Foundation & Tooling
+
+**Objective:** A running, empty skeleton that every later phase plugs into. No features yet.
+
+**Atomic tasks:**
+- Initialize repo, `package.json`, TypeScript config (strict mode on).
+- Set up monorepo/workspace split: `apps/api`, `apps/web`, `packages/shared` (shared types + pure engines live here so both sides import them).
+- `docker-compose.yml` with a Postgres 16 service.
+- `prisma/schema.prisma` scaffold + `.env.example` (DB URL, API keys, JWT secret placeholders).
+- ESLint + Prettier + shared tsconfig.
+- Vitest configured and running one trivial passing test.
+- Agent context files: `AGENTS.md`, `CLAUDE.md`, `.cursor/rules` â€” all pointing to the reference docs.
+- CI workflow: install â†’ lint â†’ typecheck â†’ test on every push.
+
+**Agent expectations:** Do not install anything not needed yet. No feature code. Confirm `docker compose up` starts Postgres and `npm test` passes before closing the phase.
+
+**Definition of Done:** Repo clones, Postgres starts, migrations run against an empty schema, CI is green.
+
+---
+
+## Phase 1 â€” Data Source Clients
+
+**Objective:** One isolated, validated client per external API. Each fetches, parses, and returns clean typed data â€” nothing else.
+
+**Atomic tasks (one sub-task per source):**
+- CelesTrak (satellite TLE/OMM) client.
+- N2YO (ISS/visual passes) client.
+- NOAA SWPC client (Kp-index, solar wind, X-ray flux, OVATION oval, 3-day forecast).
+- NASA DONKI (CME/flare) client.
+- NASA NeoWs (near-Earth objects) client.
+- JPL Horizons (planetary/solar positions) client.
+- Open-Meteo (cloud cover) client.
+- Static datasets ingested once and self-hosted: light-pollution atlas, bright-star catalog.
+- For **each** client: a Zod schema for the response, typed output, retry-with-timeout, and a documented fallback value when the source is unavailable.
+
+**Agent expectations:** Build and test each client in complete isolation with a real sample response fixture. Record every source's rate limit and key requirement in `API_SOURCES.md`. No client may depend on another. No poller, no endpoints yet.
+
+**Definition of Done:** Every client returns validated typed data from a fixture and handles a simulated failure without throwing.
+
+---
+
+## Phase 2 â€” Core Math Engines (pure, no I/O)
+
+**Objective:** The scientific heart of ASTRANET as pure, unit-tested functions. This de-risks the hardest conceptual work before any wiring.
+
+**Atomic tasks:**
+- Coordinate + star-position transforms (catalog â†’ 3D; RA/Dec â†’ alt/az; LST; Sun position).
+- Satellite visible-pass logic (elevation + observer-darkness + sunlit test).
+- CME arrival â€” Drag-Based Model solver (`FORMULAS.md` Â§6).
+- Aurora visibility â€” geomagnetic latitude + oval boundary vs. Kp (Â§7).
+- **Causal Engine** â€” the three-factor confidence function (Â§8): lead Ã— agreement Ã— history. Pure `(events, forecast, userLat, now) â†’ prediction`.
+- Best-Spot score (Â§11): clarity Ã— darkness Ã— travel.
+- NEO diameter + miss-distance helpers (Â§10).
+
+**Agent expectations:** Zero network/DB/global-clock access â€” inject all inputs. Every function gets a thorough unit-test suite covering edge cases (negative parallax, Kp extremes, arrival before/after solar-wind speed, zero cloud, poles). Match `FORMULAS.md` exactly; cite the section in a comment.
+
+**Definition of Done:** 100% of engines have passing tests including edge cases; a reviewer can trace every number back to `FORMULAS.md`.
+
+---
+
+## Phase 3 â€” The Poller
+
+**Objective:** One always-on process that orchestrates Phase-1 clients on a two-tier schedule, holds latest state in memory, and exposes it.
+
+**Atomic tasks:**
+- Fast tier (30â€“60s): ISS position, SWPC solar wind/Kp â†’ refresh in-memory store.
+- Slow tier (5â€“15min): DONKI, NeoWs, imagery, forecasts.
+- In-memory normalized state store (re-fetched on boot, not persisted).
+- SSE `/stream` endpoint pushing fast-tier updates; each datum tagged with freshness/timestamp.
+- Per-source health flags feeding the degradation contract.
+- Central polling = constant upstream load regardless of user count; log any 429s.
+- `/health` endpoint (also used for keep-warm).
+
+**Agent expectations:** The poller only *collects and serves* data â€” no prediction logic here (that's the engines). Respect each source's tier; never move a slow source to the fast tier. Verify one source failing doesn't stall the others.
+
+**Definition of Done:** Poller runs continuously, `/stream` emits live fast-tier data with correct freshness tags, and killing one source leaves the rest healthy.
+
+---
+
+## Phase 4 â€” The `/brief` Endpoint & Degradation Contract
+
+**Objective:** The product's spine. Compose poller data + engine outputs into the Daily Brief payload.
+
+**Atomic tasks:**
+- Define the degradation contract: Brief = independent cards (Sky Anchor > ISS > space weather > NEO/imagery); any source failure blanks only its card as "unavailable"; Brief renders if *any* card resolves.
+- `/api/brief?lat=&lon=` â€” assembles tonight's summary, aurora odds + confidence, next ISS pass, one solar line, learning moment.
+- Wire the Causal Engine to live poller data for the aurora prediction.
+- Confidence bands and honest freshness surfaced in the payload.
+- Contract/integration tests for full-data, partial-outage, and total-outage cases.
+
+**Agent expectations:** This is the milestone that proves the backend. Before touching the frontend, sanity-check `/api/brief` with a bare fetch. No styling, no React â€” JSON only.
+
+**Definition of Done:** `/api/brief` returns a correct, confidence-rated payload for a real location, and degrades card-by-card under simulated outages.
+
+---
+
+## Phase 5 â€” Authentication
+
+**Objective:** Secure accounts without a third-party auth provider.
+
+**Atomic tasks:**
+- Prisma `users` + `sessions` models.
+- Argon2 password hashing.
+- Custom JWT middleware: 15-min access token + rotated refresh token (httpOnly cookie, hashed + stored for revocation).
+- `signup`, `login`, `logout`, `refresh` routes.
+- `verifyAccessToken` guard for protected routes.
+- Google OAuth 2.0 (authorization-code flow) as an additive login path issuing the same JWT pair.
+
+**Agent expectations:** Email/password ships and is fully tested before OAuth is started. Never store plaintext or reversible secrets. Treat refresh-token rotation and revocation as required, not optional.
+
+**Definition of Done:** A user can sign up, log in, refresh, log out, and access a protected route; tokens rotate and revoke correctly; OAuth path links/creates a user cleanly.
+
+---
+
+## Phase 6 â€” Persistence Features & Accuracy Loop
+
+**Objective:** The data that makes ASTRANET personal and honest.
+
+**Atomic tasks:**
+- Saved locations (add/remove/default), scoped to the authed user.
+- Personal Sky Log (auto-logged passes/aurora nights + manual entries) as JSONB history.
+- Cache table with `expires_at` + cleanup on read + periodic sweep (no Redis).
+- `predictions` table: every aurora prediction stored with target time, predicted Kp, confidence, context.
+- Daily accuracy job: fetch observed Kp for elapsed targets, record actual vs. predicted, compute rolling hit-rate.
+- Feed hit-rate back into the Causal Engine's history factor.
+- Delete-my-data: real, complete removal of a user's locations + log + predictions.
+
+**Agent expectations:** Enforce per-user access in the API layer (no cross-user reads). The accuracy loop is in-scope, not aspirational â€” build the table and the job together.
+
+**Definition of Done:** Locations and log persist per user; predictions are recorded and scored daily; hit-rate visibly influences confidence; delete-my-data leaves nothing behind.
+
+---
+
+## Phase 7 â€” Frontend Foundation & Daily Brief
+
+**Objective:** The first thing a user sees, consuming a real backend.
+
+**Atomic tasks:**
+- React + Vite app shell, routing, persistent nav (auto-hiding on `/explore`).
+- Zustand store; Tailwind + shadcn/ui base.
+- Auth UI (`/login`, `/signup`) wired to Phase-5 routes; token handling.
+- `/` Daily Brief page rendering `/api/brief`, with per-card loading + "unavailable" states matching the degradation contract.
+- Freshness indicators (live pulse for fast tier, "updated Xm ago" for slow).
+
+**Agent expectations:** Build against the *real* endpoint, not mock data. Respect the degradation contract in the UI exactly as the backend defines it.
+
+**Definition of Done:** A logged-in user sees a real, personalized Daily Brief that degrades gracefully when a source is down.
+
+---
+
+## Phase 8 â€” The Explorable Universe (3D)
+
+**Objective:** The immersive core. Build the proving scene first, then layer objects.
+
+**Atomic tasks:**
+- **Ground Truth Sky Anchor first** â€” real GPS-anchored night sky from the bright-star catalog, correct alt/az, the single scene that proves camera + data + coordinate transforms end-to-end.
+- Clickable ISS/satellites with contextual one-sentence overlays (hold for data).
+- Sun + planets at true current positions (JPL/Horizons via engines).
+- Auroral Ring driven by live OVATION/Kp.
+- Heliosphere Pulse driven by live solar wind.
+- Diegetic text (troika-three-text) with accessible DOM mirror.
+- GSAP camera rig; semantic zooming; the "Rule of 7" clickable-object cap.
+
+**Agent expectations:** Do not add a new 3D object until the previous one is stable at target framerate. Every object explains itself in one plain sentence first (Pillar 1 & 2). No fictional objects â€” everything traces to a real catalog.
+
+**Definition of Done:** A user drops from orbit into their real night sky, clicks the ISS and gets its story, and sees a live aurora ring â€” all at a stable framerate.
+
+---
+
+## Phase 9 â€” Best-Spot-Tonight Finder
+
+**Objective:** The share-worthy discovery layer.
+
+**Atomic tasks:**
+- MapLibre GL map centered on the user.
+- Candidate-site generation + scoring (clarity Ã— darkness Ã— travel, engine-driven).
+- Ranked list + map markers; filter by tonight's event (aurora/meteor/ISS).
+- Spot detail: why it ranked there + directions link.
+
+**Agent expectations:** Reuse the Phase-2 best-spot engine â€” no re-implementing scoring in the UI. Keep the "why ranked" explanation honest and legible.
+
+**Definition of Done:** For a real location, the finder recommends the nearest genuinely good spot with a transparent score breakdown.
+
+---
+
+## Phase 10 â€” Log, Settings & Accuracy Pages
+
+**Objective:** Retention, control, and visible honesty.
+
+**Atomic tasks:**
+- `/log` â€” timeline + simple stats (total sightings, streak, last aurora).
+- `/settings` â€” saved locations, alert toggles, account, delete-my-data control.
+- `/accuracy` â€” public Recharts view of predicted vs. actual Kp + rolling hit-rate.
+- Personalized alerts wiring (ISS/aurora/meteor/NEO).
+
+**Agent expectations:** `/accuracy` must reflect the *real* recorded track record from Phase 6 â€” never fabricated numbers. Delete-my-data must call the real Phase-6 deletion.
+
+**Definition of Done:** Log and settings work per user; delete-my-data truly erases; accuracy page shows genuine historical performance.
+
+---
+
+## Phase 11 â€” Shareable Sky Card
+
+**Objective:** The growth loop.
+
+**Atomic tasks:**
+- `/share/:id` public, no-login snapshot of a location's brief.
+- OG/meta tags for rich link previews.
+- One-tap generate/share from the Daily Brief.
+
+**Agent expectations:** Fully public and login-free. The card must be self-contained and render correctly as a shared link preview.
+
+**Definition of Done:** A generated card opens for a logged-out visitor and previews correctly when the link is shared.
+
+---
+
+## Phase 12 â€” Resilience, Polish & Deploy
+
+**Objective:** Production-grade finish.
+
+**Atomic tasks:**
+- Full outage/resilience pass across every card and scene.
+- Rate-limit budget verification against real source limits under load.
+- Accessibility pass (keyboard nav, screen readers, diegetic-text DOM mirror).
+- Mobile pass for Companion + Discovery layers.
+- Performance/framerate profiling of the 3D scene across hardware tiers.
+- Deploy: backend + Postgres on the VPS (pm2/Docker restart policy), frontend on Cloudflare Pages, keep-warm via `/health`.
+- README screenshots/GIF; final `PROGRESS.md`/`DECISIONS.md` sync.
+
+**Agent expectations:** Nothing new is added here â€” only hardening, measuring, and shipping. Every earlier phase's Definition of Done must still hold.
+
+**Definition of Done:** ASTRANET is deployed, resilient to source outages, accessible, performant, and demoable end-to-end.
+
+---
+
+## Horizon (explicitly NOT in this workplan)
+
+Deep-sky and cosmological features â€” stellar neighborhood, Milky Way core, black holes, cosmic web, gravitational lensing, CMB, gravitational waves â€” are deferred by design. They are captured in `NOTES.md` and built only when there's a genuine reason a user would return to them, never because they'd look impressive in a demo. Do not pull these into any phase above.

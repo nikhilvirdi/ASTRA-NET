@@ -1,0 +1,18 @@
+---
+description: ASTRANET project rules — read AGENTS.md first
+alwaysApply: true
+---
+
+This project's shared agent instructions live in `AGENTS.md` at the repo root. Read it before making any change.
+
+In short:
+
+- `WORKPLAN.md` is the single source of truth for build order — check the `Current Phase` marker and stay within it.
+- `ARCHITECTURE.md`, `FORMULAS.md`, `API_SOURCES.md`, `SCHEMA.md` are locked reference docs — implement them exactly, don't invent alternatives.
+- Pure math/engine code lives in `packages/shared` and must stay side-effect-free (no I/O, no clock reads — inject `now`).
+- Validate all external data with Zod at the boundary.
+- Every non-trivial function needs unit tests before a task counts as done.
+- Update `PROGRESS.md` when you finish a task. Log any deviation from a locked doc in `DECISIONS.md` before making it, not after.
+- Deferred/out-of-scope ideas go in `NOTES.md`, never directly into code.
+
+Claude Code is the lead agent on this repo (see `CLAUDE.md`) and is responsible for cross-agent consistency — if you're touching code it previously wrote, follow the same standards.

@@ -1,0 +1,43 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(npm run dev)",
+            "Bash(npm run build)",
+            "Bash(npm test)",
+            "Bash(npm run lint)",
+            "Bash(npx vitest*)",
+            "Bash(npx playwright*)",
+            "Bash(npx prisma migrate dev*)",
+            "Bash(npx prisma generate)",
+            "Bash(npx prisma studio)",
+            "Bash(docker compose up*)",
+            "Bash(docker compose down*)",
+            "Bash(git status)",
+            "Bash(git diff*)",
+            "Bash(git log*)",
+            "Bash(git add*)",
+            "Bash(git commit*)"
+        ],
+        "deny": [
+            "Read(.env)",
+            "Read(.env.*)",
+            "Read(**/*.pem)",
+            "Read(**/id_rsa*)",
+            "Bash(git push --force*)",
+            "Bash(rm -rf /*)"
+        ]
+    },
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash .claude/hooks/post-edit-check.sh"
+                    }
+                ]
+            }
+        ]
+    }
+}
