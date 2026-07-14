@@ -43,8 +43,6 @@ ASTRANET tells you, in plain language and through a cinematic explorable 3D univ
 
 It is not a satellite tracker, not a space-news dashboard, and not a scientific data portal for experts. Every object shown is real and verified against genuine scientific catalogs — nothing is procedurally generated or invented to fill visual gaps.
 
----
-
 ## The Problem
 
 Space-related information today is fragmented, decontextualized, and impersonal:
@@ -58,13 +56,9 @@ Space-related information today is fragmented, decontextualized, and impersonal:
 
 ASTRANET closes all of these gaps at once, for one clearly defined audience.
 
----
-
 ## The Vision
 
 The cosmos is presented as one connected, living system rather than a static catalog of objects. A solar flare is not an isolated fact — it's the beginning of a chain that affects satellites, which affects auroras, which affects what a specific person might see in their sky tonight. Making that chain visible and understandable, in real time, is the emotional and functional core of ASTRANET.
-
----
 
 ## Five Guiding Pillars
 
@@ -85,8 +79,6 @@ Distances, sizes, and events are always tied back to a human frame of reference,
 **5. Chronological Synchronicity**
 The platform's default state is always *now*. Live, current data is the foundation of trust — a user must always be confident that what they're looking at is happening in real time.
 
----
-
 ## Who ASTRANET Is For
 
 - **The curious beginner** — fascinated by space, no technical background, wants plain language and zero required prior knowledge.
@@ -97,16 +89,12 @@ The platform's default state is always *now*. Live, current data is the foundati
 
 ASTRANET is explicitly not built for scientists, aerospace engineers, or satellite operators. That audience already has professional-grade tools, and designing for them would compromise the plain-language, story-first identity that defines this product.
 
----
-
 ## What ASTRANET Is Not
 
 - Not a space news aggregator or feed of articles.
 - Not a professional satellite-operations tool.
 - Not a procedural space sandbox that invents fictional stars or objects.
 - Not a static educational encyclopedia — every explanation is tied to something currently happening, not a textbook entry.
-
----
 
 ## Features
 
@@ -136,8 +124,6 @@ Notifications for ISS passes, rising aurora odds, meteor shower peaks, and notab
 
 **Accuracy & Trust Record**
 Because ASTRANET's core promise depends on live forecasts, honesty about uncertainty is a first-class feature, not a footnote. Predictions are shown with honest confidence levels, and the platform's own track record — predicted versus what actually happened — is visible, not hidden.
-
----
 
 ## Data Ethics & Privacy
 
