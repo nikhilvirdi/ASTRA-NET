@@ -130,7 +130,3 @@ Because ASTRANET's core promise depends on live forecasts, honesty about uncerta
 Because ASTRANET is inherently location-aware, its stance on user data is simple and explicit: location data is used only to personalize the experience, is never sold or shared with third parties, and users retain full control — including the ability to fully delete their saved locations and personal sky history at any time, with deletion meaning actual removal, not deactivation.
 
 ---
-
-## License
-
-MIT
