@@ -54,7 +54,10 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: Phase 1 — NOAA SWPC client (Kp, 3-day forecast, solar wind, RTSW plasma) with Zod validation, retry-with-backoff, and unit tests against real fixtures — by Antigravity
 - ✅ Done: Phase 1 — CelesTrak client (JSON OMM) with Zod validation, retry-with-backoff, and unit tests — by Antigravity
 - ✅ Done: Phase 1 — N2YO client (Positions, Visual Passes) with Zod validation, retry-with-backoff, and unit tests — by Antigravity
-- ⏭️ Next: **Phase 1** — NASA DONKI and NASA NeoWs clients
+- ✅ Done: Phase 1 — NASA DONKI (CME, FLR) and NASA NeoWs (Feed) clients with Zod validation, retry-with-backoff, and unit tests — by Antigravity
+- ✅ Done: Phase 1 — JPL Horizons, Open-Meteo, and GIBS clients with schemas, mock handling, and unit tests — by Antigravity
+- ✅ Done: Phase 1 — Fixed SWPC client total-failure test race condition and explicitly added `?? null` fallbacks to `fetchSwpc`.
+- ⛔ Blocked (corrected 2026-07-15, see below): Phase 1 — bright-star catalog / light-pollution atlas were logged "done" here but both ingest scripts were actually broken and both tests silently skip-passed on a missing fixture — not caught until Claude Code's one-time takeover of this specific piece (see `DECISIONS.md`).
 
 ## 2026-07-15 (Phase 2 — Core Math Engines, started by Claude Code)
 
@@ -73,3 +76,13 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: `auroraStrengthToFactor()` added to `engines/aurora.ts` (§11 normalization: `clamp(strengthDeg / 20, 0, 1)`), with tests at strength=0, 20, 10, 30 (saturation), and negative input — `/formula-audit` clean — by Claude Code
 - ✅ Done: Phase 2 — **fully closed, zero open questions** — full `packages/shared` suite green, 100% coverage maintained — by Claude Code
 - ⏭️ Next: Phase 1 (Antigravity) continues; Phase 3 (Poller) now unblocked on Phase 2
+
+## 2026-07-15 (Phase 1 static datasets fixed, one-time takeover)
+
+- ✅ Done: Fixed `stars.client.test.ts` / `light-pollution.client.test.ts` — both were skip-and-pass on a missing `.bin` fixture (false confidence); now hard-`throw`. Confirmed both fail correctly before the ingest scripts were touched — by Claude Code
+- ✅ Done: Fixed `ingest-stars.js` — HYG-Database repo is archived, `master/hygdata_v3.csv` no longer resolves; switched to `main/hyg/CURRENT/hygdata_v41.csv`. Binary layout changed from `parallax_mas` to raw `dist_pc` (HYG provides distance in parsecs directly, sentinel 100000 pc = 100 kpc matches `FORMULAS.md` §1's own convention); no rows dropped; `ci` confirmed native B-V (not Gaia bp_rp). Ran successfully: 8921 stars → `stars.bin` (178,420 bytes) — by Claude Code
+- ✅ Done: Fixed `ingest-light-pollution.js` — was crashing (`maxMemoryUsageInMB limit exceeded by at least 184MB` on NASA's `3km` tier, 13500x6750). Switched to NASA's `01deg` variant (3600x1800, exactly the target grid, no resize needed). Ran successfully: `bortle-grid.bin` (6.18 MB) — by Claude Code
+- ✅ Done: Updated `stars.client.test.ts` for the `dist_pc` field change (Sirius ≈2.64 pc), `API_SOURCES.md`'s Static Datasets section (new HYG URL/layout, new Black Marble URL, poster-image/luma-approximation caveat), `DECISIONS.md` entry logged — by Claude Code
+- ✅ Done: Both static-dataset tests pass for real (not skipped); full `apps/api` suite green — 9 files, 64 tests — by Claude Code
+- ✅ Done: Found + fixed a repo-wide gap blocking "lint/format clean" for this task and, on inspection, for all of Phase 1: `@types/node` was missing entirely (confirmed pre-existing, not introduced by this task — reproduced on Antigravity's `scratch.js` and via a stash-and-retest of `tsc --noEmit`). Added `@types/node@^20.14.0` to root `package.json` devDependencies + `npm install` — pure dependency addition, no client-logic files touched. `tsc --noEmit` and `eslint` now resolve node/fetch/global types repo-wide; fixed the two static-dataset files' own remaining `noUncheckedIndexedAccess` errors with `!` (bounds-checked typed-array reads) — by Claude Code
+- ⛔ Noted, not fixed (genuinely out of scope, pre-existing in other agents' files): `noUncheckedIndexedAccess` errors in `n2yo`/`nasa`/`open-meteo`/`swpc` clients/tests; `TS6307` fixture-not-in-tsconfig-`include` errors on the same clients; `apps/api/scripts/*.js` (incl. pre-existing `scratch.js`) isn't covered by any tsconfig `include`, so `eslint` fails to type-parse it — doesn't block commits (lint-staged only gates `*.{ts,tsx}`) but will surface in a full `npm run lint`/CI run. Flagging for whoever closes Phase 1's Definition of Done. See `DECISIONS.md`.

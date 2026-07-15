@@ -51,3 +51,7 @@ postgres-data/
 # Misc
 *.tsbuildinfo
 .turbo/
+
+# Static-dataset ingest source cache (re-downloaded by apps/api/scripts/ingest-*.js;
+# only the processed .bin output in apps/web/public/data is self-hosted)
+apps/api/scripts/BlackMarble.jpg
