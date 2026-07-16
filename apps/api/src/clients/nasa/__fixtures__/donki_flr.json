@@ -1,0 +1,23 @@
+[
+  {
+    "flrID": "2026-06-20T01:26:00-FLR-001",
+    "catalog": "M2M_CATALOG",
+    "instruments": [
+      { "displayName": "GOES-P: EXIS 1.0-8.0" }
+    ],
+    "beginTime": "2026-06-20T01:26Z",
+    "peakTime": "2026-06-20T01:51Z",
+    "endTime": "2026-06-20T02:04Z",
+    "classType": "M1.3",
+    "sourceLocation": "S12E70",
+    "activeRegionNum": 14472,
+    "note": "",
+    "submissionTime": "2026-06-20T02:11Z",
+    "versionId": 1,
+    "link": "https://webtools.ccmc.gsfc.nasa.gov/DONKI/view/FLR/46934/-1",
+    "linkedEvents": [
+      { "activityID": "2026-06-20T02:12:00-CME-001" }
+    ],
+    "sentNotifications": null
+  }
+]

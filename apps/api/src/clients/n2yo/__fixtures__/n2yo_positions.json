@@ -1,0 +1,20 @@
+{
+  "info": {
+    "satname": "SPACE STATION",
+    "satid": 25544,
+    "transactionscount": 0
+  },
+  "positions": [
+    {
+      "satlatitude": 49.21118744,
+      "satlongitude": 50.48970805,
+      "sataltitude": 429.56,
+      "azimuth": 33.82,
+      "elevation": -29.85,
+      "ra": 2.55078876,
+      "dec": 46.01007833,
+      "timestamp": 1784057839,
+      "eclipsed": false
+    }
+  ]
+}
