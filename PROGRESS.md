@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 1 — Data Source Clients` (Antigravity, in progress) + `Phase 2 — Core Math Engines` (Claude Code, in progress in parallel — fully isolated from Phase 1, explicitly authorized by human)
+**Current Phase:** `Phase 3 — The Poller` (Claude Code)
 
 ---
 
@@ -104,3 +104,13 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
   - **`no-unsafe-*` cascade** (`nasa.client.test.ts`): resolved automatically once the mock signatures were properly typed (non-async with explicit param names).
 - ✅ Done: Added `apps/api/scratch.js` to `.gitignore` — throwaway debug file, should never be committed.
 - ⏭️ Next: Run `npx eslint apps/api/src/clients --max-warnings=0` to confirm clean, run `npm run test --workspace=apps/api` to confirm nothing broke, then commit normally (pre-commit hook must pass on its own this time), pull-rebase, push. Then run `/phase-check` to confirm Phase 1 can finally close.
+
+## 2026-07-16 (Phase 1 CLOSED — typecheck/prettier gates were never actually green)
+
+- ⛔ Found on `/phase-check`: the prior "ESLint fixes" entry above only closed the ESLint gate. `npm run typecheck` (`tsc --build --pretty`, CI's actual gate, distinct from ESLint's type-aware linting which doesn't enforce composite-project file-list completeness) failed with **35 real errors** across celestrak/jpl-horizons/n2yo/nasa/open-meteo/swpc — the exact `noUncheckedIndexedAccess`/`TS6307` gap flagged and left unfixed twice before (2026-07-15, 2026-07-16 entries above). `npx prettier --check` also failed on 37 files, never run. Neither gate had ever actually been exercised — by Claude Code
+- ✅ Done: Fixed all 9 `TS6307` errors — `apps/api/tsconfig.json`'s `"include": ["src"]` doesn't pull `.json` fixtures into the composite project's file list even with `resolveJsonModule: true`; widened to `"include": ["src", "src/**/*.json"]`. `DECISIONS.md`'s 2026-07-15 entry updated in place to mark this resolved rather than left silently fixed — by Claude Code
+- ✅ Done: Fixed the remaining 25 `noUncheckedIndexedAccess` errors — explicit `undefined` narrowing (not `!`-suppression) in `swpc.client.ts` (`parseKpCurrent`'s last-entry read, `parseSolarWind`'s header-row destructure) and `!`-after-existing-length-check in test files (celestrak/n2yo/nasa/open-meteo/swpc), consistent with the pattern the 2026-07-15 static-dataset fix already established — by Claude Code
+- ✅ Done: Fixed the one genuine bug in the batch — `open-meteo.client.ts:89` assigned `cloudCoverPercent`/`visibilityMeters` from three independently-validated parallel arrays (`time`/`cloudcover`/`visibility`) with no guarantee they're the same length; a malformed upstream response could have silently produced `undefined` values typed as `number`. Added a Zod `.refine()` to `OpenMeteoHourlySchema` rejecting mismatched-length arrays at the validation boundary (falls to the existing `hourly: null` fallback, same as every other malformed-data path), plus a defensive per-element `undefined` check in the client that drops any hour missing a value instead of smuggling `undefined` through as a number — by Claude Code
+- ✅ Done: `npm run typecheck` from repo root — **zero errors**. `npx prettier --write apps/api/src/clients` then `--check` — **clean, all files match Prettier style**. `npx eslint apps/api/src/clients --max-warnings=0` — **zero errors** (re-confirmed, no regressions). `npm test --workspace=apps/api` — **9 files, 64 tests, all passing** (re-confirmed, no regressions) — by Claude Code
+- ✅ Done: **Phase 1 — Data Source Clients — genuinely closed.** All 7 clients (celestrak, gibs, jpl-horizons, n2yo, nasa, open-meteo, swpc) committed with fixtures; both static datasets (`stars.bin`, `bortle-grid.bin`) committed, load, and their tests hard-fail (not skip) on missing data; `API_SOURCES.md` documents rate limits/keys for every source; every client has Zod validation, retry-with-timeout, and a documented fallback; all four gates (typecheck, eslint, prettier, tests) are green from a clean run of the exact commands CI uses — by Claude Code
+- ⏭️ Next: Phase 3 — The Poller. `packages/shared`'s Phase 2 engines are already done; the poller orchestrates the Phase 1 clients on the two-tier schedule and imports the engines where needed, no prediction logic of its own.
