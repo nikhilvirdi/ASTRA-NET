@@ -140,3 +140,12 @@ bypassing the lint gate, committed once with --no-verify to preserve the
 code, with fixing all 38 errors as the immediate next task before Phase 1
 can be considered closed. This is not a standing exception — the gate
 re-applies normally on the next commit.
+
+## 2026-07-16 — Fast-tier poller: ISS NORAD ID and reference observer point
+
+**Why:** `apps/api/src/poller/fast-tier.ts` needs concrete parameters for `fetchN2yoPositions` that no doc (`ARCHITECTURE.md`, `API_SOURCES.md`) specifies. Two calls made, neither an invented constant/threshold in the `FORMULAS.md` sense — both are either a real-world fact or a deliberately neutral placeholder:
+
+- **`satId: 25544`** — the ISS's actual NORAD catalog number. Not invented; this is the real, fixed, public identifier for the ISS, same as CelesTrak/N2YO/every other satellite tracker uses.
+- **Reference observer `{ lat: 0, lng: 0, alt: 0 }` ("Null Island")** — N2YO's `/positions` endpoint requires an observer point to compute azimuth/elevation/eclipsed, but the store's `iss` entry only needs the ISS's own lat/long/altitude, which the endpoint returns observer-independent regardless of what observer point is passed. A fixed, neutral observer avoids biasing toward any real location (e.g. picking a "default city" would implicitly favor that region) for data this phase doesn't consume the observer-relative fields of. `seconds: 1` — a single current-position sample, not a trajectory, since the store holds "latest," not a time series.
+
+If a future phase needs real azimuth/elevation for a specific viewer (e.g. an overfly alert), that's a separate, per-user call with the user's actual location — not a reason to change the poller's global ISS-position parameters.
