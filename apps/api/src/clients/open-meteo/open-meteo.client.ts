@@ -5,7 +5,7 @@
  * Uses timeout+retry, Zod validation, never throws.
  */
 
-import { OpenMeteoData } from './open-meteo.types.js';
+import { OpenMeteoData, OpenMeteoHourlyData } from './open-meteo.types.js';
 import { OpenMeteoResponseSchema } from './open-meteo.schemas.js';
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -72,16 +72,29 @@ export async function fetchOpenMeteo(
   try {
     const raw = await fetchWithRetry(url.toString());
     const res = OpenMeteoResponseSchema.safeParse(raw);
-    
+
     if (!res.success) {
-      return { latitude: params.latitude, longitude: params.longitude, hourly: null, fetchedAt: now.toISOString() };
+      return {
+        latitude: params.latitude,
+        longitude: params.longitude,
+        hourly: null,
+        fetchedAt: now.toISOString(),
+      };
     }
 
-    const hourly = res.data.hourly.time.map((t, i) => ({
-      time: t,
-      cloudCoverPercent: res.data.hourly.cloudcover[i],
-      visibilityMeters: res.data.hourly.visibility[i],
-    }));
+    // The refine on OpenMeteoHourlySchema guarantees these arrays are the same length as
+    // `time`, but TS's noUncheckedIndexedAccess can't see that invariant across the schema
+    // boundary — narrow explicitly and drop any hour that's missing a value rather than
+    // smuggling `undefined` through as a `number`.
+    const hourly = res.data.hourly.time.reduce<OpenMeteoHourlyData[]>((acc, t, i) => {
+      const cloudCoverPercent = res.data.hourly.cloudcover[i];
+      const visibilityMeters = res.data.hourly.visibility[i];
+      if (cloudCoverPercent === undefined || visibilityMeters === undefined) {
+        return acc;
+      }
+      acc.push({ time: t, cloudCoverPercent, visibilityMeters });
+      return acc;
+    }, []);
 
     return {
       latitude: res.data.latitude,
@@ -91,7 +104,12 @@ export async function fetchOpenMeteo(
     };
   } catch (err) {
     console.error('[open-meteo] fetch failed:', err);
-    return { latitude: params.latitude, longitude: params.longitude, hourly: null, fetchedAt: now.toISOString() };
+    return {
+      latitude: params.latitude,
+      longitude: params.longitude,
+      hourly: null,
+      fetchedAt: now.toISOString(),
+    };
   }
 }
 

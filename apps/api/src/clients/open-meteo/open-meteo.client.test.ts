@@ -35,8 +35,8 @@ describe('fetchOpenMeteo', () => {
 
     expect(data.hourly).not.toBeNull();
     expect(data.hourly?.length).toBe(3);
-    expect(data.hourly?.[0].cloudCoverPercent).toBe(0);
-    expect(data.hourly?.[0].visibilityMeters).toBe(37700);
+    expect(data.hourly![0]!.cloudCoverPercent).toBe(0);
+    expect(data.hourly![0]!.visibilityMeters).toBe(37700);
     expect(data.fetchedAt).toBe(NOW.toISOString());
   });
 
