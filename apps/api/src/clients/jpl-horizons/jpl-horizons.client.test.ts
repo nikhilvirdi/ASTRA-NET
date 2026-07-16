@@ -26,16 +26,18 @@ describe('fetchHorizons', () => {
   });
 
   it('parses successful response and extracts SOE-EOE lines', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify(fixture), { status: 200 }));
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
+    );
+
     const params = {
       command: '499',
       startTime: '2026-07-14',
       stopTime: '2026-07-15',
     };
-    
+
     const data = await fetchHorizons(params, NOW);
-    
+
     expect(data.ephemerisLines).not.toBeNull();
     expect(data.ephemerisLines?.length).toBe(2);
     expect(data.ephemerisLines?.[0]).toContain('2026-Jul-14');
@@ -43,18 +45,20 @@ describe('fetchHorizons', () => {
   });
 
   it('returns null on missing SOE/EOE markers', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({ result: 'No markers here' }), { status: 200 }));
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ result: 'No markers here' }), { status: 200 })),
+    );
+
     const data = await fetchHorizons({ command: '499', startTime: '2026', stopTime: '2026' }, NOW);
-    
+
     expect(data.ephemerisLines).toBeNull();
   });
 
   it('returns fallback on network error', async () => {
-    global.fetch = vi.fn(async () => new Response('Error', { status: 503 }));
-    
+    global.fetch = vi.fn(() => Promise.resolve(new Response('Error', { status: 503 })));
+
     const data = await fetchHorizons({ command: '499', startTime: '2026', stopTime: '2026' }, NOW);
-    
+
     expect(data.ephemerisLines).toBeNull();
   });
 });

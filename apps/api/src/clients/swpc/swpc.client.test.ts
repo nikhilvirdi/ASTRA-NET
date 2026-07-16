@@ -52,7 +52,7 @@ describe('KpOneMinuteResponseSchema', () => {
     const last = result.data[result.data.length - 1];
     expect(last.time_tag).toBe('2026-07-14T19:05:00');
     expect(last.kp_index).toBe(1);
-    expect(last.estimated_kp).toBe(1.00);
+    expect(last.estimated_kp).toBe(1.0);
     expect(last.kp).toBe('1Z');
   });
 
@@ -60,7 +60,7 @@ describe('KpOneMinuteResponseSchema', () => {
     const result = KpOneMinuteResponseSchema.safeParse(kp1mFixture);
     expect(result.success).toBe(true);
     if (!result.success) return;
-    const quietEntry = result.data.find((e) => e.kp_index === 0 && e.estimated_kp === 0.00);
+    const quietEntry = result.data.find((e) => e.kp_index === 0 && e.estimated_kp === 0.0);
     expect(quietEntry).toBeDefined();
     expect(quietEntry?.kp).toBe('0Z');
   });
@@ -75,7 +75,9 @@ describe('KpOneMinuteResponseSchema', () => {
   });
 
   it('rejects an entry with kp_index > 9', () => {
-    const badFixture = [{ time_tag: '2026-07-14T00:00:00', kp_index: 10, estimated_kp: 10, kp: '10Z' }];
+    const badFixture = [
+      { time_tag: '2026-07-14T00:00:00', kp_index: 10, estimated_kp: 10, kp: '10Z' },
+    ];
     const result = KpOneMinuteResponseSchema.safeParse(badFixture);
     expect(result.success).toBe(false);
   });
@@ -178,7 +180,7 @@ describe('SolarWindRawResponseSchema (tuple array)', () => {
     if (!result.success) return;
     // rows after header
     const dataRows = result.data.slice(1);
-    const hasSouthwardBz = dataRows.some((row) => typeof row[6] === 'number' && (row[6] as number) < 0);
+    const hasSouthwardBz = dataRows.some((row) => typeof row[6] === 'number' && row[6] < 0);
     expect(hasSouthwardBz).toBe(true);
   });
 });
@@ -209,7 +211,9 @@ describe('RtswWindResponseSchema', () => {
   });
 
   it('rejects an entry missing the required proton_speed field', () => {
-    const bad = [{ time_tag: '2026-07-14T00:00:00', active: true, source: 'ACE', overall_quality: 0 }];
+    const bad = [
+      { time_tag: '2026-07-14T00:00:00', active: true, source: 'ACE', overall_quality: 0 },
+    ];
     const result = RtswWindResponseSchema.safeParse(bad);
     // proton_speed is required (even if nullable), so absence should fail
     // RtswWindEntrySchema has proton_speed: z.number().nullable() — missing key fails
@@ -225,18 +229,26 @@ type FetchMock = ReturnType<typeof vi.fn>;
 
 /** Build a fetch mock that maps URLs to fixture responses. */
 function buildFetchMock(
-  overrides: Partial<Record<keyof typeof ENDPOINTS_MAP, 'error' | 'server_error' | unknown>> = {},
+  overrides: Partial<Record<keyof typeof ENDPOINTS_MAP, unknown>> = {},
 ): FetchMock {
-  return vi.fn(async (url: string) => {
-    const key = Object.keys(ENDPOINTS_MAP).find((k) => url.includes(ENDPOINTS_MAP[k as keyof typeof ENDPOINTS_MAP].sentinel));
-    if (!key) throw new Error(`Unmapped URL in test: ${url}`);
+  return vi.fn((url: string) => {
+    const key = Object.keys(ENDPOINTS_MAP).find((k) =>
+      url.includes(ENDPOINTS_MAP[k as keyof typeof ENDPOINTS_MAP].sentinel),
+    );
+    if (!key) return Promise.reject(new Error(`Unmapped URL in test: ${url}`));
     const override = overrides[key as keyof typeof ENDPOINTS_MAP];
 
-    if (override === 'error') throw new Error('Network error');
-    if (override === 'server_error') return new Response('Service Unavailable', { status: 503 });
+    if (override === 'error') return Promise.reject(new Error('Network error'));
+    if (override === 'server_error')
+      return Promise.resolve(new Response('Service Unavailable', { status: 503 }));
 
     const body = override ?? ENDPOINTS_MAP[key as keyof typeof ENDPOINTS_MAP].fixture;
-    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
   });
 }
 
@@ -278,7 +290,7 @@ describe('fetchSwpc()', () => {
     global.fetch = buildFetchMock() as unknown as typeof global.fetch;
     const data = await fetchSwpc(NOW);
     expect(data.kpCurrent?.timeTag).toBe('2026-07-14T19:05:00');
-    expect(data.kpCurrent?.estimatedKp).toBe(1.00);
+    expect(data.kpCurrent?.estimatedKp).toBe(1.0);
   });
 
   it('kpForecast includes all three status types', async () => {

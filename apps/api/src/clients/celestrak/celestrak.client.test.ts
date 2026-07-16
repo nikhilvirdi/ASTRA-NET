@@ -10,7 +10,7 @@ describe('CelestrakOmmResponseSchema', () => {
     const result = CelestrakOmmResponseSchema.safeParse(fixture);
     expect(result.success).toBe(true);
   });
-  
+
   it('extracts NORAD_CAT_ID correctly', () => {
     const result = CelestrakOmmResponseSchema.safeParse(fixture);
     if (!result.success) throw new Error('parse failed');
@@ -37,8 +37,10 @@ describe('fetchCelestrakOmm', () => {
   });
 
   it('parses valid response correctly', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify(fixture), { status: 200 }));
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
+    );
+
     const data = await fetchCelestrakOmm({ catnr: 25544 }, NOW);
     expect(data.records).not.toBeNull();
     expect(data.records?.[0].noradCatId).toBe(25544);
@@ -46,13 +48,15 @@ describe('fetchCelestrakOmm', () => {
   });
 
   it('returns null records on 5xx', async () => {
-    global.fetch = vi.fn(async () => new Response('Error', { status: 503 }));
+    global.fetch = vi.fn(() => Promise.resolve(new Response('Error', { status: 503 })));
     const data = await fetchCelestrakOmm({ catnr: 25544 }, NOW);
     expect(data.records).toBeNull();
   });
 
   it('returns null records on malformed JSON', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify([{ invalid: 'shape' }]), { status: 200 }));
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify([{ invalid: 'shape' }]), { status: 200 })),
+    );
     const data = await fetchCelestrakOmm({ catnr: 25544 }, NOW);
     expect(data.records).toBeNull();
   });

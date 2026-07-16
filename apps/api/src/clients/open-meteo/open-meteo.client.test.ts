@@ -26,11 +26,13 @@ describe('fetchOpenMeteo', () => {
   });
 
   it('parses successful response', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify(fixture), { status: 200 }));
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
+    );
+
     const params = { latitude: 40.71, longitude: -74.01 };
     const data = await fetchOpenMeteo(params, NOW);
-    
+
     expect(data.hourly).not.toBeNull();
     expect(data.hourly?.length).toBe(3);
     expect(data.hourly?.[0].cloudCoverPercent).toBe(0);
@@ -39,11 +41,11 @@ describe('fetchOpenMeteo', () => {
   });
 
   it('returns null hourly on network error', async () => {
-    global.fetch = vi.fn(async () => new Response('Error', { status: 503 }));
-    
+    global.fetch = vi.fn(() => Promise.resolve(new Response('Error', { status: 503 })));
+
     const params = { latitude: 40.71, longitude: -74.01 };
     const data = await fetchOpenMeteo(params, NOW);
-    
+
     expect(data.hourly).toBeNull();
   });
 });

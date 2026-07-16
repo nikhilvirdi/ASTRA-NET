@@ -21,7 +21,14 @@
  * means ≤ 2 req/min in steady state — well within informal limits.
  */
 
-import { SwpcData, SwpcKpCurrent, SwpcKpForecastEntry, SwpcKpObservedEntry, SwpcRtswPlasma, SwpcSolarWindEntry, SWPC_FALLBACK } from './swpc.types.js';
+import {
+  SwpcData,
+  SwpcKpCurrent,
+  SwpcKpForecastEntry,
+  SwpcKpObservedEntry,
+  SwpcRtswPlasma,
+  SwpcSolarWindEntry,
+} from './swpc.types.js';
 import {
   KpForecastResponseSchema,
   KpObservedResponseSchema,
@@ -168,8 +175,18 @@ function parseSolarWind(raw: unknown): SwpcSolarWindEntry[] | null {
 
   // Safety: confirm header matches expected shape
   const expectedHeaders = [
-    'time_tag', 'speed', 'density', 'temperature',
-    'bx', 'by', 'bz', 'bt', 'vx', 'vy', 'vz', 'propagated_time_tag',
+    'time_tag',
+    'speed',
+    'density',
+    'temperature',
+    'bx',
+    'by',
+    'bz',
+    'bt',
+    'vx',
+    'vy',
+    'vz',
+    'propagated_time_tag',
   ];
   if (!expectedHeaders.every((h, i) => headerRow[i] === h)) {
     console.error('[swpc] solar wind header mismatch — skipping product');

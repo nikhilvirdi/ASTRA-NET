@@ -6,7 +6,11 @@
  */
 
 import { NasaDonkiData, NasaNeowsData } from './nasa.types.js';
-import { DonkiCmeResponseSchema, DonkiFlrResponseSchema, NeowsFeedResponseSchema } from './nasa.schemas.js';
+import {
+  DonkiCmeResponseSchema,
+  DonkiFlrResponseSchema,
+  NeowsFeedResponseSchema,
+} from './nasa.schemas.js';
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
@@ -73,12 +77,12 @@ export async function fetchNasaDonki(
 
   try {
     const [cmeRaw, flrRaw] = await Promise.all([
-      fetchWithRetry(cmeUrl.toString()).catch((e) => {
-        console.error('[nasa/donki] CME fetch failed:', e);
+      fetchWithRetry(cmeUrl.toString()).catch((e: unknown) => {
+        console.error('[nasa/donki] CME fetch failed:', e instanceof Error ? e.message : String(e));
         return null; // Swallow so we can try parsing FLR
       }),
-      fetchWithRetry(flrUrl.toString()).catch((e) => {
-        console.error('[nasa/donki] FLR fetch failed:', e);
+      fetchWithRetry(flrUrl.toString()).catch((e: unknown) => {
+        console.error('[nasa/donki] FLR fetch failed:', e instanceof Error ? e.message : String(e));
         return null;
       }),
     ]);
@@ -152,28 +156,30 @@ export async function fetchNasaNeows(
   try {
     const raw = await fetchWithRetry(url.toString());
     const res = NeowsFeedResponseSchema.safeParse(raw);
-    
+
     if (!res.success) {
       return { elementCount: 0, objects: null, fetchedAt: now.toISOString() };
     }
 
-    const objects = Object.values(res.data.near_earth_objects).flat().map((neo) => ({
-      id: neo.id,
-      name: neo.name,
-      nasaJplUrl: neo.nasa_jpl_url,
-      absoluteMagnitudeH: neo.absolute_magnitude_h ?? null,
-      estimatedDiameterMinKm: neo.estimated_diameter.kilometers.estimated_diameter_min,
-      estimatedDiameterMaxKm: neo.estimated_diameter.kilometers.estimated_diameter_max,
-      isPotentiallyHazardous: neo.is_potentially_hazardous_asteroid,
-      isSentryObject: neo.is_sentry_object,
-      closeApproaches: neo.close_approach_data.map((ca) => ({
-        date: ca.close_approach_date,
-        epochDate: ca.epoch_date_close_approach,
-        velocityKmS: parseFloat(ca.relative_velocity.kilometers_per_second),
-        missDistanceKm: parseFloat(ca.miss_distance.kilometers),
-        orbitingBody: ca.orbiting_body,
-      })),
-    }));
+    const objects = Object.values(res.data.near_earth_objects)
+      .flat()
+      .map((neo) => ({
+        id: neo.id,
+        name: neo.name,
+        nasaJplUrl: neo.nasa_jpl_url,
+        absoluteMagnitudeH: neo.absolute_magnitude_h ?? null,
+        estimatedDiameterMinKm: neo.estimated_diameter.kilometers.estimated_diameter_min,
+        estimatedDiameterMaxKm: neo.estimated_diameter.kilometers.estimated_diameter_max,
+        isPotentiallyHazardous: neo.is_potentially_hazardous_asteroid,
+        isSentryObject: neo.is_sentry_object,
+        closeApproaches: neo.close_approach_data.map((ca) => ({
+          date: ca.close_approach_date,
+          epochDate: ca.epoch_date_close_approach,
+          velocityKmS: parseFloat(ca.relative_velocity.kilometers_per_second),
+          missDistanceKm: parseFloat(ca.miss_distance.kilometers),
+          orbitingBody: ca.orbiting_body,
+        })),
+      }));
 
     return {
       elementCount: res.data.element_count,

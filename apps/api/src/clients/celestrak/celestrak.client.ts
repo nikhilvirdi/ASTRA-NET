@@ -5,7 +5,7 @@
  * Validates with Zod, applies timeout+retry, never throws.
  */
 
-import { CelestrakData, CelestrakOmmRecord, CELESTRAK_FALLBACK } from './celestrak.types.js';
+import { CelestrakData, CelestrakOmmRecord } from './celestrak.types.js';
 import { CelestrakOmmResponseSchema } from './celestrak.schemas.js';
 
 const BASE = 'https://celestrak.org/NORAD/elements/gp.php';

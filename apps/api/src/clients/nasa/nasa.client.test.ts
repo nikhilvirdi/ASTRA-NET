@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchNasaDonki, fetchNasaNeows } from './nasa.client.js';
-import { DonkiCmeResponseSchema, DonkiFlrResponseSchema, NeowsFeedResponseSchema } from './nasa.schemas.js';
+import {
+  DonkiCmeResponseSchema,
+  DonkiFlrResponseSchema,
+  NeowsFeedResponseSchema,
+} from './nasa.schemas.js';
 
 import donkiCmeFixture from './__fixtures__/donki_cme.json';
 import donkiFlrFixture from './__fixtures__/donki_flr.json';
@@ -39,15 +43,17 @@ describe('fetchNasaDonki', () => {
   });
 
   it('parses successful CME/FLR responses', async () => {
-    global.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    global.fetch = vi.fn((url: string | URL, _init?: RequestInit) => {
       const u = typeof url === 'string' ? url : url.toString();
-      if (u.includes('/CME')) return new Response(JSON.stringify(donkiCmeFixture), { status: 200 });
-      if (u.includes('/FLR')) return new Response(JSON.stringify(donkiFlrFixture), { status: 200 });
-      return new Response('Not Found', { status: 404 });
-    });
-    
+      if (u.includes('/CME'))
+        return Promise.resolve(new Response(JSON.stringify(donkiCmeFixture), { status: 200 }));
+      if (u.includes('/FLR'))
+        return Promise.resolve(new Response(JSON.stringify(donkiFlrFixture), { status: 200 }));
+      return Promise.resolve(new Response('Not Found', { status: 404 }));
+    }) as unknown as typeof global.fetch;
+
     const data = await fetchNasaDonki({}, API_KEY, NOW);
-    
+
     expect(data.cmes).not.toBeNull();
     expect(data.flares).not.toBeNull();
     expect(data.cmes?.[0].activityId).toBe('2026-06-14T19:36:00-CME-001');
@@ -56,15 +62,16 @@ describe('fetchNasaDonki', () => {
   });
 
   it('handles partial failure (CME succeeds, FLR fails)', async () => {
-    global.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    global.fetch = vi.fn((url: string | URL, _init?: RequestInit) => {
       const u = typeof url === 'string' ? url : url.toString();
-      if (u.includes('/CME')) return new Response(JSON.stringify(donkiCmeFixture), { status: 200 });
-      if (u.includes('/FLR')) return new Response('Error', { status: 500 });
-      return new Response('Not Found', { status: 404 });
-    });
-    
+      if (u.includes('/CME'))
+        return Promise.resolve(new Response(JSON.stringify(donkiCmeFixture), { status: 200 }));
+      if (u.includes('/FLR')) return Promise.resolve(new Response('Error', { status: 500 }));
+      return Promise.resolve(new Response('Not Found', { status: 404 }));
+    }) as unknown as typeof global.fetch;
+
     const data = await fetchNasaDonki({}, API_KEY, NOW);
-    
+
     expect(data.cmes).not.toBeNull();
     expect(data.flares).toBeNull();
   });
@@ -83,10 +90,16 @@ describe('fetchNasaNeows', () => {
   });
 
   it('parses successful feed response', async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify(neowsFixture), { status: 200 }));
-    
-    const data = await fetchNasaNeows({ startDate: '2026-07-14', endDate: '2026-07-14' }, API_KEY, NOW);
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(neowsFixture), { status: 200 })),
+    ) as unknown as typeof global.fetch;
+
+    const data = await fetchNasaNeows(
+      { startDate: '2026-07-14', endDate: '2026-07-14' },
+      API_KEY,
+      NOW,
+    );
+
     expect(data.objects).not.toBeNull();
     expect(data.objects?.length).toBe(1);
     expect(data.objects?.[0].id).toBe('3582056');
@@ -94,10 +107,16 @@ describe('fetchNasaNeows', () => {
   });
 
   it('returns fallback on failure', async () => {
-    global.fetch = vi.fn(async () => new Response('Error', { status: 503 }));
-    
-    const data = await fetchNasaNeows({ startDate: '2026-07-14', endDate: '2026-07-14' }, API_KEY, NOW);
-    
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response('Error', { status: 503 })),
+    ) as unknown as typeof global.fetch;
+
+    const data = await fetchNasaNeows(
+      { startDate: '2026-07-14', endDate: '2026-07-14' },
+      API_KEY,
+      NOW,
+    );
+
     expect(data.objects).toBeNull();
     expect(data.elementCount).toBe(0);
   });
