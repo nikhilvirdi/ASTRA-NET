@@ -127,6 +127,8 @@ function parseKpCurrent(raw: unknown): SwpcKpCurrent | null {
 
   // Entries are in ascending time order; last element is most recent.
   const latest = result.data[result.data.length - 1];
+  if (!latest) return null;
+
   return {
     timeTag: latest.time_tag,
     kpIndex: latest.kp_index,
@@ -172,6 +174,7 @@ function parseSolarWind(raw: unknown): SwpcSolarWindEntry[] | null {
   if (!rawResult.success || rawResult.data.length < 2) return null;
 
   const [headerRow, ...dataRows] = rawResult.data;
+  if (!headerRow) return null;
 
   // Safety: confirm header matches expected shape
   const expectedHeaders = [

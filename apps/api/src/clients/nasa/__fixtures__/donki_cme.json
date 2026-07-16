@@ -3,10 +3,7 @@
     "activityID": "2026-06-14T19:36:00-CME-001",
     "catalog": "M2M_CATALOG",
     "startTime": "2026-06-14T19:36Z",
-    "instruments": [
-      { "displayName": "SOHO: LASCO/C2" },
-      { "displayName": "SOHO: LASCO/C3" }
-    ],
+    "instruments": [{ "displayName": "SOHO: LASCO/C2" }, { "displayName": "SOHO: LASCO/C3" }],
     "sourceLocation": "",
     "activeRegionNum": null,
     "note": "CME seen to the due north in SOHO LASCO C2",

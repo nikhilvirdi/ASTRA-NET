@@ -7,7 +7,9 @@ describe('getGibsTileUrl', () => {
       layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor',
       date: '2026-07-14',
     });
-    expect(url).toBe('https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/2026-07-14/250m/0/0/0.jpeg');
+    expect(url).toBe(
+      'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/2026-07-14/250m/0/0/0.jpeg',
+    );
   });
 
   it('constructs correct URL with custom tile parameters', () => {
@@ -20,6 +22,8 @@ describe('getGibsTileUrl', () => {
       x: 1,
       y: 3,
     });
-    expect(url).toBe('https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Aqua_CorrectedReflectance_TrueColor/default/2026-07-15/1km/2/3/1.png');
+    expect(url).toBe(
+      'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/MODIS_Aqua_CorrectedReflectance_TrueColor/default/2026-07-15/1km/2/3/1.png',
+    );
   });
 });

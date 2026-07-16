@@ -41,7 +41,7 @@ describe('fetchN2yoPositions', () => {
     const data = await fetchN2yoPositions(params, API_KEY, NOW);
 
     expect(data.positions).not.toBeNull();
-    expect(data.positions?.[0].latitude).toBeCloseTo(49.21);
+    expect(data.positions![0]!.latitude).toBeCloseTo(49.21);
     expect(data.satId).toBe(25544);
     expect(data.fetchedAt).toBe(NOW.toISOString());
   });
@@ -85,7 +85,7 @@ describe('fetchN2yoVisualPasses', () => {
 
     expect(data.passes).not.toBeNull();
     expect(data.passes?.length).toBe(2);
-    expect(data.passes?.[0].startAzimuthCompass).toBe('WNW');
+    expect(data.passes![0]!.startAzimuthCompass).toBe('WNW');
   });
 
   it('returns empty array when passescount is 0', async () => {

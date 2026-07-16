@@ -1,12 +1,12 @@
 [
-  {"time_tag":"2026-07-12T12:00:00","kp":4.67,"observed":"observed","noaa_scale":"G1"},
-  {"time_tag":"2026-07-13T21:00:00","kp":3.67,"observed":"observed","noaa_scale":null},
-  {"time_tag":"2026-07-14T15:00:00","kp":1.67,"observed":"observed","noaa_scale":null},
-  {"time_tag":"2026-07-14T18:00:00","kp":3.00,"observed":"estimated","noaa_scale":null},
-  {"time_tag":"2026-07-14T21:00:00","kp":3.67,"observed":"estimated","noaa_scale":null},
-  {"time_tag":"2026-07-15T00:00:00","kp":1.67,"observed":"predicted","noaa_scale":null},
-  {"time_tag":"2026-07-15T09:00:00","kp":3.33,"observed":"predicted","noaa_scale":null},
-  {"time_tag":"2026-07-15T12:00:00","kp":3.67,"observed":"predicted","noaa_scale":null},
-  {"time_tag":"2026-07-16T00:00:00","kp":2.33,"observed":"predicted","noaa_scale":null},
-  {"time_tag":"2026-07-17T00:00:00","kp":2.67,"observed":"predicted","noaa_scale":null}
+  { "time_tag": "2026-07-12T12:00:00", "kp": 4.67, "observed": "observed", "noaa_scale": "G1" },
+  { "time_tag": "2026-07-13T21:00:00", "kp": 3.67, "observed": "observed", "noaa_scale": null },
+  { "time_tag": "2026-07-14T15:00:00", "kp": 1.67, "observed": "observed", "noaa_scale": null },
+  { "time_tag": "2026-07-14T18:00:00", "kp": 3.0, "observed": "estimated", "noaa_scale": null },
+  { "time_tag": "2026-07-14T21:00:00", "kp": 3.67, "observed": "estimated", "noaa_scale": null },
+  { "time_tag": "2026-07-15T00:00:00", "kp": 1.67, "observed": "predicted", "noaa_scale": null },
+  { "time_tag": "2026-07-15T09:00:00", "kp": 3.33, "observed": "predicted", "noaa_scale": null },
+  { "time_tag": "2026-07-15T12:00:00", "kp": 3.67, "observed": "predicted", "noaa_scale": null },
+  { "time_tag": "2026-07-16T00:00:00", "kp": 2.33, "observed": "predicted", "noaa_scale": null },
+  { "time_tag": "2026-07-17T00:00:00", "kp": 2.67, "observed": "predicted", "noaa_scale": null }
 ]

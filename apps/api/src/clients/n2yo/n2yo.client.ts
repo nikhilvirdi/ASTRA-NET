@@ -85,7 +85,12 @@ export async function fetchN2yoPositions(
     const raw = await fetchWithRetry(url);
     const result = N2yoPositionsResponseSchema.safeParse(raw);
     if (!result.success) {
-      return { satId: params.satId, satName: 'Unknown', positions: null, fetchedAt: now.toISOString() };
+      return {
+        satId: params.satId,
+        satName: 'Unknown',
+        positions: null,
+        fetchedAt: now.toISOString(),
+      };
     }
 
     const data = result.data;
@@ -109,7 +114,12 @@ export async function fetchN2yoPositions(
     };
   } catch (err) {
     console.error('[n2yo] fetch positions failed:', err);
-    return { satId: params.satId, satName: 'Unknown', positions: null, fetchedAt: now.toISOString() };
+    return {
+      satId: params.satId,
+      satName: 'Unknown',
+      positions: null,
+      fetchedAt: now.toISOString(),
+    };
   }
 }
 
@@ -126,9 +136,14 @@ export async function fetchN2yoVisualPasses(
   try {
     const raw = await fetchWithRetry(url);
     const result = N2yoVisualPassesResponseSchema.safeParse(raw);
-    
+
     if (!result.success) {
-      return { satId: params.satId, satName: 'Unknown', passes: null, fetchedAt: now.toISOString() };
+      return {
+        satId: params.satId,
+        satName: 'Unknown',
+        passes: null,
+        fetchedAt: now.toISOString(),
+      };
     }
 
     const data = result.data;

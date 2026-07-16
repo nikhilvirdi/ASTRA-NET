@@ -56,8 +56,8 @@ describe('fetchNasaDonki', () => {
 
     expect(data.cmes).not.toBeNull();
     expect(data.flares).not.toBeNull();
-    expect(data.cmes?.[0].activityId).toBe('2026-06-14T19:36:00-CME-001');
-    expect(data.flares?.[0].flrId).toBe('2026-06-20T01:26:00-FLR-001');
+    expect(data.cmes![0]!.activityId).toBe('2026-06-14T19:36:00-CME-001');
+    expect(data.flares![0]!.flrId).toBe('2026-06-20T01:26:00-FLR-001');
     expect(data.fetchedAt).toBe(NOW.toISOString());
   });
 
@@ -102,7 +102,7 @@ describe('fetchNasaNeows', () => {
 
     expect(data.objects).not.toBeNull();
     expect(data.objects?.length).toBe(1);
-    expect(data.objects?.[0].id).toBe('3582056');
+    expect(data.objects![0]!.id).toBe('3582056');
     expect(data.elementCount).toBe(1);
   });
 

@@ -14,8 +14,8 @@ describe('CelestrakOmmResponseSchema', () => {
   it('extracts NORAD_CAT_ID correctly', () => {
     const result = CelestrakOmmResponseSchema.safeParse(fixture);
     if (!result.success) throw new Error('parse failed');
-    expect(result.data[0].NORAD_CAT_ID).toBe(25544);
-    expect(result.data[0].OBJECT_NAME).toBe('ISS (ZARYA)');
+    expect(result.data[0]!.NORAD_CAT_ID).toBe(25544);
+    expect(result.data[0]!.OBJECT_NAME).toBe('ISS (ZARYA)');
   });
 });
 
@@ -43,7 +43,7 @@ describe('fetchCelestrakOmm', () => {
 
     const data = await fetchCelestrakOmm({ catnr: 25544 }, NOW);
     expect(data.records).not.toBeNull();
-    expect(data.records?.[0].noradCatId).toBe(25544);
+    expect(data.records![0]!.noradCatId).toBe(25544);
     expect(data.fetchedAt).toBe(NOW.toISOString());
   });
 

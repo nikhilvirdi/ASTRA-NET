@@ -22,15 +22,7 @@ export interface GibsLayerOptions {
  * Constructs a GIBS WMTS URL for a specific tile.
  */
 export function getGibsTileUrl(options: GibsLayerOptions): string {
-  const {
-    layer,
-    date,
-    tileMatrixSet = '250m',
-    format = 'jpeg',
-    z = 0,
-    x = 0,
-    y = 0,
-  } = options;
+  const { layer, date, tileMatrixSet = '250m', format = 'jpeg', z = 0, x = 0, y = 0 } = options;
 
   return `${BASE}/${layer}/default/${date}/${tileMatrixSet}/${z}/${y}/${x}.${format}`;
 }

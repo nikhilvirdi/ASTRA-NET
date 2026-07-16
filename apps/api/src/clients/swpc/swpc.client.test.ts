@@ -49,7 +49,7 @@ describe('KpOneMinuteResponseSchema', () => {
     const result = KpOneMinuteResponseSchema.safeParse(kp1mFixture);
     expect(result.success).toBe(true);
     if (!result.success) return;
-    const last = result.data[result.data.length - 1];
+    const last = result.data[result.data.length - 1]!;
     expect(last.time_tag).toBe('2026-07-14T19:05:00');
     expect(last.kp_index).toBe(1);
     expect(last.estimated_kp).toBe(1.0);
@@ -170,8 +170,8 @@ describe('SolarWindRawResponseSchema (tuple array)', () => {
     const result = SolarWindRawResponseSchema.safeParse(solarWindFixture);
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data[0][0]).toBe('time_tag');
-    expect(result.data[0][6]).toBe('bz');
+    expect(result.data[0]![0]).toBe('time_tag');
+    expect(result.data[0]![6]).toBe('bz');
   });
 
   it('data rows contain numeric Bz values (including negative)', () => {

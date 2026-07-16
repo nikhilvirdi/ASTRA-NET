@@ -65,16 +65,13 @@ async function fetchWithRetry(
 /**
  * Fetch ephemeris data from JPL Horizons.
  */
-export async function fetchHorizons(
-  params: FetchHorizonsParams,
-  now: Date,
-): Promise<HorizonsData> {
+export async function fetchHorizons(params: FetchHorizonsParams, now: Date): Promise<HorizonsData> {
   const url = new URL('https://ssd.jpl.nasa.gov/api/horizons.api');
   url.searchParams.set('format', 'json');
   url.searchParams.set('COMMAND', `'${params.command}'`);
   url.searchParams.set('START_TIME', `'${params.startTime}'`);
   url.searchParams.set('STOP_TIME', `'${params.stopTime}'`);
-  
+
   if (params.stepSize) url.searchParams.set('STEP_SIZE', `'${params.stepSize}'`);
   if (params.center) url.searchParams.set('CENTER', `'${params.center}'`);
   if (params.makeEphem) url.searchParams.set('MAKE_EPHEM', `'${params.makeEphem}'`);
@@ -84,7 +81,7 @@ export async function fetchHorizons(
   try {
     const raw = await fetchWithRetry(url.toString());
     const result = HorizonsResponseSchema.safeParse(raw);
-    
+
     if (!result.success) {
       return { ephemerisLines: null, fetchedAt: now.toISOString() };
     }
