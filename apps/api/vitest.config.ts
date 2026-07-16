@@ -6,11 +6,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/clients/**/*.ts'],
+      include: ['src/clients/**/*.ts', 'src/poller/**/*.ts'],
       exclude: [
         'src/clients/**/*.test.ts',
         'src/clients/**/index.ts',
         'src/clients/**/__fixtures__/**',
+        'src/poller/**/*.test.ts',
       ],
       thresholds: {
         lines: 80,
