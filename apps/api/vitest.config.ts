@@ -11,6 +11,7 @@ export default defineConfig({
         'src/poller/**/*.ts',
         'src/routes/**/*.ts',
         'src/brief/**/*.ts',
+        'src/auth/**/*.ts',
         'src/app.ts',
       ],
       exclude: [
@@ -20,6 +21,7 @@ export default defineConfig({
         'src/poller/**/*.test.ts',
         'src/routes/**/*.test.ts',
         'src/brief/**/*.test.ts',
+        'src/auth/**/*.test.ts',
       ],
       thresholds: {
         lines: 80,
