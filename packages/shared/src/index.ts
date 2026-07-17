@@ -2,16 +2,16 @@ export function version(): string {
   return '0.0.0';
 }
 
-export * from './constants';
-export * from './math-utils';
-export * from './vector';
+export * from './constants.js';
+export * from './math-utils.js';
+export * from './vector.js';
 
-export * from './engines/star-position';
-export * from './engines/sky-dome';
-export * from './engines/sun-position';
-export * from './engines/satellite-pass';
-export * from './engines/cme-arrival';
-export * from './engines/aurora';
-export * from './engines/causal-engine';
-export * from './engines/neo';
-export * from './engines/best-spot';
+export * from './engines/star-position.js';
+export * from './engines/sky-dome.js';
+export * from './engines/sun-position.js';
+export * from './engines/satellite-pass.js';
+export * from './engines/cme-arrival.js';
+export * from './engines/aurora.js';
+export * from './engines/causal-engine.js';
+export * from './engines/neo.js';
+export * from './engines/best-spot.js';

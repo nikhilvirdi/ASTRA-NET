@@ -1,5 +1,5 @@
-import { R_EARTH_KM, TWILIGHT_ISS_AURORA_DEG } from '../constants';
-import { dot, magnitude, scale, subtract, type Vector3 } from '../vector';
+import { R_EARTH_KM, TWILIGHT_ISS_AURORA_DEG } from '../constants.js';
+import { dot, magnitude, scale, subtract, type Vector3 } from '../vector.js';
 
 /**
  * FORMULAS.md §5 — sunlit test.

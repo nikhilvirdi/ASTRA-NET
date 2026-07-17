@@ -1,10 +1,10 @@
-import { clamp } from '../math-utils';
+import { clamp } from '../math-utils.js';
 import {
   auroralOvalBoundaryDeg,
   auroraVisibility,
   geomagneticLatitudeDeg,
   type AuroraVisibility,
-} from './aurora';
+} from './aurora.js';
 
 /** FORMULAS.md §8 — lead-time factor: closer arrivals are more confident. */
 const LEAD_TAU_HOURS = 24;

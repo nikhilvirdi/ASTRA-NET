@@ -1,6 +1,6 @@
-import { TWILIGHT_ISS_AURORA_DEG, TWILIGHT_STARS_DEG } from '../constants';
-import { degToRad, mod, radToDeg } from '../math-utils';
-import { equatorialToHorizontal, julianDay } from './sky-dome';
+import { TWILIGHT_ISS_AURORA_DEG, TWILIGHT_STARS_DEG } from '../constants.js';
+import { degToRad, mod, radToDeg } from '../math-utils.js';
+import { equatorialToHorizontal, julianDay } from './sky-dome.js';
 
 export interface EquatorialPositionDeg {
   raDeg: number;

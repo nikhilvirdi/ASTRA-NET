@@ -1,5 +1,5 @@
-import { AU_KM, R_SUN_KM } from '../constants';
-import { bisectionSolve } from '../math-utils';
+import { AU_KM, R_SUN_KM } from '../constants.js';
+import { bisectionSolve } from '../math-utils.js';
 
 /** FORMULAS.md §6 — Drag-Based Model (Vrsnak 2013) constants. */
 const GAMMA_PER_KM = 0.5e-7;

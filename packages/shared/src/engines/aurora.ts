@@ -1,5 +1,5 @@
-import { GEOMAG_POLE_LAT_DEG, GEOMAG_POLE_LON_DEG } from '../constants';
-import { clamp, degToRad, radToDeg } from '../math-utils';
+import { GEOMAG_POLE_LAT_DEG, GEOMAG_POLE_LON_DEG } from '../constants.js';
+import { clamp, degToRad, radToDeg } from '../math-utils.js';
 
 /** FORMULAS.md §7 — horizon-view margin: aurora at ~110km is visible low on the horizon further south. */
 const AURORA_HORIZON_MARGIN_DEG = 4;

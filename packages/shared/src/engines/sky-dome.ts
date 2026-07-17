@@ -1,4 +1,4 @@
-import { clamp, degToRad, mod, radToDeg } from '../math-utils';
+import { clamp, degToRad, mod, radToDeg } from '../math-utils.js';
 
 /** FORMULAS.md §3 — Julian day (treating UT1 ~= UTC, as `now` is a UTC instant). */
 export function julianDay(now: Date): number {

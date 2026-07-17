@@ -1,5 +1,5 @@
-import { PC_LY } from '../constants';
-import { clamp } from '../math-utils';
+import { PC_LY } from '../constants.js';
+import { clamp } from '../math-utils.js';
 
 /**
  * FORMULAS.md §1 — bad-parallax guard.

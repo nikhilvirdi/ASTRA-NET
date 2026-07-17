@@ -1,4 +1,4 @@
-import { LD_KM } from '../constants';
+import { LD_KM } from '../constants.js';
 
 /** FORMULAS.md §10 — diameter from absolute magnitude H, assumed albedo 0.14. */
 const NEO_ALBEDO = 0.14;
