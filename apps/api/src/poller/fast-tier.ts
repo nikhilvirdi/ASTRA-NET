@@ -19,12 +19,18 @@
  *   fetched this session, shows 'unavailable'" — so a total failure keeps
  *   the previous store value (if any) rather than wiping it, still marked
  *   unhealthy so it's never mislabeled as fresh/healthy.
+ *
+ * This loop only ever calls `fetchSwpcFast` (1-min Kp + RTSW plasma) —
+ * SWPC's slow-tier products (observed Kp history, 3-day forecast, propagated
+ * solar wind) are fetched separately by `slow-tier.ts`'s `fetchSwpcSlow`, on
+ * their own 5-15min cadence. Never call `fetchSwpcSlow` from here — that
+ * would promote a slow-tier source into the fast tier (ARCHITECTURE.md §4).
  */
 
 import type { fetchN2yoPositions } from '../clients/n2yo/index.js';
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
-import type { fetchSwpc } from '../clients/swpc/index.js';
-import type { SwpcData } from '../clients/swpc/index.js';
+import type { fetchSwpcFast } from '../clients/swpc/index.js';
+import type { SwpcFastData } from '../clients/swpc/index.js';
 import { getSourceState, setSourceState } from './store.js';
 
 /** ARCHITECTURE.md §4: fast tier polls every 30-60s. */
@@ -52,18 +58,12 @@ const ISS_POSITION_PARAMS = {
 
 export interface FastTierClients {
   fetchN2yoPositions: typeof fetchN2yoPositions;
-  fetchSwpc: typeof fetchSwpc;
+  fetchSwpcFast: typeof fetchSwpcFast;
   n2yoApiKey: string;
 }
 
-function isSwpcTotalFailure(data: SwpcData): boolean {
-  return (
-    data.kpCurrent === null &&
-    data.kpObserved === null &&
-    data.kpForecast === null &&
-    data.solarWind === null &&
-    data.rtswPlasma === null
-  );
+function isSwpcFastTotalFailure(data: SwpcFastData): boolean {
+  return data.kpCurrent === null && data.rtswPlasma === null;
 }
 
 /**
@@ -82,8 +82,8 @@ function writeIssResult(data: N2yoPositionsData, nowIso: string): void {
  * fallback — but is always marked unhealthy so stale data is never
  * mislabeled as fresh.
  */
-function writeSolarWindResult(data: SwpcData, nowIso: string): void {
-  if (!isSwpcTotalFailure(data)) {
+function writeSolarWindResult(data: SwpcFastData, nowIso: string): void {
+  if (!isSwpcFastTotalFailure(data)) {
     setSourceState('solarWind', data, nowIso, true);
     return;
   }
@@ -111,7 +111,7 @@ export async function runFastTierTick(clients: FastTierClients, now: Date): Prom
 
   const [issResult, swpcResult] = await Promise.allSettled([
     clients.fetchN2yoPositions(ISS_POSITION_PARAMS, clients.n2yoApiKey, now),
-    clients.fetchSwpc(now),
+    clients.fetchSwpcFast(now),
   ]);
 
   if (issResult.status === 'fulfilled') {
@@ -128,17 +128,7 @@ export async function runFastTierTick(clients: FastTierClients, now: Date): Prom
     writeSolarWindResult(swpcResult.value, nowIso);
   } else {
     console.error('[poller/fast-tier] SWPC threw unexpectedly:', swpcResult.reason);
-    writeSolarWindResult(
-      {
-        kpCurrent: null,
-        kpObserved: null,
-        kpForecast: null,
-        solarWind: null,
-        rtswPlasma: null,
-        fetchedAt: nowIso,
-      },
-      nowIso,
-    );
+    writeSolarWindResult({ kpCurrent: null, rtswPlasma: null, fetchedAt: nowIso }, nowIso);
   }
 }
 

@@ -1,11 +1,12 @@
 /**
  * Slow-tier poller loop (ARCHITECTURE.md §4): NASA DONKI (CME/flares), NASA
- * NeoWs (near-Earth objects), and JPL Horizons (Sun ephemeris), refreshed
- * every 5-15min and written into the store. GIBS has no fetch step (pure
- * URL construction, per `clients/gibs`) — this loop just rotates its layer
- * config into the store on the same cadence.
+ * NeoWs (near-Earth objects), JPL Horizons (Sun ephemeris), and the
+ * slow-tier half of SWPC (observed Kp history, 3-day forecast, propagated
+ * solar wind), refreshed every 5-15min and written into the store. GIBS has
+ * no fetch step (pure URL construction, per `clients/gibs`) — this loop
+ * just rotates its layer config into the store on the same cadence.
  *
- * `runSlowTierTick` is the testable unit: it calls the three Phase-1
+ * `runSlowTierTick` is the testable unit: it calls the four Phase-1
  * network clients once, decides success/failure per-source, and writes to
  * the store. It takes `now` and the client functions as parameters rather
  * than reading the clock or importing the clients directly, so it can be
@@ -22,14 +23,26 @@
  * - JPL Horizons: "effectively never user-visible-down... serve last
  *   computed set" — a failure keeps the previous store value when one
  *   exists, still marked unhealthy.
+ * - SWPC (slow half): "fall back to latest real-time Kp as a proxy... if
+ *   solar wind missing, shows unavailable" — mirrors the fast-tier SWPC
+ *   pattern: a total failure (all three fields null) keeps the previous
+ *   store value when one exists, still marked unhealthy; a partial result
+ *   is written fresh and healthy, since the source did respond.
  * - GIBS: pure URL construction, cannot fail — always written fresh and
  *   healthy.
+ *
+ * This loop only ever calls `fetchSwpcSlow` — the fast-tier SWPC products
+ * (1-min Kp, RTSW plasma) are `fast-tier.ts`'s `fetchSwpcFast`, on its own
+ * 30-60s cadence. Never call `fetchSwpcFast` from here — that would
+ * promote a fast-tier source into the slow tier and stall its freshness.
  */
 
 import type { fetchNasaDonki, fetchNasaNeows } from '../clients/nasa/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { fetchHorizons } from '../clients/jpl-horizons/index.js';
 import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { fetchSwpcSlow } from '../clients/swpc/index.js';
+import type { SwpcSlowData } from '../clients/swpc/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
 import { getSourceState, setSourceState } from './store.js';
 
@@ -64,6 +77,7 @@ export interface SlowTierClients {
   fetchNasaDonki: typeof fetchNasaDonki;
   fetchNasaNeows: typeof fetchNasaNeows;
   fetchHorizons: typeof fetchHorizons;
+  fetchSwpcSlow: typeof fetchSwpcSlow;
   nasaApiKey: string;
 }
 
@@ -124,13 +138,38 @@ function writeGibsResult(options: GibsLayerOptions, nowIso: string): void {
   setSourceState('gibs', options, nowIso, true);
 }
 
+function isSwpcSlowTotalFailure(data: SwpcSlowData): boolean {
+  return data.kpObserved === null && data.kpForecast === null && data.solarWind === null;
+}
+
 /**
- * Runs one slow-tier poll: fetches DONKI, NeoWs, and JPL Horizons in
- * parallel, then writes each result independently so one source failing
- * never affects the others (degradation contract, ARCHITECTURE.md §5).
- * GIBS's layer config is rotated in directly since it has no network call.
+ * Writes the slow-tier SWPC fetch result. A total failure (all three fields
+ * null) keeps the previous store value when one exists — mirrors the
+ * fast-tier SWPC pattern — but is always marked unhealthy. A partial result
+ * is written fresh and healthy, since the source did respond.
+ */
+function writeSpaceWeatherForecastResult(data: SwpcSlowData, nowIso: string): void {
+  if (!isSwpcSlowTotalFailure(data)) {
+    setSourceState('spaceWeatherForecast', data, nowIso, true);
+    return;
+  }
+
+  const previous = getSourceState('spaceWeatherForecast');
+  if (previous.data !== null && previous.fetchedAt !== null) {
+    setSourceState('spaceWeatherForecast', previous.data, previous.fetchedAt, false);
+  } else {
+    setSourceState('spaceWeatherForecast', data, nowIso, false);
+  }
+}
+
+/**
+ * Runs one slow-tier poll: fetches DONKI, NeoWs, JPL Horizons, and the
+ * slow-tier half of SWPC in parallel, then writes each result independently
+ * so one source failing never affects the others (degradation contract,
+ * ARCHITECTURE.md §5). GIBS's layer config is rotated in directly since it
+ * has no network call.
  *
- * All three network clients are documented to never throw (they catch
+ * All four network clients are documented to never throw (they catch
  * internally and return a null-data result), but `Promise.allSettled`
  * guards against anything genuinely unexpected without letting one
  * source's failure take down another's write.
@@ -140,7 +179,7 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   const today = formatDate(now);
   const tomorrow = formatDate(new Date(now.getTime() + MS_PER_DAY));
 
-  const [donkiResult, neowsResult, horizonsResult] = await Promise.allSettled([
+  const [donkiResult, neowsResult, horizonsResult, swpcSlowResult] = await Promise.allSettled([
     clients.fetchNasaDonki(
       {
         startDate: formatDate(new Date(now.getTime() - DONKI_LOOKBACK_DAYS * MS_PER_DAY)),
@@ -169,6 +208,7 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
       },
       now,
     ),
+    clients.fetchSwpcSlow(now),
   ]);
 
   if (donkiResult.status === 'fulfilled') {
@@ -190,6 +230,16 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   } else {
     console.error('[poller/slow-tier] JPL Horizons threw unexpectedly:', horizonsResult.reason);
     writeHorizonsResult({ ephemerisLines: null, fetchedAt: nowIso }, nowIso);
+  }
+
+  if (swpcSlowResult.status === 'fulfilled') {
+    writeSpaceWeatherForecastResult(swpcSlowResult.value, nowIso);
+  } else {
+    console.error('[poller/slow-tier] SWPC (slow) threw unexpectedly:', swpcSlowResult.reason);
+    writeSpaceWeatherForecastResult(
+      { kpObserved: null, kpForecast: null, solarWind: null, fetchedAt: nowIso },
+      nowIso,
+    );
   }
 
   writeGibsResult(

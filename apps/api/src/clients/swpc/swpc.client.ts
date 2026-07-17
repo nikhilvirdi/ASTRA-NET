@@ -1,12 +1,16 @@
 /**
  * NOAA SWPC (Space Weather Prediction Center) data client.
  *
- * Fetches five products (Kp 1-min, Kp observed, Kp forecast, propagated solar wind,
- * RTSW plasma), validates each with Zod, and returns a typed SwpcData object.
+ * Two entry points, one per poll tier (ARCHITECTURE.md §4 — SWPC's own
+ * products split across both tiers, this is not one source with one
+ * cadence): `fetchSwpcFast` (1-min Kp + RTSW plasma, 30-60s) and
+ * `fetchSwpcSlow` (observed Kp history + 3-day forecast + propagated solar
+ * wind, 5-15min). Keeping them separate means the poller's fast-tier loop
+ * can never accidentally promote the slow-tier products to its cadence.
  *
  * Design principles (per AGENTS.md):
  * - Never throws. Any network or validation failure is caught, logged, and results
- *   in that product's field being null in the returned SwpcData.
+ *   in that product's field being null in the returned data.
  * - Timeout + exponential-backoff retry on transient failures (5xx, network errors).
  * - 2xx responses with invalid shapes are also caught (Zod parse error).
  * - No side effects, no DB, no clock globals — `now` injected as parameter.
@@ -16,13 +20,13 @@
  *   Failure → return last known values held by the poller's in-memory store.
  *   This client's job is only to fetch + validate; the poller manages the cache.
  *
- * Rate limit: No API key required. SWPC asks for reasonable use; the poller
- * calls this at the two-tier schedule (fast: 30-60s, slow: 5-15min), which
- * means ≤ 2 req/min in steady state — well within informal limits.
+ * Rate limit: No API key required. SWPC asks for reasonable use; even both
+ * tiers polling independently stays well within informal limits.
  */
 
 import {
-  SwpcData,
+  SwpcFastData,
+  SwpcSlowData,
   SwpcKpCurrent,
   SwpcKpForecastEntry,
   SwpcKpObservedEntry,
@@ -257,42 +261,57 @@ function parseRtswPlasma(raw: unknown): SwpcRtswPlasma | null {
 // Public API
 // ---------------------------------------------------------------------------
 
+function extract(result: PromiseSettledResult<unknown>): unknown {
+  if (result.status === 'fulfilled') return result.value;
+  console.error('[swpc] fetch failed:', result.reason);
+  return null;
+}
+
 /**
- * Fetch all NOAA SWPC products and return a typed SwpcData object.
+ * Fetch the fast-tier SWPC products (1-min Kp, RTSW plasma).
  *
  * @param now - Current timestamp (injected, never reads Date.now() internally).
- * @returns SwpcData with per-product fields nullable on failure.
+ * @returns SwpcFastData with per-product fields nullable on failure.
  *          Never throws — any failure is caught and that field is set to null.
  */
-export async function fetchSwpc(now: Date): Promise<SwpcData> {
-  // Fire all five product fetches in parallel; capture errors per product.
-  const [kpOneMinRaw, kpObservedRaw, kpForecastRaw, solarWindRaw, rtswPlasmaRaw] =
-    await Promise.allSettled([
-      fetchWithRetry(ENDPOINTS.kpOneMin),
-      fetchWithRetry(ENDPOINTS.kpObserved),
-      fetchWithRetry(ENDPOINTS.kpForecast),
-      fetchWithRetry(ENDPOINTS.solarWind),
-      fetchWithRetry(ENDPOINTS.rtswPlasma),
-    ]);
-
-  const extract = (result: PromiseSettledResult<unknown>): unknown => {
-    if (result.status === 'fulfilled') return result.value;
-    console.error('[swpc] fetch failed:', result.reason);
-    return null;
-  };
+export async function fetchSwpcFast(now: Date): Promise<SwpcFastData> {
+  const [kpOneMinRaw, rtswPlasmaRaw] = await Promise.allSettled([
+    fetchWithRetry(ENDPOINTS.kpOneMin),
+    fetchWithRetry(ENDPOINTS.rtswPlasma),
+  ]);
 
   return {
     kpCurrent: parseKpCurrent(extract(kpOneMinRaw)) ?? null,
-    kpObserved: parseKpObserved(extract(kpObservedRaw)) ?? null,
-    kpForecast: parseKpForecast(extract(kpForecastRaw)) ?? null,
-    solarWind: parseSolarWind(extract(solarWindRaw)) ?? null,
     rtswPlasma: parseRtswPlasma(extract(rtswPlasmaRaw)) ?? null,
     fetchedAt: now.toISOString(),
   };
 }
 
 /**
- * Convenience re-export of the fallback value.
- * The poller uses this as the initial state before the first successful fetch.
+ * Fetch the slow-tier SWPC products (observed Kp history, 3-day forecast,
+ * propagated solar wind).
+ *
+ * @param now - Current timestamp (injected, never reads Date.now() internally).
+ * @returns SwpcSlowData with per-product fields nullable on failure.
+ *          Never throws — any failure is caught and that field is set to null.
  */
-export { SWPC_FALLBACK } from './swpc.types.js';
+export async function fetchSwpcSlow(now: Date): Promise<SwpcSlowData> {
+  const [kpObservedRaw, kpForecastRaw, solarWindRaw] = await Promise.allSettled([
+    fetchWithRetry(ENDPOINTS.kpObserved),
+    fetchWithRetry(ENDPOINTS.kpForecast),
+    fetchWithRetry(ENDPOINTS.solarWind),
+  ]);
+
+  return {
+    kpObserved: parseKpObserved(extract(kpObservedRaw)) ?? null,
+    kpForecast: parseKpForecast(extract(kpForecastRaw)) ?? null,
+    solarWind: parseSolarWind(extract(solarWindRaw)) ?? null,
+    fetchedAt: now.toISOString(),
+  };
+}
+
+/**
+ * Convenience re-export of the fallback values.
+ * The poller uses these as the initial state before the first successful fetch.
+ */
+export { SWPC_FAST_FALLBACK, SWPC_SLOW_FALLBACK } from './swpc.types.js';

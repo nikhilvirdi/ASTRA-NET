@@ -9,9 +9,9 @@
  * 2. Data extraction — correct values are extracted from each response.
  * 3. Failure handling — malformed JSON / empty arrays / wrong shapes return null,
  *    not thrown errors.
- * 4. fetchSwpc() integration — with mocked fetch, verifies per-product isolation:
- *    one endpoint returning 5xx doesn't null out the others.
- * 5. fetchSwpc() always returns a SwpcData (never throws), even if all endpoints fail.
+ * 4. fetchSwpcFast()/fetchSwpcSlow() integration — with mocked fetch, verifies
+ *    per-product isolation: one endpoint returning 5xx doesn't null out the others.
+ * 5. Both always return their data type (never throw), even if all endpoints fail.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -22,8 +22,13 @@ import {
   SolarWindRawResponseSchema,
   RtswWindResponseSchema,
 } from './swpc.schemas.js';
-import { fetchSwpc, SWPC_FALLBACK } from './swpc.client.js';
-import type { SwpcData } from './swpc.types.js';
+import {
+  fetchSwpcFast,
+  fetchSwpcSlow,
+  SWPC_FAST_FALLBACK,
+  SWPC_SLOW_FALLBACK,
+} from './swpc.client.js';
+import type { SwpcFastData, SwpcSlowData } from './swpc.types.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures (real recorded responses)
@@ -222,7 +227,7 @@ describe('RtswWindResponseSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
-// fetchSwpc() integration tests (mocked fetch)
+// fetchSwpcFast()/fetchSwpcSlow() integration tests (mocked fetch)
 // ---------------------------------------------------------------------------
 
 type FetchMock = ReturnType<typeof vi.fn>;
@@ -262,7 +267,69 @@ const ENDPOINTS_MAP = {
 
 const NOW = new Date('2026-07-14T20:00:00.000Z');
 
-describe('fetchSwpc()', () => {
+describe('fetchSwpcFast()', () => {
+  let originalFetch: typeof global.fetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('returns both fields populated when both endpoints succeed', async () => {
+    global.fetch = buildFetchMock() as unknown as typeof global.fetch;
+    const data: SwpcFastData = await fetchSwpcFast(NOW);
+
+    expect(data.kpCurrent).not.toBeNull();
+    expect(data.rtswPlasma).not.toBeNull();
+    expect(data.fetchedAt).toBe(NOW.toISOString());
+  });
+
+  it('kpCurrent is the last entry from the 1-min feed', async () => {
+    global.fetch = buildFetchMock() as unknown as typeof global.fetch;
+    const data = await fetchSwpcFast(NOW);
+    expect(data.kpCurrent?.timeTag).toBe('2026-07-14T19:05:00');
+    expect(data.kpCurrent?.estimatedKp).toBe(1.0);
+  });
+
+  it('rtswPlasma picks the active=true entry', async () => {
+    global.fetch = buildFetchMock() as unknown as typeof global.fetch;
+    const data = await fetchSwpcFast(NOW);
+    expect(data.rtswPlasma?.source).toBe('SOLAR1');
+    expect(data.rtswPlasma?.protonSpeed).toBeCloseTo(419.3);
+  });
+
+  it('one failing endpoint nulls only that field — the other remains populated', async () => {
+    global.fetch = buildFetchMock({ kpOneMin: 'server_error' }) as unknown as typeof global.fetch;
+    const data = await fetchSwpcFast(NOW);
+
+    expect(data.kpCurrent).toBeNull();
+    expect(data.rtswPlasma).not.toBeNull();
+  });
+
+  it('both endpoints failing returns nulled SwpcFastData but does NOT throw', async () => {
+    global.fetch = buildFetchMock({
+      kpOneMin: 'error',
+      rtswPlasma: 'error',
+    }) as unknown as typeof global.fetch;
+
+    let data: SwpcFastData | undefined;
+    try {
+      data = await fetchSwpcFast(NOW);
+    } catch (e) {
+      expect.fail('fetchSwpcFast should not throw when all endpoints fail');
+    }
+
+    expect(data?.kpCurrent).toBeNull();
+    expect(data?.rtswPlasma).toBeNull();
+    expect(data?.fetchedAt).toBe(NOW.toISOString());
+  });
+});
+
+describe('fetchSwpcSlow()', () => {
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
@@ -276,116 +343,93 @@ describe('fetchSwpc()', () => {
 
   it('returns all fields populated when all endpoints succeed', async () => {
     global.fetch = buildFetchMock() as unknown as typeof global.fetch;
-    const data: SwpcData = await fetchSwpc(NOW);
+    const data: SwpcSlowData = await fetchSwpcSlow(NOW);
 
-    expect(data.kpCurrent).not.toBeNull();
     expect(data.kpObserved).not.toBeNull();
     expect(data.kpForecast).not.toBeNull();
     expect(data.solarWind).not.toBeNull();
-    expect(data.rtswPlasma).not.toBeNull();
     expect(data.fetchedAt).toBe(NOW.toISOString());
-  });
-
-  it('kpCurrent is the last entry from the 1-min feed', async () => {
-    global.fetch = buildFetchMock() as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
-    expect(data.kpCurrent?.timeTag).toBe('2026-07-14T19:05:00');
-    expect(data.kpCurrent?.estimatedKp).toBe(1.0);
   });
 
   it('kpForecast includes all three status types', async () => {
     global.fetch = buildFetchMock() as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
+    const data = await fetchSwpcSlow(NOW);
     const statuses = new Set(data.kpForecast?.map((e) => e.status));
     expect(statuses).toContain('observed');
     expect(statuses).toContain('estimated');
     expect(statuses).toContain('predicted');
   });
 
-  it('rtswPlasma picks the active=true entry', async () => {
-    global.fetch = buildFetchMock() as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
-    expect(data.rtswPlasma?.source).toBe('SOLAR1');
-    expect(data.rtswPlasma?.protonSpeed).toBeCloseTo(419.3);
-  });
-
   it('solarWind contains entries with negative Bz', async () => {
     global.fetch = buildFetchMock() as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
+    const data = await fetchSwpcSlow(NOW);
     const hasSouthwardBz = data.solarWind?.some((e) => typeof e.bz === 'number' && e.bz < 0);
     expect(hasSouthwardBz).toBe(true);
   });
 
-  it('one failing endpoint nulls only that field — others remain populated', async () => {
-    // kpOneMin returns a 503
-    global.fetch = buildFetchMock({ kpOneMin: 'server_error' }) as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
-
-    expect(data.kpCurrent).toBeNull();
-    expect(data.kpObserved).not.toBeNull();
-    expect(data.kpForecast).not.toBeNull();
-    expect(data.solarWind).not.toBeNull();
-    expect(data.rtswPlasma).not.toBeNull();
-  });
-
   it('solar wind failing nulls only solarWind — Kp fields remain', async () => {
     global.fetch = buildFetchMock({ solarWind: 'error' }) as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
+    const data = await fetchSwpcSlow(NOW);
 
     expect(data.solarWind).toBeNull();
-    expect(data.kpCurrent).not.toBeNull();
+    expect(data.kpObserved).not.toBeNull();
     expect(data.kpForecast).not.toBeNull();
   });
 
-  it('all endpoints failing returns nulled SwpcData but does NOT throw', async () => {
+  it('all endpoints failing returns nulled SwpcSlowData but does NOT throw', async () => {
     global.fetch = buildFetchMock({
-      kpOneMin: 'error',
       kpObserved: 'error',
       kpForecast: 'error',
       solarWind: 'error',
-      rtswPlasma: 'error',
     }) as unknown as typeof global.fetch;
 
-    let data: SwpcData | undefined;
+    let data: SwpcSlowData | undefined;
     try {
-      data = await fetchSwpc(NOW);
+      data = await fetchSwpcSlow(NOW);
     } catch (e) {
-      expect.fail('fetchSwpc should not throw when all endpoints fail');
+      expect.fail('fetchSwpcSlow should not throw when all endpoints fail');
     }
 
-    expect(data?.kpCurrent).toBeNull();
     expect(data?.kpObserved).toBeNull();
     expect(data?.kpForecast).toBeNull();
     expect(data?.solarWind).toBeNull();
-    expect(data?.rtswPlasma).toBeNull();
     expect(data?.fetchedAt).toBe(NOW.toISOString());
   });
 
-  it('returns SwpcData even when an endpoint returns malformed JSON-shaped data', async () => {
+  it('returns SwpcSlowData even when an endpoint returns malformed JSON-shaped data', async () => {
     // kpForecast returns an array of wrong-shaped objects
     const badForecast = [{ wrong: 'shape', no_kp_field: true }];
     global.fetch = buildFetchMock({ kpForecast: badForecast }) as unknown as typeof global.fetch;
-    const data = await fetchSwpc(NOW);
+    const data = await fetchSwpcSlow(NOW);
 
     expect(data.kpForecast).toBeNull(); // Zod parse fails → null
-    expect(data.kpCurrent).not.toBeNull(); // others unaffected
+    expect(data.kpObserved).not.toBeNull(); // others unaffected
   });
 });
 
 // ---------------------------------------------------------------------------
-// SWPC_FALLBACK sanity check
+// SWPC_FAST_FALLBACK / SWPC_SLOW_FALLBACK sanity checks
 // ---------------------------------------------------------------------------
 
-describe('SWPC_FALLBACK', () => {
+describe('SWPC_FAST_FALLBACK', () => {
   it('has all data fields null', () => {
-    expect(SWPC_FALLBACK.kpCurrent).toBeNull();
-    expect(SWPC_FALLBACK.kpObserved).toBeNull();
-    expect(SWPC_FALLBACK.kpForecast).toBeNull();
-    expect(SWPC_FALLBACK.solarWind).toBeNull();
-    expect(SWPC_FALLBACK.rtswPlasma).toBeNull();
+    expect(SWPC_FAST_FALLBACK.kpCurrent).toBeNull();
+    expect(SWPC_FAST_FALLBACK.rtswPlasma).toBeNull();
   });
 
   it('fetchedAt is the epoch (sentinel for "never fetched")', () => {
-    expect(SWPC_FALLBACK.fetchedAt).toBe(new Date(0).toISOString());
+    expect(SWPC_FAST_FALLBACK.fetchedAt).toBe(new Date(0).toISOString());
+  });
+});
+
+describe('SWPC_SLOW_FALLBACK', () => {
+  it('has all data fields null', () => {
+    expect(SWPC_SLOW_FALLBACK.kpObserved).toBeNull();
+    expect(SWPC_SLOW_FALLBACK.kpForecast).toBeNull();
+    expect(SWPC_SLOW_FALLBACK.solarWind).toBeNull();
+  });
+
+  it('fetchedAt is the epoch (sentinel for "never fetched")', () => {
+    expect(SWPC_SLOW_FALLBACK.fetchedAt).toBe(new Date(0).toISOString());
   });
 });

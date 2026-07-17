@@ -8,6 +8,7 @@ import {
 import { getSourceState, resetStore } from './store.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { SwpcSlowData } from '../clients/swpc/index.js';
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
@@ -56,11 +57,38 @@ const horizonsSuccess: HorizonsData = {
 
 const horizonsFailure: HorizonsData = { ephemerisLines: null, fetchedAt: NOW_ISO };
 
+const swpcSlowSuccess: SwpcSlowData = {
+  kpObserved: [{ timeTag: NOW_ISO, kp: 3, aRunning: 12, stationCount: 8 }],
+  kpForecast: [{ timeTag: NOW_ISO, kp: 3, status: 'predicted', noaaScale: null }],
+  solarWind: [
+    {
+      timeTag: NOW_ISO,
+      speed: 400,
+      density: 5,
+      temperature: 100000,
+      bx: 1,
+      by: 1,
+      bz: -2,
+      bt: 3,
+      propagatedTimeTag: NOW_ISO,
+    },
+  ],
+  fetchedAt: NOW_ISO,
+};
+
+const swpcSlowTotalFailure: SwpcSlowData = {
+  kpObserved: null,
+  kpForecast: null,
+  solarWind: null,
+  fetchedAt: NOW_ISO,
+};
+
 function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients {
   return {
     fetchNasaDonki: vi.fn().mockResolvedValue(donkiSuccess),
     fetchNasaNeows: vi.fn().mockResolvedValue(neowsSuccess),
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
+    fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
   };
@@ -71,7 +99,7 @@ describe('runSlowTierTick', () => {
     resetStore();
   });
 
-  it('writes all four sources fresh and healthy on full success', async () => {
+  it('writes all five sources fresh and healthy on full success', async () => {
     const clients = makeClients();
 
     await runSlowTierTick(clients, NOW);
@@ -88,6 +116,11 @@ describe('runSlowTierTick', () => {
     });
     expect(getSourceState('horizons')).toEqual({
       data: horizonsSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: true,
+    });
+    expect(getSourceState('spaceWeatherForecast')).toEqual({
+      data: swpcSlowSuccess,
       fetchedAt: NOW_ISO,
       healthy: true,
     });
@@ -119,6 +152,7 @@ describe('runSlowTierTick', () => {
       expect.objectContaining({ command: '10', startTime: '2026-07-16', stopTime: '2026-07-17' }),
       NOW,
     );
+    expect(clients.fetchSwpcSlow).toHaveBeenCalledWith(NOW);
   });
 
   it('marks NeoWs unhealthy with null-objects data on failure, no prior data', async () => {
@@ -215,6 +249,63 @@ describe('runSlowTierTick', () => {
     });
   });
 
+  it('marks spaceWeatherForecast unhealthy with null data on total failure, no prior data', async () => {
+    const clients = makeClients({ fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowTotalFailure) });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSourceState('spaceWeatherForecast')).toEqual({
+      data: swpcSlowTotalFailure,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('preserves the last known-good spaceWeatherForecast data on a later total failure', async () => {
+    const goodClients = makeClients();
+    await runSlowTierTick(goodClients, NOW);
+    expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
+
+    const failingClients = makeClients({
+      fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowTotalFailure),
+    });
+    await runSlowTierTick(failingClients, LATER);
+
+    expect(getSourceState('spaceWeatherForecast')).toEqual({
+      data: swpcSlowSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('treats a partial spaceWeatherForecast result (one product populated) as healthy', async () => {
+    const partial: SwpcSlowData = {
+      ...swpcSlowTotalFailure,
+      kpForecast: swpcSlowSuccess.kpForecast,
+    };
+    const clients = makeClients({ fetchSwpcSlow: vi.fn().mockResolvedValue(partial) });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSourceState('spaceWeatherForecast')).toEqual({
+      data: partial,
+      fetchedAt: NOW_ISO,
+      healthy: true,
+    });
+  });
+
+  it('treats an unexpected SWPC (slow) rejection as a total failure instead of throwing', async () => {
+    const clients = makeClients({ fetchSwpcSlow: vi.fn().mockRejectedValue(new Error('boom')) });
+
+    await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
+    expect(getSourceState('spaceWeatherForecast')).toEqual({
+      data: { kpObserved: null, kpForecast: null, solarWind: null, fetchedAt: NOW_ISO },
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+    expect(getSourceState('donki').healthy).toBe(true);
+  });
+
   it('one source failing does not affect the others (degradation contract)', async () => {
     const clients = makeClients({
       fetchNasaDonki: vi.fn().mockResolvedValue(donkiTotalFailure),
@@ -226,6 +317,7 @@ describe('runSlowTierTick', () => {
     expect(getSourceState('donki').healthy).toBe(false);
     expect(getSourceState('neows').healthy).toBe(false);
     expect(getSourceState('horizons').healthy).toBe(true);
+    expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('gibs').healthy).toBe(true);
   });
 

@@ -5,11 +5,11 @@
  * See DECISIONS.md entry "NOAA SWPC solar wind endpoint paths differ from API_SOURCES.md"
  * for why the documented paths in API_SOURCES.md were corrected.
  *
- * Endpoints used:
+ * Endpoints used (tier per API_SOURCES.md's own Fast/Slow Tier sections):
  *   - /json/planetary_k_index_1m.json        (fast tier: 1-min estimated Kp)
  *   - /products/noaa-planetary-k-index.json   (slow tier: 3-hour observed Kp, 7-day history)
  *   - /products/noaa-planetary-k-index-forecast.json  (slow tier: 3-day Kp forecast)
- *   - /products/geospace/propagated-solar-wind-1-hour.json (fast tier: solar wind tuple array)
+ *   - /products/geospace/propagated-solar-wind-1-hour.json (slow tier: solar wind tuple array)
  *   - /json/rtsw/rtsw_wind_1m.json            (fast tier: 1-min RTSW plasma, speed, density)
  */
 

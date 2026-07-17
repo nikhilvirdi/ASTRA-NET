@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getSourceState, getAllSourceStates, setSourceState, resetStore } from './store.js';
 import type { NasaDonkiData } from '../clients/nasa/index.js';
-import type { SwpcData } from '../clients/swpc/index.js';
+import type { SwpcFastData } from '../clients/swpc/index.js';
 
 describe('poller store', () => {
   beforeEach(() => {
@@ -12,6 +12,7 @@ describe('poller store', () => {
     const all = getAllSourceStates();
     expect(all.iss).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.solarWind).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.spaceWeatherForecast).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.donki).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.neows).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.gibs).toEqual({ data: null, fetchedAt: null, healthy: false });
@@ -54,15 +55,12 @@ describe('poller store', () => {
   });
 
   it('overwrites a previous value on the same key', () => {
-    const first: SwpcData = {
+    const first: SwpcFastData = {
       kpCurrent: null,
-      kpObserved: null,
-      kpForecast: null,
-      solarWind: null,
       rtswPlasma: null,
       fetchedAt: 't1',
     };
-    const second: SwpcData = { ...first, fetchedAt: 't2' };
+    const second: SwpcFastData = { ...first, fetchedAt: 't2' };
 
     setSourceState('solarWind', first, 't1', true);
     setSourceState('solarWind', second, 't2', true);

@@ -8,7 +8,7 @@ import {
 } from './fast-tier.js';
 import { getSourceState, resetStore } from './store.js';
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
-import type { SwpcData } from '../clients/swpc/index.js';
+import type { SwpcFastData } from '../clients/swpc/index.js';
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
@@ -40,20 +40,14 @@ const issFailure: N2yoPositionsData = {
   fetchedAt: NOW_ISO,
 };
 
-const swpcHealthy: SwpcData = {
+const swpcHealthy: SwpcFastData = {
   kpCurrent: { timeTag: NOW_ISO, kpIndex: 3, estimatedKp: 3.33, kpCode: '3P' },
-  kpObserved: null,
-  kpForecast: null,
-  solarWind: null,
   rtswPlasma: null,
   fetchedAt: NOW_ISO,
 };
 
-const swpcTotalFailure: SwpcData = {
+const swpcTotalFailure: SwpcFastData = {
   kpCurrent: null,
-  kpObserved: null,
-  kpForecast: null,
-  solarWind: null,
   rtswPlasma: null,
   fetchedAt: NOW_ISO,
 };
@@ -61,7 +55,7 @@ const swpcTotalFailure: SwpcData = {
 function makeClients(overrides: Partial<FastTierClients> = {}): FastTierClients {
   return {
     fetchN2yoPositions: vi.fn().mockResolvedValue(issSuccess),
-    fetchSwpc: vi.fn().mockResolvedValue(swpcHealthy),
+    fetchSwpcFast: vi.fn().mockResolvedValue(swpcHealthy),
     n2yoApiKey: 'TEST_KEY',
     ...overrides,
   };
@@ -95,7 +89,7 @@ describe('runFastTierTick', () => {
       'TEST_KEY',
       NOW,
     );
-    expect(clients.fetchSwpc).toHaveBeenCalledWith(NOW);
+    expect(clients.fetchSwpcFast).toHaveBeenCalledWith(NOW);
   });
 
   it('marks ISS unhealthy with null-position data on failure, no prior data', async () => {
@@ -124,7 +118,7 @@ describe('runFastTierTick', () => {
   });
 
   it('marks solar wind unhealthy with null data on total failure, no prior data', async () => {
-    const clients = makeClients({ fetchSwpc: vi.fn().mockResolvedValue(swpcTotalFailure) });
+    const clients = makeClients({ fetchSwpcFast: vi.fn().mockResolvedValue(swpcTotalFailure) });
 
     await runFastTierTick(clients, NOW);
 
@@ -141,7 +135,7 @@ describe('runFastTierTick', () => {
     expect(getSourceState('solarWind').healthy).toBe(true);
 
     const failingClients = makeClients({
-      fetchSwpc: vi.fn().mockResolvedValue(swpcTotalFailure),
+      fetchSwpcFast: vi.fn().mockResolvedValue(swpcTotalFailure),
     });
     await runFastTierTick(failingClients, LATER);
 
@@ -153,8 +147,8 @@ describe('runFastTierTick', () => {
   });
 
   it('treats a partial SWPC result (some fields populated) as healthy', async () => {
-    const partial: SwpcData = { ...swpcTotalFailure, kpCurrent: swpcHealthy.kpCurrent };
-    const clients = makeClients({ fetchSwpc: vi.fn().mockResolvedValue(partial) });
+    const partial: SwpcFastData = { ...swpcTotalFailure, kpCurrent: swpcHealthy.kpCurrent };
+    const clients = makeClients({ fetchSwpcFast: vi.fn().mockResolvedValue(partial) });
 
     await runFastTierTick(clients, NOW);
 
@@ -168,7 +162,7 @@ describe('runFastTierTick', () => {
   it('one source failing does not affect the other (degradation contract)', async () => {
     const clients = makeClients({
       fetchN2yoPositions: vi.fn().mockResolvedValue(issFailure),
-      fetchSwpc: vi.fn().mockResolvedValue(swpcHealthy),
+      fetchSwpcFast: vi.fn().mockResolvedValue(swpcHealthy),
     });
 
     await runFastTierTick(clients, NOW);
@@ -192,7 +186,7 @@ describe('runFastTierTick', () => {
   });
 
   it('treats an unexpected SWPC rejection as a total failure instead of throwing', async () => {
-    const clients = makeClients({ fetchSwpc: vi.fn().mockRejectedValue(new Error('boom')) });
+    const clients = makeClients({ fetchSwpcFast: vi.fn().mockRejectedValue(new Error('boom')) });
 
     await expect(runFastTierTick(clients, NOW)).resolves.toBeUndefined();
     expect(getSourceState('solarWind')).toEqual({

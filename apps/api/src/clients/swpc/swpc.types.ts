@@ -70,32 +70,49 @@ export interface SwpcRtswPlasma {
 }
 
 /**
- * The full normalised output from fetchSwpc().
- * Any field may be null if that specific endpoint was unavailable — per the
- * degradation contract (ARCHITECTURE.md §5), failure of one product within SWPC
- * only nulls that sub-field, it does not blank the entire SwpcData.
+ * Fast-tier SWPC output (ARCHITECTURE.md §4: "SWPC solar wind + Kp-index",
+ * polled 30-60s): the 1-minute Kp feed and the real-time RTSW plasma feed —
+ * the two SWPC products that actually move on that timescale. Either field
+ * may be null if its endpoint was unavailable — per the degradation contract
+ * (ARCHITECTURE.md §5), failure of one product only nulls that sub-field.
  */
-export interface SwpcData {
-  /** Most recent 1-minute Kp. Used by fast-tier poller. */
+export interface SwpcFastData {
+  /** Most recent 1-minute Kp. */
   kpCurrent: SwpcKpCurrent | null;
+  /** Latest 1-minute RTSW plasma. Fresher speed/density than the slow-tier solar wind product. */
+  rtswPlasma: SwpcRtswPlasma | null;
+  /** ISO-8601 fetch timestamp for freshness labelling. */
+  fetchedAt: string;
+}
+
+/**
+ * Slow-tier SWPC output (ARCHITECTURE.md §4: "SWPC 3-day forecast / OVATION
+ * oval", polled 5-15min): observed Kp history, the 3-day Kp forecast, and
+ * propagated solar wind — none of these need faster refresh than the slow
+ * tier's cadence.
+ */
+export interface SwpcSlowData {
   /** Last ~7 days of 3-hour observed Kp. Used by the Causal Engine's history factor. */
   kpObserved: SwpcKpObservedEntry[] | null;
   /** 3-day Kp forecast (observed + estimated + predicted periods). Primary Kp for aurora prediction (FORMULAS.md §7). */
   kpForecast: SwpcKpForecastEntry[] | null;
   /** Recent 1-hour propagated solar wind (speed, density, Bz). Used by Heliosphere Pulse and Causal Engine. */
   solarWind: SwpcSolarWindEntry[] | null;
-  /** Latest 1-minute RTSW plasma. Complements solarWind with fresher speed/density. */
-  rtswPlasma: SwpcRtswPlasma | null;
   /** ISO-8601 fetch timestamp for freshness labelling. */
   fetchedAt: string;
 }
 
-/** Returned when the SWPC client cannot reach any endpoint. All data fields are null. */
-export const SWPC_FALLBACK: SwpcData = {
+/** Returned when the fast-tier SWPC client cannot reach any endpoint. All data fields are null. */
+export const SWPC_FAST_FALLBACK: SwpcFastData = {
   kpCurrent: null,
+  rtswPlasma: null,
+  fetchedAt: new Date(0).toISOString(),
+};
+
+/** Returned when the slow-tier SWPC client cannot reach any endpoint. All data fields are null. */
+export const SWPC_SLOW_FALLBACK: SwpcSlowData = {
   kpObserved: null,
   kpForecast: null,
   solarWind: null,
-  rtswPlasma: null,
   fetchedAt: new Date(0).toISOString(),
 };

@@ -12,7 +12,7 @@
  */
 
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
-import type { SwpcData } from '../clients/swpc/index.js';
+import type { SwpcFastData, SwpcSlowData } from '../clients/swpc/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData } from '../clients/jpl-horizons/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
@@ -27,7 +27,10 @@ export interface SourceState<T> {
 
 export interface PollerState {
   iss: SourceState<N2yoPositionsData>;
-  solarWind: SourceState<SwpcData>;
+  /** Fast-tier SWPC: 1-min Kp + RTSW plasma (ARCHITECTURE.md §4). */
+  solarWind: SourceState<SwpcFastData>;
+  /** Slow-tier SWPC: observed Kp history, 3-day forecast, propagated solar wind (ARCHITECTURE.md §4). */
+  spaceWeatherForecast: SourceState<SwpcSlowData>;
   donki: SourceState<NasaDonkiData>;
   neows: SourceState<NasaNeowsData>;
   /** GIBS has no fetch step (pure URL construction) — data holds the last-selected layer config. */
@@ -42,6 +45,7 @@ function createInitialState(): PollerState {
   return {
     iss: empty(),
     solarWind: empty(),
+    spaceWeatherForecast: empty(),
     donki: empty(),
     neows: empty(),
     gibs: empty(),

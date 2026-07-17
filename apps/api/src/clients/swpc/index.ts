@@ -3,9 +3,15 @@
  * Consumers import from '@astranet/api/clients/swpc' (or the relative path).
  */
 
-export { fetchSwpc, SWPC_FALLBACK } from './swpc.client.js';
+export {
+  fetchSwpcFast,
+  fetchSwpcSlow,
+  SWPC_FAST_FALLBACK,
+  SWPC_SLOW_FALLBACK,
+} from './swpc.client.js';
 export type {
-  SwpcData,
+  SwpcFastData,
+  SwpcSlowData,
   SwpcKpCurrent,
   SwpcKpObservedEntry,
   SwpcKpForecastEntry,
