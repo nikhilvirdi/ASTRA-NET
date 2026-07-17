@@ -15,6 +15,7 @@
 import { buildSkyAnchorCard, type SkyAnchorCard } from './sky-anchor-card.js';
 import { buildSpaceWeatherCard, type SpaceWeatherCard } from './space-weather-card.js';
 import { buildIssCard, type IssCard } from './iss-card.js';
+import { buildNeoImageryCard, type NeoImageryCard } from './neo-imagery-card.js';
 import { selectLearningMoment } from './learning-moment.js';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
 import type { PollerState } from '../poller/store.js';
@@ -32,6 +33,7 @@ export interface DailyBrief {
   skyAnchor: BriefCard<SkyAnchorCard>;
   iss: BriefCard<IssCard>;
   spaceWeather: BriefCard<SpaceWeatherCard>;
+  neoImagery: BriefCard<NeoImageryCard>;
   learningMoment: string;
 }
 
@@ -79,8 +81,17 @@ export function buildBrief(
       )
     : UNAVAILABLE_CARD;
 
+  const neoImageryData = buildNeoImageryCard(pollerState.neows, pollerState.gibs);
+  const neoImagery: BriefCard<NeoImageryCard> =
+    neoImageryData.neo !== null || neoImageryData.imagery !== null
+      ? okCard(neoImageryData)
+      : UNAVAILABLE_CARD;
+
   const status =
-    skyAnchor.status === 'ok' || iss.status === 'ok' || spaceWeather.status === 'ok'
+    skyAnchor.status === 'ok' ||
+    iss.status === 'ok' ||
+    spaceWeather.status === 'ok' ||
+    neoImagery.status === 'ok'
       ? 'ok'
       : 'unavailable';
 
@@ -91,6 +102,7 @@ export function buildBrief(
     skyAnchor,
     iss,
     spaceWeather,
+    neoImagery,
     learningMoment: selectLearningMoment(now),
   };
 }

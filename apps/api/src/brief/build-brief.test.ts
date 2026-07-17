@@ -77,6 +77,40 @@ function fullPollerState(): PollerState {
     fetchedAt: NOW.toISOString(),
     healthy: true,
   };
+  state.neows = {
+    data: {
+      elementCount: 1,
+      objects: [
+        {
+          id: 'neo-1',
+          name: '(2026 AA1)',
+          nasaJplUrl: 'https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=neo-1',
+          absoluteMagnitudeH: 20,
+          estimatedDiameterMinKm: 0.1,
+          estimatedDiameterMaxKm: 0.3,
+          isPotentiallyHazardous: false,
+          isSentryObject: false,
+          closeApproaches: [
+            {
+              date: '2026-07-18',
+              epochDate: 1_800_000_000_000,
+              velocityKmS: 12.3,
+              missDistanceKm: 500_000,
+              orbitingBody: 'Earth',
+            },
+          ],
+        },
+      ],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
+  state.gibs = {
+    data: { layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor', date: '2026-07-16' },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
   return state;
 }
 
@@ -95,6 +129,9 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.spaceWeather.status).toBe('ok');
     expect(brief.spaceWeather.data?.solarLine.headline).toBe('solar wind 420 km/s, Kp 4');
     expect(brief.spaceWeather.data?.aurora).not.toBeNull();
+    expect(brief.neoImagery.status).toBe('ok');
+    expect(brief.neoImagery.data?.neo?.id).toBe('neo-1');
+    expect(brief.neoImagery.data?.imagery?.layer).toBe('VIIRS_SNPP_CorrectedReflectance_TrueColor');
     expect(brief.learningMoment.length).toBeGreaterThan(0);
   });
 
@@ -191,6 +228,17 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.iss.data?.nextPass).not.toBeNull();
   });
 
+  it('partial-outage case: NeoWs down but GIBS still resolves the imagery half of its card', () => {
+    const state = fullPollerState();
+    state.neows = empty();
+
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES);
+
+    expect(brief.neoImagery.status).toBe('ok');
+    expect(brief.neoImagery.data?.neo).toBeNull();
+    expect(brief.neoImagery.data?.imagery).not.toBeNull();
+  });
+
   it('total-outage case: the Brief still renders because Sky Anchor never fails', () => {
     const brief = buildBrief(emptyPollerState(), 45, -75, NOW, NO_VISUAL_PASSES);
 
@@ -200,6 +248,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.iss.status).toBe('unavailable');
     expect(brief.spaceWeather.status).toBe('unavailable');
     expect(brief.spaceWeather.data).toBeNull();
+    expect(brief.neoImagery.status).toBe('unavailable');
     expect(brief.learningMoment.length).toBeGreaterThan(0);
   });
 });
