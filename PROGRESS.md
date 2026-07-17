@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 4 — The /brief Endpoint & Degradation Contract` (Claude Code)
+**Current Phase:** `Phase 5 — Authentication` (Claude Code)
 
 ---
 
@@ -180,3 +180,9 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: Live bare-`fetch` sanity check against the real Express app (`createApp()`, no poller running, no live API keys available in this sandbox) per `WORKPLAN.md`'s Phase 4 agent expectations — confirmed real 200 OK with Sky Anchor resolving (real computed sun altitude) while every other card correctly showed `"unavailable"`, proving the degradation contract live over real HTTP, not just in a test mock — by Claude Code
 - ✅ Done: Three commits, each a single logical change: ESM `.js`-extension fix in `packages/shared` (bugfix, exposed only now that `apps/api` imports the package at runtime for the first time), the `vitest.config.ts` coverage-include fix, and the `/api/brief` HTTP route wiring itself — by Claude Code
 - ⏭️ Next: Run `/phase-check` against `WORKPLAN.md`'s actual Phase 4 Definition of Done before marking it closed.
+
+## 2026-07-17 (Phase 4 CLOSED — verified via /phase-check)
+
+- ✅ Done: Ran `/phase-check` against `WORKPLAN.md`'s actual Phase 4 Definition of Done, task by task, not rounded up from "mostly there": degradation contract defined and enforced in `build-brief.ts`; `/api/brief?lat=&lon=` assembles summary/aurora/ISS-pass/solar-line/learning-moment (confirmed live via bare `fetch`); Causal Engine wired to live poller data; confidence bands and honest fast/slow freshness surfaced; full-data/partial-outage/total-outage contract tests all present and passing. Gates re-run against the final committed state: `npm run typecheck` clean, targeted `eslint apps/api/src packages/shared/src --max-warnings=0` clean, `apps/api` 22 files/160 tests passing, `packages/shared` 12 files/98 tests passing at 100% coverage — by Claude Code
+- ✅ Done: **Phase 4 — The `/brief` Endpoint & Degradation Contract — genuinely closed.** `WORKPLAN.md`'s `Current Phase` marker updated to `Phase 5` — by Claude Code
+- ⏭️ Next: Phase 5 — Authentication. Prisma `users`/`sessions` models, Argon2 password hashing, custom JWT middleware (15-min access + rotated refresh), `signup`/`login`/`logout`/`refresh` routes, `verifyAccessToken` guard, then Google OAuth 2.0 as an additive path. Email/password ships and is fully tested before OAuth is started, per `WORKPLAN.md`'s agent expectations.
