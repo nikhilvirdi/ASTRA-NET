@@ -64,7 +64,7 @@ describe('GET /health', () => {
   it('responds 200 with the health payload shape', async () => {
     setSourceState('donki', { cmes: [], flares: [], fetchedAt: 't' }, 't', true);
 
-    const res = await request(createApp()).get('/health');
+    const res = await request(createApp({ n2yoApiKey: 'TEST_KEY' })).get('/health');
     const body = res.body as HealthPayload;
 
     expect(res.status).toBe(200);

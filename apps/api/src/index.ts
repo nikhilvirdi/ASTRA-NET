@@ -40,7 +40,7 @@ const port = Number(process.env.PORT ?? 3000);
 startFastTierLoop({ fetchN2yoPositions, fetchSwpcFast, n2yoApiKey });
 startSlowTierLoop({ fetchNasaDonki, fetchNasaNeows, fetchHorizons, fetchSwpcSlow, nasaApiKey });
 
-const app = createApp();
+const app = createApp({ n2yoApiKey });
 app.listen(port, () => {
   console.warn(`[api] listening on port ${port}`);
 });

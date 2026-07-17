@@ -110,7 +110,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     // Real socket I/O needs the real event loop from here on.
     vi.useRealTimers();
 
-    const app = createApp();
+    const app = createApp({ n2yoApiKey: 'TEST_KEY' });
     server = http.createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const port = (server.address() as AddressInfo).port;

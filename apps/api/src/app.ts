@@ -8,12 +8,19 @@
 import express, { type Express } from 'express';
 import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
+import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 
-export function createApp(): Express {
+export interface CreateAppDeps {
+  n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
+  fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
+}
+
+export function createApp(deps: CreateAppDeps): Express {
   const app = express();
 
   registerHealthRoute(app);
   registerStreamRoute(app);
+  registerBriefRoute(app, deps);
 
   return app;
 }

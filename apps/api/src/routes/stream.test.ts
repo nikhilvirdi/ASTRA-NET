@@ -83,7 +83,7 @@ describe('GET /stream', () => {
 
   beforeEach(async () => {
     resetStore();
-    server = http.createServer(createApp());
+    server = http.createServer(createApp({ n2yoApiKey: 'TEST_KEY' }));
     await new Promise<void>((resolve) => server.listen(0, resolve));
     port = (server.address() as AddressInfo).port;
   });
