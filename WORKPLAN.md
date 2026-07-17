@@ -3,7 +3,7 @@
 **This file is the single source of truth for the build.**
 Humans and agents follow this order. Do not skip ahead. Do not start a phase until the previous phase's _Definition of Done_ is fully met.
 
-> **Current Phase:** `Phase 3` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
+> **Current Phase:** `Phase 4` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
 
 ---
 
