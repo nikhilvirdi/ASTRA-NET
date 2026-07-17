@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 3 — The Poller` (Claude Code)
+**Current Phase:** `Phase 4 — The /brief Endpoint & Degradation Contract` (Claude Code)
 
 ---
 
@@ -157,3 +157,26 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: Final gates, all clean from a real run: `npm run typecheck` — clean. `npx eslint apps/api/src/clients apps/api/src/poller --max-warnings=0` — clean (exact CI-equivalent command). `npm run lint` (full repo, actual CI gate) — clean except the pre-existing, already-documented `apps/api/scripts/*.js` tsconfig-include gap (unrelated to this task, flagged three times now). `npm test --workspace=apps/api` — **15 files, 118 tests, all passing** (up from 12 files/97 tests) — by Claude Code
 - ✅ Done: **Phase 3 — The Poller — genuinely closed.** Re-verified against `WORKPLAN.md`'s actual Definition of Done, not rounded up from "mostly there": poller runs continuously (both loops wired to real clients in `index.ts`), `/stream` emits live fast-tier data with correct freshness tags (proven fast-tier-only at the type level, not just by test omission), killing one source leaves the rest healthy (proven at both per-loop unit level and now orchestration level with both loops actually running), and the fast/slow tier boundary is now genuinely respected end-to-end (the one place it wasn't is fixed, not just noted) — by Claude Code
 - ⏭️ Next: Phase 4 — The `/brief` Endpoint & Degradation Contract. `packages/shared`'s Phase 2 engines and the poller's live store are both ready; Phase 4 composes them into `/api/brief?lat=&lon=`. Concrete first task proposed to the human, not yet started.
+
+## 2026-07-17 (Phase 4 — Brief pure core + all four cards)
+
+**This entry is backfilled.** Commits `01d43df`, `84062e6`, `4a38512` (all earlier the same day) were never logged here at the time — discovered during this session's Phase 4 verification pass. Content below describes what those commits actually did, reconstructed from the commits themselves, not from a contemporaneous log.
+
+- ✅ Done: `apps/api/src/brief/build-brief.ts` — the pure core (`buildBrief(pollerState, observerLatDeg, observerLonDeg, now, issVisualPasses)`), composing independent cards per `ARCHITECTURE.md` §5's degradation contract; the Brief's `status` is `'ok'` if any card resolves — by Claude Code
+- ✅ Done: `sky-anchor-card.ts` — pure Sun-position math (twilight phase, sun altitude, dark-enough-for-ISS/aurora/faint-stars flags), zero I/O, always resolves — by Claude Code
+- ✅ Done: `space-weather-card.ts` — "one solar line" (live fast-tier speed/Kp + slow-tier forecast Kp, tagged with independent `fetchedAt`/`healthy`) and aurora visibility/confidence, wiring the Causal Engine (`predictAuroraConfidence` + `auroraVisibility`/`geomagneticLatitudeDeg`/`auroralOvalBoundaryDeg` from `packages/shared`) to live DONKI/SWPC poller data; confidence fields are honestly `null` when no active CME exists to reason about, never fabricated — by Claude Code
+- ✅ Done: `iss-card.ts` — live position from the poller's `iss` slot (fast tier) + on-demand next-pass (observer-specific, fetched by the HTTP layer and passed in, not fetched inside the pure core); either sub-field can be null independently — by Claude Code
+- ✅ Done: `neo-imagery-card.ts` — closest current-window NEO close approach (diameter via `FORMULAS.md` §10) + GIBS tile URL, same independent-sub-field pattern as the ISS card — by Claude Code
+- ✅ Done: `learning-moment.ts` — one rotating 60-second learning line — by Claude Code
+- ✅ Done: `build-brief.test.ts` — full-data, multiple partial-outage variants (one per card, including sub-field-level splits), and total-outage (Sky Anchor alone keeps the Brief rendering) — the exact three cases `TESTING.md` requires for `/api/brief`, plus more granularity — by Claude Code
+- ⛔ Noted, not fixed at the time (now fixed — see 2026-07-17 verification entry below): none of these three commits updated this file or `DECISIONS.md`, despite several code comments explicitly claiming decisions were logged there.
+
+## 2026-07-17 (Phase 4 — HTTP route wiring + verification pass, session continuity gap found)
+
+- ⛔ Found at the start of this session: the human's brief described Phase 4 as not-yet-started ("Begin Phase 4... build the pure core first"), but the pure core and all four cards were already committed (see backfilled entry above), and the actual HTTP route (`brief.ts`/`brief.test.ts`) plus its wiring into `app.ts`/`index.ts` already existed uncommitted on disk. A prior session's context was not retained into this one. Investigated actual repo state (git log, git diff, git status) before taking any action rather than trusting the session's own framing of "starting fresh" — by Claude Code
+- ✅ Done: Verified the uncommitted HTTP-route work end-to-end before trusting it: `npm run typecheck` (root) clean; targeted `eslint apps/api/src packages/shared/src --max-warnings=0` clean (full-repo `npm run lint` still shows only the pre-existing, already-documented `apps/api/scripts/*.js` gap, unrelated); full test suite green (`apps/api` 22 files/160 tests, `packages/shared` 12 files/98 tests); `packages/shared` coverage 100% — by Claude Code
+- ✅ Done: Traced every formula reference in the new Brief cards back to `FORMULAS.md` (§6 CME arrival, §7 aurora visibility, §8 confidence composition, §10 NEO diameter) — all correct, no invented constants beyond the two already flagged (CME speed-error placeholder, active-CME selection policy — see `DECISIONS.md`'s backfilled 2026-07-17 entry) — by Claude Code
+- ✅ Done: Found `apps/api/vitest.config.ts`'s coverage `include` was widened for `src/poller/**` in Phase 3 but never extended to `src/brief/**` — Brief cards had real tests but uncounted coverage. Fixed; `src/brief` now measured at 98.18% stmts / 93.69% branch, well above `TESTING.md`'s ≥85% apps/api requirement — by Claude Code
+- ✅ Done: Live bare-`fetch` sanity check against the real Express app (`createApp()`, no poller running, no live API keys available in this sandbox) per `WORKPLAN.md`'s Phase 4 agent expectations — confirmed real 200 OK with Sky Anchor resolving (real computed sun altitude) while every other card correctly showed `"unavailable"`, proving the degradation contract live over real HTTP, not just in a test mock — by Claude Code
+- ✅ Done: Three commits, each a single logical change: ESM `.js`-extension fix in `packages/shared` (bugfix, exposed only now that `apps/api` imports the package at runtime for the first time), the `vitest.config.ts` coverage-include fix, and the `/api/brief` HTTP route wiring itself — by Claude Code
+- ⏭️ Next: Run `/phase-check` against `WORKPLAN.md`'s actual Phase 4 Definition of Done before marking it closed.
