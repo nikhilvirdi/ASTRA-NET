@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 5 — Authentication` (Claude Code)
+**Current Phase:** `Phase 6 — Persistence Features & Accuracy Loop` (Claude Code)
 
 ---
 
@@ -258,3 +258,10 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: 3 new `auth.test.ts` cases (valid token, no header, malformed token) plus a live `curl` check against the **built** app: signup → login → `GET /api/auth/me` with the real access token → `200` with the correct id/email; no token → `401`; garbage token → `401`. Test user row deleted after — by Claude Code
 - ✅ Done: Gates green: `npm run typecheck` clean, `eslint apps/api/src --max-warnings=0` clean, full `apps/api` suite **31 files/247 tests** passing (up from 244) — by Claude Code
 - ⏭️ Next: Re-run `/phase-check` against `WORKPLAN.md`'s Phase 5 Definition of Done now that both prior findings (Google OAuth, protected-route demo) are addressed.
+
+## 2026-07-22 (Phase 5 CLOSED — verified via /phase-check)
+
+- ✅ Done: Final `/phase-check` re-verified every atomic task and DoD clause against the actual codebase from a clean run — `npm run typecheck` clean, `eslint apps/api/src packages/shared/src --max-warnings=0` clean, `prettier --check` clean, full `apps/api` suite **31 files/247 tests** passing against real Postgres. Prisma `users`/`sessions` models, Argon2 hashing, JWT access+rotated-refresh, all four core routes, `verifyAccessToken` guard (now wired into `GET /api/auth/me`), and Google OAuth's authorization-code flow are all present and tested — by Claude Code
+- ⚠️ Disclosed, not silently rounded up: Google OAuth's linking/creation logic is verified against real Postgres, but with Google's own token-exchange/JWKS network calls injected as fakes rather than exercised live — this environment has no registered Google Cloud OAuth app or a real browser to click through Google's consent screen. This is the same standard Phase 1 already established for third-party APIs (fixtures/mocks, not live upstream calls); every other Phase 5 piece additionally got a live `curl` run against the built app, this one didn't. Flagged explicitly to the human, who chose to close Phase 5 on the strength of the integration tests rather than hold it open pending real Google credentials — by Claude Code
+- ✅ Done: **Phase 5 — Authentication — genuinely closed.** `WORKPLAN.md`'s `Current Phase` marker updated to `Phase 6` — by Claude Code
+- ⏭️ Next: Phase 6 — Persistence Features & Accuracy Loop. Saved locations (add/remove/default) scoped to the authed user, Personal Sky Log (JSONB history), a Cache table with `expires_at` cleanup, a `predictions` table + daily accuracy job feeding the Causal Engine's history factor, and real delete-my-data. `requireAuth` (Phase 5) is what makes every one of these per-user routes possible — first concrete task to be proposed to the human before writing code, per standing instruction.
