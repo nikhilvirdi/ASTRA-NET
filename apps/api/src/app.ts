@@ -11,6 +11,7 @@ import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerAuthRoutes, type AuthRouteDeps } from './routes/auth.js';
+import { registerLocationsRoutes } from './routes/locations.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -35,6 +36,7 @@ export function createApp(deps: CreateAppDeps): Express {
     exchangeGoogleAuthCode: deps.exchangeGoogleAuthCode,
     verifyGoogleIdToken: deps.verifyGoogleIdToken,
   });
+  registerLocationsRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
 
   return app;
 }
