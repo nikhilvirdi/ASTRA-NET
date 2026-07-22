@@ -12,6 +12,7 @@ import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerAuthRoutes, type AuthRouteDeps } from './routes/auth.js';
 import { registerLocationsRoutes } from './routes/locations.js';
+import { registerSkyLogRoutes } from './routes/sky-log.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -37,6 +38,7 @@ export function createApp(deps: CreateAppDeps): Express {
     verifyGoogleIdToken: deps.verifyGoogleIdToken,
   });
   registerLocationsRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
+  registerSkyLogRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
 
   return app;
 }
