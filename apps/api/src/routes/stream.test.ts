@@ -88,7 +88,13 @@ describe('GET /stream', () => {
 
   beforeEach(async () => {
     resetStore();
-    server = http.createServer(createApp({ n2yoApiKey: 'TEST_KEY', prisma }));
+    server = http.createServer(
+      createApp({
+        n2yoApiKey: 'TEST_KEY',
+        prisma,
+        jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+      }),
+    );
     await new Promise<void>((resolve) => server.listen(0, resolve));
     port = (server.address() as AddressInfo).port;
   });

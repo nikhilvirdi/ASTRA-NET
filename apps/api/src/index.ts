@@ -37,6 +37,7 @@ function requireEnv(name: string): string {
 const nasaApiKey = requireEnv('NASA_API_KEY');
 const n2yoApiKey = requireEnv('N2YO_API_KEY');
 const databaseUrl = requireEnv('DATABASE_URL');
+const jwtAccessSecret = requireEnv('JWT_ACCESS_SECRET');
 const port = Number(process.env.PORT ?? 3000);
 
 /**
@@ -57,7 +58,7 @@ try {
 startFastTierLoop({ fetchN2yoPositions, fetchSwpcFast, n2yoApiKey });
 startSlowTierLoop({ fetchNasaDonki, fetchNasaNeows, fetchHorizons, fetchSwpcSlow, nasaApiKey });
 
-const app = createApp({ n2yoApiKey, prisma });
+const app = createApp({ n2yoApiKey, prisma, jwtAccessSecret });
 app.listen(port, () => {
   console.warn(`[api] listening on port ${port}`);
 });

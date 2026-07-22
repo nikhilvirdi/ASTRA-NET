@@ -42,20 +42,33 @@ describe('GET /api/brief', () => {
   });
 
   it('400s when lat/lon are missing', async () => {
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+    });
     const res = await request(app).get('/api/brief');
     expect(res.status).toBe(400);
   });
 
   it('400s when lat/lon are out of range', async () => {
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+    });
     const res = await request(app).get('/api/brief?lat=999&lon=45');
     expect(res.status).toBe(400);
   });
 
   it('200s with a resolved Brief for valid coordinates, including a live-fetched next pass', async () => {
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+      fetchN2yoVisualPasses,
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -97,7 +110,12 @@ describe('GET /api/brief', () => {
       true,
     );
     const fetchN2yoVisualPasses = vi.fn().mockRejectedValue(new Error('N2YO down'));
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+      fetchN2yoVisualPasses,
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -130,7 +148,12 @@ describe('GET /api/brief', () => {
     );
 
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
+      fetchN2yoVisualPasses,
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;

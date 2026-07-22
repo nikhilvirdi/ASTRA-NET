@@ -15,6 +15,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
   prisma: PrismaClient;
+  jwtAccessSecret: string;
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
 }
 
@@ -24,7 +25,7 @@ export function createApp(deps: CreateAppDeps): Express {
   registerHealthRoute(app);
   registerStreamRoute(app);
   registerBriefRoute(app, deps);
-  registerAuthRoutes(app, { prisma: deps.prisma });
+  registerAuthRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
 
   return app;
 }
