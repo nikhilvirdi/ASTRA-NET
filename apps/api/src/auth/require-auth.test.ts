@@ -8,7 +8,7 @@ import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { signAccessToken } from './jwt.js';
-import { requireAuth } from './require-auth.js';
+import { requireAuth, tryAuthenticate } from './require-auth.js';
 
 const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
 const USER_ID = 'user_fakeid123';
@@ -82,5 +82,64 @@ describe('requireAuth', () => {
 
     expect(res.status).toBe(401);
     expect((res.body as { error: string }).error).toBe('invalid or expired access token');
+  });
+});
+
+/** Minimal fake `Request` — `tryAuthenticate` only ever reads `req.get('authorization')`. */
+function fakeRequest(authorizationHeader?: string): Parameters<typeof tryAuthenticate>[0] {
+  return {
+    get: (name: string) =>
+      name.toLowerCase() === 'authorization' ? authorizationHeader : undefined,
+  } as Parameters<typeof tryAuthenticate>[0];
+}
+
+describe('tryAuthenticate', () => {
+  it('returns the userId for a valid access token', async () => {
+    const token = await signAccessToken(USER_ID, JWT_ACCESS_SECRET, new Date());
+
+    const userId = await tryAuthenticate(fakeRequest(`Bearer ${token}`), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+
+    expect(userId).toBe(USER_ID);
+  });
+
+  it('returns null (never throws) when the Authorization header is missing entirely', async () => {
+    const userId = await tryAuthenticate(fakeRequest(undefined), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+    expect(userId).toBeNull();
+  });
+
+  it('returns null when the Authorization header has no Bearer prefix', async () => {
+    const token = await signAccessToken(USER_ID, JWT_ACCESS_SECRET, new Date());
+    const userId = await tryAuthenticate(fakeRequest(token), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+    expect(userId).toBeNull();
+  });
+
+  it('returns null for a malformed token, not a 401 — /api/brief must stay public', async () => {
+    const userId = await tryAuthenticate(fakeRequest('Bearer not-a-real-jwt'), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+    expect(userId).toBeNull();
+  });
+
+  it('returns null for an expired token', async () => {
+    const issuedAt = new Date('2026-07-17T12:00:00Z');
+    const token = await signAccessToken(USER_ID, JWT_ACCESS_SECRET, issuedAt);
+    const userId = await tryAuthenticate(fakeRequest(`Bearer ${token}`), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+    expect(userId).toBeNull();
+  });
+
+  it('returns null for a token signed with a different secret', async () => {
+    const token = await signAccessToken(USER_ID, 'a-different-fake-secret', new Date());
+    const userId = await tryAuthenticate(fakeRequest(`Bearer ${token}`), {
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+    });
+    expect(userId).toBeNull();
   });
 });
