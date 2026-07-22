@@ -2,16 +2,27 @@
  * `/api/brief?lat=&lon=` (WORKPLAN.md Phase 4). Thin HTTP wrapper around
  * `buildBrief` — validates the query params (Zod, per WORKPLAN.md rule #6
  * on validating everything at an external boundary, including client
- * input), makes the one per-request live call `buildBrief` itself can't
- * (ISS next-pass, observer-specific — see `iss-card.ts`), then composes
- * the response from the poller's current store snapshot. No prediction or
- * degradation logic lives here; it all belongs to `build-brief.ts`.
+ * input), makes the per-request live/impure work `buildBrief` itself
+ * can't: ISS next-pass (observer-specific, see `iss-card.ts`), the
+ * global accuracy-loop history feeding f_hist (`predictions/history.ts`),
+ * and — new in Phase 6 — persisting the Brief's aurora prediction
+ * (`predictions/accuracy.ts`'s daily job later scores it) when there's
+ * an active CME and the caller is authenticated. No prediction *math* or
+ * degradation logic lives here; that all belongs to `build-brief.ts`.
+ *
+ * Auth is optional, not required: this endpoint is genuinely public
+ * (`require-auth.ts`'s header comment), so `tryAuthenticate` — never
+ * `requireAuth` — decides whether persistence happens, without ever
+ * gating the Brief response itself on being logged in.
  */
 
 import type { Express, Request, Response } from 'express';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { buildBrief } from '../brief/build-brief.js';
 import { getAllSourceStates } from '../poller/store.js';
+import { tryAuthenticate } from '../auth/require-auth.js';
+import { getGlobalPredictionHistory, NEUTRAL_PREDICTION_HISTORY } from '../predictions/history.js';
 import {
   fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses,
   type N2yoVisualPassesData,
@@ -30,13 +41,21 @@ const BriefQuerySchema = z.object({
 
 export interface BriefRouteDeps {
   n2yoApiKey: string;
+  prisma: PrismaClient;
+  jwtAccessSecret: string;
   fetchN2yoVisualPasses?: typeof defaultFetchN2yoVisualPasses;
+}
+
+function logUnexpectedBriefError(label: string, error: unknown): void {
+  console.error(
+    `[brief] ${label} failed unexpectedly: ${error instanceof Error ? error.name : 'unknown error'}`,
+  );
 }
 
 export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
   const fetchVisualPasses = deps.fetchN2yoVisualPasses ?? defaultFetchN2yoVisualPasses;
 
-  app.get('/api/brief', (req: Request, res: Response) => {
+  app.get('/api/brief', async (req: Request, res: Response): Promise<void> => {
     const parsed = BriefQuerySchema.safeParse(req.query);
     if (!parsed.success) {
       res
@@ -46,27 +65,79 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
     }
     const { lat, lon } = parsed.data;
     const now = new Date();
+    const pollerState = getAllSourceStates();
 
-    fetchVisualPasses(
-      {
-        satId: ISS_NORAD_ID,
-        observerLat: lat,
-        observerLng: lon,
-        observerAlt: 0,
-        days: VISUAL_PASSES_DAYS,
-        minVisibility: VISUAL_PASSES_MIN_VISIBILITY_SECONDS,
-      },
-      deps.n2yoApiKey,
-      now,
-    )
-      .then((visualPasses: N2yoVisualPassesData) => {
-        res.json(buildBrief(getAllSourceStates(), lat, lon, now, visualPasses));
-      })
-      .catch(() => {
-        // fetchN2yoVisualPasses is documented to never throw, but this guard
-        // ensures a next-pass failure can never take down the rest of the
-        // Brief — same "one source down blanks only its own card" contract.
-        res.json(buildBrief(getAllSourceStates(), lat, lon, now, null));
-      });
+    const userId = await tryAuthenticate(req, { jwtAccessSecret: deps.jwtAccessSecret });
+
+    // f_hist is global, not per-request (DECISIONS.md), but only worth a
+    // DB round-trip when there's any chance of an active CME — a poller
+    // state with zero CME records at all can never produce one (the
+    // real selection in build-brief.ts's space-weather-card.ts can only
+    // narrow this set further), so this is a safe, cheap fast path, not
+    // a re-derivation of that selection policy.
+    const mayHaveActiveCme = (pollerState.donki.data?.cmes?.length ?? 0) > 0;
+    let history = NEUTRAL_PREDICTION_HISTORY;
+    if (mayHaveActiveCme) {
+      try {
+        history = await getGlobalPredictionHistory(deps.prisma);
+      } catch (error) {
+        // A history-lookup failure degrades to the neutral prior, same as
+        // "no accuracy-loop data yet" — it never blanks the whole Brief.
+        logUnexpectedBriefError('prediction history lookup', error);
+      }
+    }
+
+    let visualPasses: N2yoVisualPassesData | null;
+    try {
+      visualPasses = await fetchVisualPasses(
+        {
+          satId: ISS_NORAD_ID,
+          observerLat: lat,
+          observerLng: lon,
+          observerAlt: 0,
+          days: VISUAL_PASSES_DAYS,
+          minVisibility: VISUAL_PASSES_MIN_VISIBILITY_SECONDS,
+        },
+        deps.n2yoApiKey,
+        now,
+      );
+    } catch {
+      // fetchN2yoVisualPasses is documented to never throw, but this guard
+      // ensures a next-pass failure can never take down the rest of the
+      // Brief — same "one source down blanks only its own card" contract.
+      visualPasses = null;
+    }
+
+    const brief = buildBrief(pollerState, lat, lon, now, visualPasses, history);
+
+    const aurora = brief.spaceWeather.data?.aurora;
+    if (
+      userId !== null &&
+      aurora?.hasActiveCme === true &&
+      aurora.cmeArrivalTime !== null &&
+      aurora.confidence !== null
+    ) {
+      try {
+        await deps.prisma.prediction.create({
+          data: {
+            userId,
+            targetTime: new Date(aurora.cmeArrivalTime),
+            predictedKp: aurora.kpPredicted,
+            confidence: aurora.confidence,
+            context: {
+              cmeActivityId: aurora.cmeActivityId,
+              confidenceBand: aurora.confidenceBand,
+              geomagneticLatitudeDeg: aurora.geomagneticLatitudeDeg,
+              leadHours: aurora.leadHours,
+              factors: aurora.factors,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      } catch (error) {
+        logUnexpectedBriefError('prediction persistence', error);
+      }
+    }
+
+    res.json(brief);
   });
 }
