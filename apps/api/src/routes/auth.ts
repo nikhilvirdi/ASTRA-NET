@@ -11,8 +11,9 @@
  * only the error's name/code, never its message or the request body.
  */
 
+import { randomBytes } from 'node:crypto';
 import express, { type Express, type Request, type Response } from 'express';
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient, type User } from '@prisma/client';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { signAccessToken } from '../auth/jwt.js';
@@ -26,6 +27,17 @@ import {
   readRefreshTokenCookie,
   setRefreshTokenCookie,
 } from '../auth/refresh-cookie.js';
+import {
+  clearOAuthStateCookie,
+  readOAuthStateCookie,
+  setOAuthStateCookie,
+} from '../auth/oauth-state-cookie.js';
+import {
+  buildGoogleAuthorizationUrl,
+  exchangeGoogleAuthCode as defaultExchangeGoogleAuthCode,
+  verifyGoogleIdToken as defaultVerifyGoogleIdToken,
+  type GoogleIdentity,
+} from '../clients/google/index.js';
 
 /**
  * No doc pins a password policy, so this is deliberately minimal: a
@@ -60,9 +72,27 @@ const LoginBodySchema = z.object({
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 
+/**
+ * Additive only (ARCHITECTURE.md §3 G: "never a prerequisite") — the
+ * whole app must still boot and every other auth route must still work
+ * with this left undefined, which is why `index.ts` reads these three
+ * env vars optionally rather than via `requireEnv`.
+ */
+export interface GoogleOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  /** Where the browser is sent after the flow completes (or fails) — the frontend's own origin. */
+  webOrigin: string;
+}
+
 export interface AuthRouteDeps {
   prisma: PrismaClient;
   jwtAccessSecret: string;
+  googleOAuth?: GoogleOAuthConfig;
+  /** Overridable for tests only — real network calls to Google, never mocked in production. */
+  exchangeGoogleAuthCode?: typeof defaultExchangeGoogleAuthCode;
+  verifyGoogleIdToken?: typeof defaultVerifyGoogleIdToken;
 }
 
 function isUniqueConstraintViolation(error: unknown): boolean {
@@ -76,8 +106,65 @@ function logUnexpectedAuthError(routeLabel: string, error: unknown): void {
   );
 }
 
+/** Issues a fresh access token + refresh token and stores the latter's hash as a new Session row. */
+async function createSessionAndTokens(
+  prisma: PrismaClient,
+  userId: string,
+  jwtAccessSecret: string,
+  now: Date,
+  userAgent: string | null,
+): Promise<{ accessToken: string; refreshToken: string; expiresAt: Date }> {
+  const accessToken = await signAccessToken(userId, jwtAccessSecret, now);
+  const refreshToken = generateRefreshToken();
+  const expiresAt = refreshTokenExpiresAt(now);
+  await prisma.session.create({
+    data: { userId, hashedRefreshToken: hashRefreshToken(refreshToken), expiresAt, userAgent },
+  });
+  return { accessToken, refreshToken, expiresAt };
+}
+
+/**
+ * Finds the User this verified Google identity belongs to, linking it
+ * onto an existing email-matched account (password-based or a returning
+ * Google user) or creating a brand-new one. `identity.email` is only
+ * ever a Google-verified (`email_verified: true`) address by the time
+ * it reaches here — see `google-oauth.client.ts`.
+ */
+async function findOrCreateGoogleUser(
+  prisma: PrismaClient,
+  identity: GoogleIdentity,
+): Promise<User> {
+  const existing = await prisma.user.findFirst({
+    where: { OR: [{ googleId: identity.googleId }, { email: identity.email }] },
+  });
+  if (existing !== null) {
+    if (existing.googleId === identity.googleId) return existing;
+    return prisma.user.update({
+      where: { id: existing.id },
+      data: { googleId: identity.googleId },
+    });
+  }
+
+  try {
+    return await prisma.user.create({
+      data: { email: identity.email, googleId: identity.googleId },
+    });
+  } catch (error) {
+    // Concurrent first-time-login race: another request created this
+    // row between our findFirst and this create. Re-fetch by googleId
+    // (guaranteed unique to this Google account) rather than fail.
+    if (isUniqueConstraintViolation(error)) {
+      const user = await prisma.user.findUnique({ where: { googleId: identity.googleId } });
+      if (user !== null) return user;
+    }
+    throw error;
+  }
+}
+
 export function registerAuthRoutes(app: Express, deps: AuthRouteDeps): void {
-  const { prisma, jwtAccessSecret } = deps;
+  const { prisma, jwtAccessSecret, googleOAuth } = deps;
+  const exchangeGoogleAuthCode = deps.exchangeGoogleAuthCode ?? defaultExchangeGoogleAuthCode;
+  const verifyGoogleIdToken = deps.verifyGoogleIdToken ?? defaultVerifyGoogleIdToken;
 
   // express.json() is scoped to these routes rather than app-wide: no
   // other current route accepts a body, and this keeps their behavior
@@ -133,18 +220,13 @@ export function registerAuthRoutes(app: Express, deps: AuthRouteDeps): void {
         return;
       }
 
-      const now = new Date();
-      const accessToken = await signAccessToken(user.id, jwtAccessSecret, now);
-      const refreshToken = generateRefreshToken();
-      const expiresAt = refreshTokenExpiresAt(now);
-      await prisma.session.create({
-        data: {
-          userId: user.id,
-          hashedRefreshToken: hashRefreshToken(refreshToken),
-          expiresAt,
-          userAgent: req.get('user-agent') ?? null,
-        },
-      });
+      const { accessToken, refreshToken, expiresAt } = await createSessionAndTokens(
+        prisma,
+        user.id,
+        jwtAccessSecret,
+        new Date(),
+        req.get('user-agent') ?? null,
+      );
 
       setRefreshTokenCookie(res, refreshToken, expiresAt);
       res.status(200).json({ accessToken, user: { id: user.id, email: user.email } });
@@ -228,6 +310,101 @@ export function registerAuthRoutes(app: Express, deps: AuthRouteDeps): void {
     } catch (error) {
       logUnexpectedAuthError('refresh', error);
       res.status(500).json({ error: 'internal error' });
+    }
+  });
+
+  /**
+   * Step 1 of the additive Google OAuth path (ARCHITECTURE.md §3 G):
+   * redirects the browser to Google's consent screen. The CSRF `state`
+   * value is generated here and stashed in a short-lived cookie so the
+   * callback can confirm the response actually came from a flow this
+   * server initiated, not a forged redirect.
+   */
+  app.get('/api/auth/google', (_req: Request, res: Response) => {
+    if (googleOAuth === undefined) {
+      res.status(404).json({ error: 'Google OAuth is not configured' });
+      return;
+    }
+    const state = randomBytes(16).toString('base64url');
+    setOAuthStateCookie(res, state);
+    res.redirect(
+      buildGoogleAuthorizationUrl({
+        clientId: googleOAuth.clientId,
+        redirectUri: googleOAuth.redirectUri,
+        state,
+      }),
+    );
+  });
+
+  /**
+   * Step 2: Google redirects the browser back here with `?code=&state=`.
+   * Every failure path (state mismatch, exchange failure, identity
+   * verification failure, unexpected error) redirects to the frontend's
+   * login page with a generic error flag rather than a raw JSON 4xx/5xx
+   * — a real browser lands here mid-navigation with no way to read a
+   * JSON body. On success, the access token travels in the redirect's
+   * URL *fragment* (never a query string), which browsers never send to
+   * any server — the SPA reads it client-side. The refresh token is set
+   * as the same httpOnly cookie every other route uses, exactly as if
+   * this had been a normal login.
+   */
+  app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
+    if (googleOAuth === undefined) {
+      res.status(404).json({ error: 'Google OAuth is not configured' });
+      return;
+    }
+    const failureRedirect = (): void => {
+      clearOAuthStateCookie(res);
+      res.redirect(`${googleOAuth.webOrigin}/login?error=oauth_failed`);
+    };
+
+    const presentedState = readOAuthStateCookie(req);
+    const { code, state } = req.query;
+    if (
+      typeof code !== 'string' ||
+      typeof state !== 'string' ||
+      presentedState === null ||
+      state !== presentedState
+    ) {
+      failureRedirect();
+      return;
+    }
+
+    try {
+      const tokenResult = await exchangeGoogleAuthCode({
+        code,
+        clientId: googleOAuth.clientId,
+        clientSecret: googleOAuth.clientSecret,
+        redirectUri: googleOAuth.redirectUri,
+      });
+      if (tokenResult === null) {
+        failureRedirect();
+        return;
+      }
+
+      const identity = await verifyGoogleIdToken(tokenResult.idToken, googleOAuth.clientId);
+      if (identity === null) {
+        failureRedirect();
+        return;
+      }
+
+      const user = await findOrCreateGoogleUser(prisma, identity);
+      const { accessToken, refreshToken, expiresAt } = await createSessionAndTokens(
+        prisma,
+        user.id,
+        jwtAccessSecret,
+        new Date(),
+        req.get('user-agent') ?? null,
+      );
+
+      clearOAuthStateCookie(res);
+      setRefreshTokenCookie(res, refreshToken, expiresAt);
+      res.redirect(
+        `${googleOAuth.webOrigin}/auth/callback#accessToken=${encodeURIComponent(accessToken)}`,
+      );
+    } catch (error) {
+      logUnexpectedAuthError('google-callback', error);
+      failureRedirect();
     }
   });
 }

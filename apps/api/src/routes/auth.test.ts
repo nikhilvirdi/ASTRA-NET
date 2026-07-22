@@ -11,18 +11,27 @@
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPrismaClient } from '../db/client.js';
 import { verifyPassword } from '../auth/password.js';
 import { verifyAccessToken } from '../auth/jwt.js';
 import { hashRefreshToken } from '../auth/refresh-token.js';
-import { registerAuthRoutes } from './auth.js';
+import type { GoogleIdentity } from '../clients/google/index.js';
+import { registerAuthRoutes, type GoogleOAuthConfig } from './auth.js';
 
 const TEST_EMAIL_SUFFIX = '@signup-test.invalid';
 const LOGIN_TEST_EMAIL_SUFFIX = '@login-test.invalid';
+const GOOGLE_TEST_EMAIL_SUFFIX = '@google-test.invalid';
 const FAKE_PASSWORD = 'correct-horse-battery-staple';
 // Obviously-fake placeholder secret — never a real credential, matches jwt.test.ts's convention.
 const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
+
+const FAKE_GOOGLE_OAUTH: GoogleOAuthConfig = {
+  clientId: 'test-client-id.apps.googleusercontent.com',
+  clientSecret: 'test-only-fake-google-client-secret',
+  redirectUri: 'http://localhost:3000/api/auth/google/callback',
+  webOrigin: 'http://localhost:5173',
+};
 
 function loadDatabaseUrl(): string {
   if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
@@ -51,12 +60,37 @@ function createTestApp(): express.Express {
   return app;
 }
 
+/**
+ * Google's real token-exchange/JWKS-verification network calls are
+ * injected as fakes here — the same "mock only the external network
+ * boundary, keep the DB real" approach `brief.test.ts` already uses for
+ * `fetchN2yoVisualPasses`. `google-oauth.client.test.ts` already covers
+ * the real exchange/verification logic in isolation.
+ */
+function createTestAppWithGoogleOAuth(
+  identity: GoogleIdentity | null,
+  options: { exchangeFails?: boolean; googleOAuth?: GoogleOAuthConfig } = {},
+): express.Express {
+  const app = express();
+  registerAuthRoutes(app, {
+    prisma,
+    jwtAccessSecret: JWT_ACCESS_SECRET,
+    googleOAuth: options.googleOAuth ?? FAKE_GOOGLE_OAUTH,
+    exchangeGoogleAuthCode: vi
+      .fn()
+      .mockResolvedValue(options.exchangeFails === true ? null : { idToken: 'fake-id-token' }),
+    verifyGoogleIdToken: vi.fn().mockResolvedValue(identity),
+  });
+  return app;
+}
+
 async function deleteTestUsers(): Promise<void> {
   await prisma.user.deleteMany({
     where: {
       OR: [
         { email: { endsWith: TEST_EMAIL_SUFFIX } },
         { email: { endsWith: LOGIN_TEST_EMAIL_SUFFIX } },
+        { email: { endsWith: GOOGLE_TEST_EMAIL_SUFFIX } },
       ],
     },
   });
@@ -383,5 +417,159 @@ describe('POST /api/auth/refresh', () => {
 
     expect(res.status).toBe(401);
     expect((res.body as { error: string }).error).toBe('invalid or expired refresh token');
+  });
+});
+
+describe('GET /api/auth/google', () => {
+  it('redirects to Google with the configured client id/redirect uri and sets a state cookie', async () => {
+    const res = await request(createTestAppWithGoogleOAuth(null)).get('/api/auth/google');
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location as string);
+    expect(location.origin + location.pathname).toBe(
+      'https://accounts.google.com/o/oauth2/v2/auth',
+    );
+    expect(location.searchParams.get('client_id')).toBe(FAKE_GOOGLE_OAUTH.clientId);
+    expect(location.searchParams.get('redirect_uri')).toBe(FAKE_GOOGLE_OAUTH.redirectUri);
+    expect(location.searchParams.get('state')).not.toBe('');
+
+    const setCookie = (res.headers['set-cookie'] as unknown as string[]).join('; ');
+    expect(setCookie).toContain('googleOauthState=');
+  });
+
+  it('returns 404 when Google OAuth is not configured', async () => {
+    const res = await request(createTestApp()).get('/api/auth/google');
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/auth/google/callback', () => {
+  /** Drives the real /api/auth/google redirect first so the agent holds a genuine state cookie. */
+  async function startFlow(agent: ReturnType<typeof request.agent>): Promise<{ state: string }> {
+    const startRes = await agent.get('/api/auth/google');
+    const location = new URL(startRes.headers.location as string);
+    return { state: location.searchParams.get('state') ?? '' };
+  }
+
+  it('creates a brand-new User (googleId set, no password) and issues the same JWT pair as login', async () => {
+    const email = `newuser${GOOGLE_TEST_EMAIL_SUFFIX}`;
+    const identity: GoogleIdentity = { googleId: 'google-id-newuser', email };
+    const app = createTestAppWithGoogleOAuth(identity);
+    const agent = request.agent(app);
+    const { state } = await startFlow(agent);
+
+    const res = await agent.get(`/api/auth/google/callback?code=fake-code&state=${state}`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(
+      new RegExp(`^${FAKE_GOOGLE_OAUTH.webOrigin}/auth/callback#accessToken=`),
+    );
+    const accessToken = decodeURIComponent(
+      (res.headers.location as string).split('#accessToken=')[1] ?? '',
+    );
+    const payload = await verifyAccessToken(accessToken, JWT_ACCESS_SECRET, new Date());
+    expect(payload).not.toBeNull();
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(user?.googleId).toBe('google-id-newuser');
+    expect(user?.passwordHash).toBeNull();
+
+    const refreshToken = extractRefreshToken(res);
+    await expect(
+      prisma.session.findUnique({ where: { hashedRefreshToken: hashRefreshToken(refreshToken) } }),
+    ).resolves.not.toBeNull();
+  });
+
+  it('links Google to an existing password-based account sharing the same email', async () => {
+    const email = `linked${GOOGLE_TEST_EMAIL_SUFFIX}`;
+    await request(createTestApp())
+      .post('/api/auth/signup')
+      .send({ email, password: FAKE_PASSWORD });
+
+    const identity: GoogleIdentity = { googleId: 'google-id-linked', email };
+    const app = createTestAppWithGoogleOAuth(identity);
+    const agent = request.agent(app);
+    const { state } = await startFlow(agent);
+
+    const res = await agent.get(`/api/auth/google/callback?code=fake-code&state=${state}`);
+    expect(res.status).toBe(302);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(user?.googleId).toBe('google-id-linked');
+    // The original password still exists — linking Google didn't clobber it.
+    expect(user?.passwordHash).not.toBeNull();
+    await expect(prisma.user.count({ where: { email } })).resolves.toBe(1);
+  });
+
+  it('reuses the same User on a second login with the same Google identity — no duplicate row', async () => {
+    const email = `repeat${GOOGLE_TEST_EMAIL_SUFFIX}`;
+    const identity: GoogleIdentity = { googleId: 'google-id-repeat', email };
+
+    const firstApp = createTestAppWithGoogleOAuth(identity);
+    const firstAgent = request.agent(firstApp);
+    const first = await startFlow(firstAgent);
+    await firstAgent.get(`/api/auth/google/callback?code=fake-code&state=${first.state}`);
+
+    const secondApp = createTestAppWithGoogleOAuth(identity);
+    const secondAgent = request.agent(secondApp);
+    const second = await startFlow(secondAgent);
+    await secondAgent.get(`/api/auth/google/callback?code=fake-code&state=${second.state}`);
+
+    await expect(prisma.user.count({ where: { googleId: 'google-id-repeat' } })).resolves.toBe(1);
+    await expect(prisma.user.count({ where: { email } })).resolves.toBe(1);
+  });
+
+  it('redirects to a login error page on a state mismatch (CSRF check failed)', async () => {
+    const app = createTestAppWithGoogleOAuth({
+      googleId: 'x',
+      email: `x${GOOGLE_TEST_EMAIL_SUFFIX}`,
+    });
+    const agent = request.agent(app);
+    await startFlow(agent);
+
+    const res = await agent.get('/api/auth/google/callback?code=fake-code&state=wrong-state');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${FAKE_GOOGLE_OAUTH.webOrigin}/login?error=oauth_failed`);
+  });
+
+  it('redirects to a login error page when no state cookie was ever set', async () => {
+    const app = createTestAppWithGoogleOAuth({
+      googleId: 'x',
+      email: `x2${GOOGLE_TEST_EMAIL_SUFFIX}`,
+    });
+
+    const res = await request(app).get('/api/auth/google/callback?code=fake-code&state=anything');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${FAKE_GOOGLE_OAUTH.webOrigin}/login?error=oauth_failed`);
+  });
+
+  it('redirects to a login error page when the code exchange fails', async () => {
+    const app = createTestAppWithGoogleOAuth(null, { exchangeFails: true });
+    const agent = request.agent(app);
+    const { state } = await startFlow(agent);
+
+    const res = await agent.get(`/api/auth/google/callback?code=fake-code&state=${state}`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${FAKE_GOOGLE_OAUTH.webOrigin}/login?error=oauth_failed`);
+  });
+
+  it('redirects to a login error page when Google ID-token verification fails', async () => {
+    // Exchange succeeds, but the identity comes back null (e.g. bad signature, unverified email).
+    const app = createTestAppWithGoogleOAuth(null);
+    const agent = request.agent(app);
+    const { state } = await startFlow(agent);
+
+    const res = await agent.get(`/api/auth/google/callback?code=fake-code&state=${state}`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`${FAKE_GOOGLE_OAUTH.webOrigin}/login?error=oauth_failed`);
+  });
+
+  it('returns 404 when Google OAuth is not configured', async () => {
+    const res = await request(createTestApp()).get('/api/auth/google/callback?code=x&state=y');
+    expect(res.status).toBe(404);
   });
 });

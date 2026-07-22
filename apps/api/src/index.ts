@@ -14,6 +14,7 @@ import { fetchN2yoPositions } from './clients/n2yo/index.js';
 import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
 import { fetchHorizons } from './clients/jpl-horizons/index.js';
+import type { GoogleOAuthConfig } from './routes/auth.js';
 
 /**
  * `.env` is loaded on a best-effort basis: local dev relies on it, but
@@ -41,6 +42,37 @@ const jwtAccessSecret = requireEnv('JWT_ACCESS_SECRET');
 const port = Number(process.env.PORT ?? 3000);
 
 /**
+ * Google OAuth is additive, never a prerequisite (ARCHITECTURE.md §3 G)
+ * — read optionally, not via `requireEnv`, so the app still boots (and
+ * every other auth route still works) with no Google app registered
+ * yet. Only enabled once every piece it needs is present.
+ */
+function readGoogleOAuthConfig(): GoogleOAuthConfig | undefined {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const webOrigin = process.env.WEB_ORIGIN;
+  if (
+    clientId === undefined ||
+    clientId === '' ||
+    clientSecret === undefined ||
+    clientSecret === '' ||
+    redirectUri === undefined ||
+    redirectUri === '' ||
+    webOrigin === undefined ||
+    webOrigin === ''
+  ) {
+    console.warn(
+      '[auth] Google OAuth is disabled — GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI/WEB_ORIGIN not all set',
+    );
+    return undefined;
+  }
+  return { clientId, clientSecret, redirectUri, webOrigin };
+}
+
+const googleOAuth = readGoogleOAuthConfig();
+
+/**
  * Fail fast, before any poller or the HTTP listener starts: Prisma
  * otherwise connects lazily on first query, which would boot an app
  * whose every DB-backed route 500s. The error message is logged without
@@ -58,7 +90,7 @@ try {
 startFastTierLoop({ fetchN2yoPositions, fetchSwpcFast, n2yoApiKey });
 startSlowTierLoop({ fetchNasaDonki, fetchNasaNeows, fetchHorizons, fetchSwpcSlow, nasaApiKey });
 
-const app = createApp({ n2yoApiKey, prisma, jwtAccessSecret });
+const app = createApp({ n2yoApiKey, prisma, jwtAccessSecret, googleOAuth });
 app.listen(port, () => {
   console.warn(`[api] listening on port ${port}`);
 });

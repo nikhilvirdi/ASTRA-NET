@@ -10,13 +10,16 @@ import type { PrismaClient } from '@prisma/client';
 import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
-import { registerAuthRoutes } from './routes/auth.js';
+import { registerAuthRoutes, type AuthRouteDeps } from './routes/auth.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
   prisma: PrismaClient;
   jwtAccessSecret: string;
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
+  googleOAuth?: AuthRouteDeps['googleOAuth'];
+  exchangeGoogleAuthCode?: AuthRouteDeps['exchangeGoogleAuthCode'];
+  verifyGoogleIdToken?: AuthRouteDeps['verifyGoogleIdToken'];
 }
 
 export function createApp(deps: CreateAppDeps): Express {
@@ -25,7 +28,13 @@ export function createApp(deps: CreateAppDeps): Express {
   registerHealthRoute(app);
   registerStreamRoute(app);
   registerBriefRoute(app, deps);
-  registerAuthRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
+  registerAuthRoutes(app, {
+    prisma: deps.prisma,
+    jwtAccessSecret: deps.jwtAccessSecret,
+    googleOAuth: deps.googleOAuth,
+    exchangeGoogleAuthCode: deps.exchangeGoogleAuthCode,
+    verifyGoogleIdToken: deps.verifyGoogleIdToken,
+  });
 
   return app;
 }
