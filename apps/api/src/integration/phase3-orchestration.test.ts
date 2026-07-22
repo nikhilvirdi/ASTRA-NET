@@ -14,6 +14,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { createApp } from '../app.js';
+import { createPrismaClient } from '../db/client.js';
 import type { HealthPayload } from '../routes/health.js';
 import type { FastTierStreamPayload } from '../routes/stream.js';
 import {
@@ -31,6 +32,10 @@ import type { N2yoPositionsData } from '../clients/n2yo/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
+
+// Never connects: this file exercises routes that don't touch the DB,
+// and Prisma only opens a connection on first query.
+const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
 
 const issSuccess: N2yoPositionsData = {
   satId: 25544,
@@ -110,7 +115,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     // Real socket I/O needs the real event loop from here on.
     vi.useRealTimers();
 
-    const app = createApp({ n2yoApiKey: 'TEST_KEY' });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
     server = http.createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const port = (server.address() as AddressInfo).port;

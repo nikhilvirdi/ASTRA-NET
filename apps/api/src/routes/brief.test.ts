@@ -1,9 +1,14 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
+import { createPrismaClient } from '../db/client.js';
 import { resetStore, setSourceState } from '../poller/store.js';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
 import type { DailyBrief } from '../brief/build-brief.js';
+
+// Never connects: these tests exercise a route that doesn't touch the
+// DB, and Prisma only opens a connection on first query.
+const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
 
 const NOW_SECONDS = Math.floor(Date.now() / 1000);
 
@@ -37,20 +42,20 @@ describe('GET /api/brief', () => {
   });
 
   it('400s when lat/lon are missing', async () => {
-    const app = createApp({ n2yoApiKey: 'TEST_KEY' });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
     const res = await request(app).get('/api/brief');
     expect(res.status).toBe(400);
   });
 
   it('400s when lat/lon are out of range', async () => {
-    const app = createApp({ n2yoApiKey: 'TEST_KEY' });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
     const res = await request(app).get('/api/brief?lat=999&lon=45');
     expect(res.status).toBe(400);
   });
 
   it('200s with a resolved Brief for valid coordinates, including a live-fetched next pass', async () => {
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', fetchN2yoVisualPasses });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -92,7 +97,7 @@ describe('GET /api/brief', () => {
       true,
     );
     const fetchN2yoVisualPasses = vi.fn().mockRejectedValue(new Error('N2YO down'));
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', fetchN2yoVisualPasses });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -125,7 +130,7 @@ describe('GET /api/brief', () => {
     );
 
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', fetchN2yoVisualPasses });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;

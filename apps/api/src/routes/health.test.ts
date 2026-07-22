@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { buildHealthPayload, type HealthPayload } from './health.js';
 import { createApp } from '../app.js';
+import { createPrismaClient } from '../db/client.js';
 import { resetStore, setSourceState } from '../poller/store.js';
+
+// Never connects: these tests exercise a route that doesn't touch the
+// DB, and Prisma only opens a connection on first query.
+const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
 
 const NOW = new Date('2026-07-17T12:00:00.000Z');
 
@@ -64,7 +69,7 @@ describe('GET /health', () => {
   it('responds 200 with the health payload shape', async () => {
     setSourceState('donki', { cmes: [], flares: [], fetchedAt: 't' }, 't', true);
 
-    const res = await request(createApp({ n2yoApiKey: 'TEST_KEY' })).get('/health');
+    const res = await request(createApp({ n2yoApiKey: 'TEST_KEY', prisma })).get('/health');
     const body = res.body as HealthPayload;
 
     expect(res.status).toBe(200);

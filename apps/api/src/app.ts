@@ -6,12 +6,15 @@
  */
 
 import express, { type Express } from 'express';
+import type { PrismaClient } from '@prisma/client';
 import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
+import { registerAuthRoutes } from './routes/auth.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
+  prisma: PrismaClient;
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
 }
 
@@ -21,6 +24,7 @@ export function createApp(deps: CreateAppDeps): Express {
   registerHealthRoute(app);
   registerStreamRoute(app);
   registerBriefRoute(app, deps);
+  registerAuthRoutes(app, { prisma: deps.prisma });
 
   return app;
 }

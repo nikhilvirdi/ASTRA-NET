@@ -4,9 +4,14 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { buildFastTierStreamPayload, formatSseEvent, registerStreamRoute } from './stream.js';
 import { createApp } from '../app.js';
+import { createPrismaClient } from '../db/client.js';
 import { resetStore, setSourceState } from '../poller/store.js';
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
 import type { SwpcFastData } from '../clients/swpc/index.js';
+
+// Never connects: these tests exercise a route that doesn't touch the
+// DB, and Prisma only opens a connection on first query.
+const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
 
 const NOW = new Date('2026-07-17T12:00:00.000Z');
 
@@ -83,7 +88,7 @@ describe('GET /stream', () => {
 
   beforeEach(async () => {
     resetStore();
-    server = http.createServer(createApp({ n2yoApiKey: 'TEST_KEY' }));
+    server = http.createServer(createApp({ n2yoApiKey: 'TEST_KEY', prisma }));
     await new Promise<void>((resolve) => server.listen(0, resolve));
     port = (server.address() as AddressInfo).port;
   });
