@@ -6,6 +6,7 @@ import type { SwpcFastData, SwpcKpForecastEntry, SwpcSlowData } from '../clients
 import type { SourceState } from '../poller/store.js';
 
 const NOW = new Date('2026-07-17T12:00:00Z');
+const NEUTRAL_HISTORY = { hits: 0, trials: 0 };
 
 function sourceState<T>(
   data: T | null,
@@ -107,6 +108,7 @@ describe('buildSpaceWeatherCard', () => {
       45,
       -75,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.solarLine.headline).toBe('solar wind 430 km/s, Kp 4');
@@ -128,6 +130,7 @@ describe('buildSpaceWeatherCard', () => {
       45,
       -75,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.solarLine.headline).toBe('space weather unavailable');
@@ -142,6 +145,7 @@ describe('buildSpaceWeatherCard', () => {
       70,
       20,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.solarLine.live.speedKmS).toBeNull();
@@ -158,6 +162,7 @@ describe('buildSpaceWeatherCard', () => {
       65,
       -20,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.aurora?.hasActiveCme).toBe(true);
@@ -166,8 +171,44 @@ describe('buildSpaceWeatherCard', () => {
     expect(card.aurora?.confidence).not.toBeNull();
     expect(card.aurora?.confidenceBand).toBe(confidenceBand(card.aurora!.confidence!));
     expect(card.aurora?.factors).not.toBeNull();
-    // History factor has no accuracy-loop data yet (Phase 6) -> neutral Beta prior.
+    // Neutral Beta prior (FORMULAS.md §9) when the caller has no real history to feed in yet.
     expect(card.aurora?.factors?.history).toBeCloseTo(0.5, 10);
+    expect(card.aurora?.cmeActivityId).toBe('cme-1');
+    expect(card.aurora?.leadHours).not.toBeNull();
+    expect(card.aurora?.leadHours).toBeCloseTo(
+      (new Date(card.aurora!.cmeArrivalTime!).getTime() - NOW.getTime()) / 3_600_000,
+      10,
+    );
+  });
+
+  it('feeds real accuracy-loop history into f_hist instead of the neutral prior', () => {
+    const card = buildSpaceWeatherCard(
+      sourceState(fastData(), NOW.toISOString(), true),
+      sourceState(slowData([forecastEntry(0, 5)]), NOW.toISOString(), true),
+      sourceState(donkiData([cmeEvent('cme-1', 1, 800)]), NOW.toISOString(), true),
+      65,
+      -20,
+      NOW,
+      { hits: 3, trials: 4 },
+    );
+
+    // FORMULAS.md §8/§9: (hits + 2) / (trials + 4) = 5/8, not the naive 3/4.
+    expect(card.aurora?.factors?.history).toBeCloseTo(5 / 8, 10);
+  });
+
+  it('reports no CME identity/lead-time when there is no active CME', () => {
+    const card = buildSpaceWeatherCard(
+      sourceState(fastData(), NOW.toISOString(), true),
+      sourceState(slowData([forecastEntry(0, 4)]), NOW.toISOString(), true),
+      sourceState(donkiData([]), NOW.toISOString(), true),
+      45,
+      -75,
+      NOW,
+      NEUTRAL_HISTORY,
+    );
+
+    expect(card.aurora?.cmeActivityId).toBeNull();
+    expect(card.aurora?.leadHours).toBeNull();
   });
 
   it('treats a CME whose DBM-solved arrival has already passed as not active', () => {
@@ -178,6 +219,7 @@ describe('buildSpaceWeatherCard', () => {
       65,
       -20,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.aurora?.hasActiveCme).toBe(false);
@@ -195,6 +237,7 @@ describe('buildSpaceWeatherCard', () => {
       65,
       -20,
       NOW,
+      NEUTRAL_HISTORY,
     );
 
     expect(card.aurora?.hasActiveCme).toBe(true);

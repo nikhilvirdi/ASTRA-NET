@@ -115,10 +115,11 @@ function fullPollerState(): PollerState {
 }
 
 const NO_VISUAL_PASSES: N2yoVisualPassesData | null = null;
+const NEUTRAL_HISTORY = { hits: 0, trials: 0 };
 
 describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
   it('full-data case: every available card resolves', () => {
-    const brief = buildBrief(fullPollerState(), 45, -75, NOW, NO_VISUAL_PASSES);
+    const brief = buildBrief(fullPollerState(), 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
 
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');
@@ -160,7 +161,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       fetchedAt: NOW.toISOString(),
     };
 
-    const brief = buildBrief(fullPollerState(), 45, -75, NOW, visualPasses);
+    const brief = buildBrief(fullPollerState(), 45, -75, NOW, visualPasses, NEUTRAL_HISTORY);
 
     expect(brief.iss.status).toBe('ok');
     expect(brief.iss.data?.nextPass?.startUtc).toBe(NOW_SECONDS + 3600);
@@ -171,7 +172,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     // Simulate DONKI down — space weather (SWPC-driven) must still resolve.
     state.donki = empty();
 
-    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES);
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
 
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');
@@ -184,7 +185,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     state.solarWind = empty();
     state.spaceWeatherForecast = empty();
 
-    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES);
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
 
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');
@@ -221,7 +222,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       fetchedAt: NOW.toISOString(),
     };
 
-    const brief = buildBrief(state, 45, -75, NOW, visualPasses);
+    const brief = buildBrief(state, 45, -75, NOW, visualPasses, NEUTRAL_HISTORY);
 
     expect(brief.iss.status).toBe('ok');
     expect(brief.iss.data?.position).toBeNull();
@@ -232,7 +233,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     const state = fullPollerState();
     state.neows = empty();
 
-    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES);
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
 
     expect(brief.neoImagery.status).toBe('ok');
     expect(brief.neoImagery.data?.neo).toBeNull();
@@ -240,7 +241,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
   });
 
   it('total-outage case: the Brief still renders because Sky Anchor never fails', () => {
-    const brief = buildBrief(emptyPollerState(), 45, -75, NOW, NO_VISUAL_PASSES);
+    const brief = buildBrief(emptyPollerState(), 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
 
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');

@@ -54,6 +54,13 @@ export function buildBrief(
    * `iss-card.ts`'s header comment and DECISIONS.md.
    */
   issVisualPasses: N2yoVisualPassesData | null,
+  /**
+   * Real rolling accuracy-loop hits/trials (FORMULAS.md §9), queried by
+   * the HTTP layer (`predictions/history.ts`) — global scope, not
+   * per-user (DECISIONS.md). Same "fetched outside, passed in" shape as
+   * `issVisualPasses` above, keeping this core I/O-free.
+   */
+  predictionHistory: { hits: number; trials: number },
 ): DailyBrief {
   // Sky Anchor is pure Sun-position math over observer/now — it has no
   // external source to fail, so it always resolves (ARCHITECTURE.md §5's
@@ -77,6 +84,7 @@ export function buildBrief(
           observerLatDeg,
           observerLonDeg,
           now,
+          predictionHistory,
         ),
       )
     : UNAVAILABLE_CARD;

@@ -36,6 +36,7 @@ import type {
   SwpcSolarWindEntry,
 } from '../clients/swpc/index.js';
 import type { SourceState } from '../poller/store.js';
+import { selectNearestByTimeTag } from '../util/time-match.js';
 
 /**
  * DONKI does not publish a measured speed uncertainty per CME analysis, so
@@ -72,9 +73,13 @@ export interface AuroraCardData {
   auroraOvalBoundaryDeg: number;
   hasActiveCme: boolean;
   cmeArrivalTime: string | null;
+  /** DONKI's `activityId` for the CME driving this prediction — Phase 6's `Prediction.context` needs "which CME." */
+  cmeActivityId: string | null;
   confidence: number | null;
   confidenceBand: ConfidenceBand | null;
   factors: { lead: number; agreement: number; history: number } | null;
+  /** Hours between `now` and the predicted arrival — raw lead time, distinct from `factors.lead`'s decayed [0.3,1] factor value. */
+  leadHours: number | null;
 }
 
 export interface SpaceWeatherCard {
@@ -88,12 +93,7 @@ export function selectNearestForecastEntry(
   entries: SwpcKpForecastEntry[],
   now: Date,
 ): SwpcKpForecastEntry | null {
-  return entries.reduce<SwpcKpForecastEntry | null>((closest, entry) => {
-    if (closest === null) return entry;
-    const entryDiff = Math.abs(new Date(entry.timeTag).getTime() - now.getTime());
-    const closestDiff = Math.abs(new Date(closest.timeTag).getTime() - now.getTime());
-    return entryDiff < closestDiff ? entry : closest;
-  }, null);
+  return selectNearestByTimeTag(entries, now);
 }
 
 function selectAmbientWindKmS(
@@ -115,6 +115,7 @@ function selectCmeAnalysis(analyses: DonkiCmeAnalysis[]): DonkiCmeAnalysis | nul
 interface ActiveCme {
   event: CmeEvent;
   arrivalTime: Date;
+  activityId: string;
 }
 
 /**
@@ -152,6 +153,7 @@ function selectActiveCme(
       return {
         event: { v0KmS, predictedArrivalTime: arrival.arrivalTime },
         arrivalTime: arrival.arrivalTime,
+        activityId: cme.activityId,
       };
     }
   }
@@ -197,6 +199,8 @@ function buildAuroraCard(
   observerLatDeg: number,
   observerLonDeg: number,
   now: Date,
+  /** Real accuracy-loop hits/trials (FORMULAS.md §9), global not per-user — see DECISIONS.md. */
+  history: { hits: number; trials: number },
 ): AuroraCardData {
   const kpPredicted = nearestForecastEntry.kp;
 
@@ -227,18 +231,22 @@ function buildAuroraCard(
       ...base,
       hasActiveCme: false,
       cmeArrivalTime: null,
+      cmeActivityId: null,
       confidence: null,
       confidenceBand: null,
       factors: null,
+      leadHours: null,
     };
   }
 
-  // History factor: Phase 6's accuracy loop doesn't exist yet, so hits/trials
-  // stay at the neutral Beta prior (FORMULAS.md §9) -> f_hist = 0.5 always,
-  // not an invented number. Logged in DECISIONS.md.
+  // History factor: real rolling hits/trials from Phase 6's accuracy loop
+  // (FORMULAS.md §9), fed in by the HTTP layer (routes/brief.ts) rather
+  // than fetched here — this card stays pure/I/O-free. Global scope, not
+  // per-user (DECISIONS.md): with zero trials this still lands on the
+  // neutral Beta prior, f_hist = 0.5, same as before the loop existed.
   const confidencePrediction = predictAuroraConfidence(
     activeCme.event,
-    { kpPredicted, history: { hits: 0, trials: 0 } },
+    { kpPredicted, history },
     now,
   );
 
@@ -246,9 +254,11 @@ function buildAuroraCard(
     ...base,
     hasActiveCme: true,
     cmeArrivalTime: activeCme.arrivalTime.toISOString(),
+    cmeActivityId: activeCme.activityId,
     confidence: confidencePrediction.confidence,
     confidenceBand: confidencePrediction.confidenceBand,
     factors: confidencePrediction.factors,
+    leadHours: confidencePrediction.leadHours,
   };
 }
 
@@ -259,6 +269,8 @@ export function buildSpaceWeatherCard(
   observerLatDeg: number,
   observerLonDeg: number,
   now: Date,
+  /** Real accuracy-loop hits/trials (FORMULAS.md §9), global not per-user — see DECISIONS.md. */
+  history: { hits: number; trials: number },
 ): SpaceWeatherCard {
   const forecastEntries = spaceWeatherForecast.data?.kpForecast ?? null;
   const nearestForecastEntry = forecastEntries
@@ -275,6 +287,7 @@ export function buildSpaceWeatherCard(
         observerLatDeg,
         observerLonDeg,
         now,
+        history,
       )
     : null;
 
