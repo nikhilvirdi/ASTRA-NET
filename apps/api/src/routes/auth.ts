@@ -38,6 +38,7 @@ import {
   verifyGoogleIdToken as defaultVerifyGoogleIdToken,
   type GoogleIdentity,
 } from '../clients/google/index.js';
+import { requireAuth } from '../auth/require-auth.js';
 
 /**
  * No doc pins a password policy, so this is deliberately minimal: a
@@ -309,6 +310,33 @@ export function registerAuthRoutes(app: Express, deps: AuthRouteDeps): void {
       res.status(200).json({ accessToken });
     } catch (error) {
       logUnexpectedAuthError('refresh', error);
+      res.status(500).json({ error: 'internal error' });
+    }
+  });
+
+  /**
+   * The first route `requireAuth` actually protects (WORKPLAN.md Phase
+   * 5's DoD: "...and access a protected route"). Deliberately minimal —
+   * a "who am I" endpoint any authed client needs regardless of Phase
+   * 6's specific per-user features, not a preview of those features.
+   */
+  app.get('/api/auth/me', requireAuth({ jwtAccessSecret }), async (req: Request, res: Response) => {
+    const userId = req.userId;
+    if (userId === undefined) {
+      // Unreachable in practice — requireAuth always sets this before
+      // calling next() — but narrows the type without a non-null assertion.
+      res.status(401).json({ error: 'invalid or expired access token' });
+      return;
+    }
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user === null) {
+        res.status(401).json({ error: 'user no longer exists' });
+        return;
+      }
+      res.status(200).json({ id: user.id, email: user.email });
+    } catch (error) {
+      logUnexpectedAuthError('me', error);
       res.status(500).json({ error: 'internal error' });
     }
   });

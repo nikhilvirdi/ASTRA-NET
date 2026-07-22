@@ -420,6 +420,33 @@ describe('POST /api/auth/refresh', () => {
   });
 });
 
+describe('GET /api/auth/me', () => {
+  it('returns the authenticated user for a valid access token', async () => {
+    const app = createTestApp();
+    const { accessToken, email } = await signupAndLogin(app, 'me-basic');
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(200);
+    const user = await prisma.user.findUnique({ where: { email } });
+    expect(res.body).toEqual({ id: user?.id, email });
+  });
+
+  it('returns 401 with no Authorization header', async () => {
+    const res = await request(createTestApp()).get('/api/auth/me');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 for a malformed/expired access token', async () => {
+    const res = await request(createTestApp())
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer not-a-real-token');
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('GET /api/auth/google', () => {
   it('redirects to Google with the configured client id/redirect uri and sets a state cookie', async () => {
     const res = await request(createTestAppWithGoogleOAuth(null)).get('/api/auth/google');
