@@ -11,6 +11,7 @@ import { createPrismaClient } from './db/client.js';
 import { startFastTierLoop } from './poller/fast-tier.js';
 import { startSlowTierLoop } from './poller/slow-tier.js';
 import { startCacheSweepLoop, sweepExpiredCache } from './cache/store.js';
+import { runAccuracyJob, startAccuracyJobLoop } from './predictions/accuracy.js';
 import { fetchN2yoPositions } from './clients/n2yo/index.js';
 import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
@@ -91,6 +92,7 @@ try {
 startFastTierLoop({ fetchN2yoPositions, fetchSwpcFast, n2yoApiKey });
 startSlowTierLoop({ fetchNasaDonki, fetchNasaNeows, fetchHorizons, fetchSwpcSlow, nasaApiKey });
 startCacheSweepLoop({ prisma, sweepExpiredCache });
+startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob });
 
 const app = createApp({ n2yoApiKey, prisma, jwtAccessSecret, googleOAuth });
 app.listen(port, () => {
