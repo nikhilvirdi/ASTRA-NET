@@ -13,6 +13,7 @@ export default defineConfig({
         'src/brief/**/*.ts',
         'src/auth/**/*.ts',
         'src/db/**/*.ts',
+        'src/cache/**/*.ts',
         'src/app.ts',
       ],
       exclude: [
@@ -24,6 +25,7 @@ export default defineConfig({
         'src/brief/**/*.test.ts',
         'src/auth/**/*.test.ts',
         'src/db/**/*.test.ts',
+        'src/cache/**/*.test.ts',
       ],
       thresholds: {
         lines: 80,
