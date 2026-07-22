@@ -13,11 +13,13 @@
     "@astranet/shared": "*",
     "@prisma/client": "^6.0.0",
     "argon2": "^0.44.0",
+    "cookie": "^0.7.2",
     "express": "^5.2.1",
     "jose": "^6.2.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/cookie": "^0.6.0",
     "@types/express": "^5.0.6",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^2.1.9",
