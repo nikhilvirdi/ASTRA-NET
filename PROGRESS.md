@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 7 — Frontend Foundation & Daily Brief` (Antigravity)
+**Current Phase:** `Phase 8 — The Explorable Universe (3D)`
 
 ---
 
@@ -397,3 +397,30 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: gates green — `npx tsc --build --force` zero errors; `eslint apps/api/src --max-warnings=0` clean; `prettier --check apps/api/src` clean; apps/api 333/333 tests (incl. real-Postgres brief tests) and packages/shared 110/110 passing — by Claude Code
 - ✅ Done: corrected the DECISIONS.md "Daily Brief Location Fallback" entry to the real 2-step chain (`store.location` -> Srinagar) and moved it out of the middle of the typecheck-gap entry it had been inserted into — by Claude Code
 - ⛔ Not done (frontend half, out of scope): `HorizonBand.tsx` still uses its hardcoded Jupiter RA/Dec and `apps/web/src/lib/api.ts` types don't yet declare the new payload fields — wiring the frontend to consume `skyAnchor.data.jupiter` and the pass azimuths remains open Phase 7 work.
+
+## 2026-07-23 (Phase 7 frontend close-out — independent verification of Antigravity's work, by Claude Code)
+
+Re-ran every gate Antigravity reported as "verified during authoring" but could not actually execute (sandbox denial). Real results:
+
+- ✅ Pass: `npx tsc --build --force` (whole repo) — zero errors.
+- ⛔ Fail: `npx eslint apps/web/src --max-warnings=0` — 1 error, `HorizonBand.tsx:56 'jd' assigned but never used` (dead `julianDay` call left from the pre-refactor math).
+- ⛔ Fail: `npx prettier --check` on all six touched files — every one reports formatting issues.
+- ✅ Pass: Sun marker reads real `skyAnchor.data.sunAltitudeDeg`, no longer imports shared Sun-position functions. Azimuth hardcoded to 180°/South — decided + logged as a documented deviation (proper fix is a backend `sunAzimuthDeg` field, not client-side recompute). See `DECISIONS.md`.
+- ✅ Pass: Jupiter marker reads `jupiter.altitudeDeg`/`azimuthDeg`; runtime-verified those exact keys are what `/api/brief` emits; `api.ts` type matches.
+- ✅ Pass: NEO sky marker gone from the render; DECISIONS.md entry is real, accurate, reads as a deliberate deviation.
+- ⛔ Fail (real defect): ISS marker reads `pos.azimuth`, but `/api/brief`'s position field has **no** azimuth — runtime-verified (`'azimuth' in position === false` even with a fixture carrying azimuth 33.82). `api.ts`'s `IssPositionField.azimuth` is a re-guessed field the payload never sends → `undefined` → NaN marker position. Task A's real azimuths live on `nextPass`, which `api.ts` doesn't even declare.
+- ⛔ Fail (real defect): literal hex remains — `HorizonBand.tsx:166` (`#3B7A57`), `BriefPage.tsx:232-233` (`#C9B187`).
+- ✅ Pass: total-failure error UI renders live — backend down → fetch rejects (console: `Failed to fetch brief: 500`) → "Telemetry Failure" screen with RETRY. (Note: the earlier "unused `error` state / no error UI" finding is now resolved in the code.)
+- ⛔ Phase 7 stays OPEN: `WORKPLAN.md` Current Phase marker NOT advanced. Open items: eslint dead `jd`, prettier on 6 files, ISS azimuth wiring (consume a `nextPass` azimuth, drop the fabricated `position.azimuth` type), hex→token cleanup.
+- ⏭️ Next: hand the four open items back for fix, then re-run gates before closing Phase 7.
+
+## 2026-07-23 (Phase 7 close-out — four open items fixed + gates green, by Claude Code)
+
+- ✅ Done: eslint — removed dead `julianDay` import + unused `jd` in `HorizonBand.tsx`; also dropped the now-unused `observerLat`/`observerLon` locals left from the deleted client-side math — by Claude Code
+- ✅ Done: prettier — `--write` on all six touched files — by Claude Code
+- ✅ Done: ISS azimuth (real bug) — deleted the fabricated `IssPositionField.azimuth` from `api.ts`, added the six real `nextPass` azimuth fields (`start/max/endAzimuthDeg` + compass) that match the backend. `HorizonBand` now only draws the ISS marker while the scrub time is inside the next-pass window, interpolating azimuth (shortest-path, North-crossing safe) and altitude (0→peak→0) across the pass's own start/max/end timestamps; outside the window the marker is hidden rather than faked. Approach documented in a code comment. — by Claude Code
+- ✅ Done: hex→tokens — `HorizonBand` aurora glow now uses `var(--color-aurora)`; `BriefPage` ISS-arc SVG uses `var(--color-brass-300)` (exact match for the old `#C9B187`) — by Claude Code
+- ✅ Done: deleted leftover stub `apps/web/src/DECISIONS_PHASE7_PENDING.md` — by Claude Code
+- ✅ Gates green (real output): `npx tsc --build --force` → exit 0; `npx eslint apps/web/src --max-warnings=0` → exit 0; `npx prettier --check` (6 files) → "All matched files use Prettier code style!" exit 0. Azimuth interpolation math unit-checked (350°→10° @0.5 = 0°, endpoints exact).
+- ✅ Phase 7 CLOSED → `WORKPLAN.md` Current Phase advanced to Phase 8. Standing documented deviation carried forward: Sun-marker azimuth is a due-South placeholder pending a backend `sunAzimuthDeg` field (see DECISIONS.md).
+- ⏭️ Next: Phase 8 — The Explorable Universe (3D).

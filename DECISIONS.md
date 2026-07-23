@@ -365,3 +365,40 @@ Flagging both as a dedicated cleanup task (fix `ignorePatterns`, decide whether 
 5. **ISS azimuth was already fetched, never exposed.** The N2YO visualpasses client has parsed and normalized `startAz`/`maxAz`/`endAz` + compass strings since Phase 1 (`n2yo.schemas.ts`/`n2yo.types.ts`); `iss-card.ts` simply dropped them when shaping `IssNextPassField`. Fixed as exposure only (`startAzimuthDeg`/`maxAzimuthDeg`/`endAzimuthDeg` + `...Compass`) — no refetch, no recomputation, per this task's explicit instruction.
 
 **Frontend not touched:** `HorizonBand.tsx`'s hardcoded Jupiter marker and `apps/web/src/lib/api.ts`'s payload types still predate these fields — consuming them is the frontend half of the Phase 7 close-out, deliberately out of this backend task's scope.
+
+## 2026-07-23 — Phase 7: Horizon Band Sun marker azimuth left as a placeholder (deviation)
+
+`HorizonBand.tsx`'s Sun marker plots `sunAltitudeDeg` (real, from `skyAnchor.data`) but hardcodes `azimuthDeg = 180` (due South). This is a deliberate, documented deviation — same class as the NEO-marker removal above — for two reasons:
+
+1. **The payload carries no Sun azimuth.** `SkyAnchorCard` exposes only `sunAltitudeDeg`; there is no `sunAzimuthDeg` field to consume. So "compute it properly from `sunAltitudeDeg`'s underlying data" is not available client-side — altitude alone does not determine azimuth.
+2. **Doing it client-side would re-introduce the coupling this refactor just removed.** Computing real Sun azimuth in the component means importing `packages/shared`'s Sun-position engine and re-running the FORMULAS.md §2/§3 math against observer+time — exactly the engine-in-the-frontend pattern Phase 7 deliberately deleted (the component now consumes the backend payload instead). Re-adding it for the Sun only would be architecturally backwards and inconsistent with how Jupiter (backend `equatorialToHorizontal`) and ISS azimuth were handled.
+
+**Proper resolution (follow-up, backend-side):** add `sunAzimuthDeg` to `SkyAnchorCard` — the Sun-position engine already computes azimuth alongside altitude, so this is exposure-only, mirroring the Jupiter/ISS azimuth backend work in the entry above. Until that field ships, the marker's due-South placeholder stands. Logged rather than left silent per the Phase 7 verification pass.
+
+## 2026-07-23 — Phase 7 frontend close-out: independent verification (Claude Code) — NOT closing the phase
+
+Independently re-ran the gates Antigravity could not (its self-report substituted "verified during authoring" for real output). Findings, with real command output:
+
+- **`npx tsc --build --force`: PASS** (exit 0, clean).
+- **`npx eslint apps/web/src --max-warnings=0`: FAIL** — `HorizonBand.tsx:56  'jd' is assigned a value but never used` (`@typescript-eslint/no-unused-vars`). `julianDay` is imported and `const jd = julianDay(effectiveTime)` computed but never consumed — dead code left from the pre-refactor Sun/Jupiter math.
+- **`npx prettier --check` (six touched files): FAIL** — all six report formatting issues.
+- **ISS marker shape mismatch (real defect):** `HorizonBand.tsx` reads `brief.iss.data.position.azimuth`, and `apps/web/src/lib/api.ts`'s `IssPositionField` declares `azimuth: number`. But `/api/brief`'s ISS position field (`apps/api/src/brief/iss-card.ts` `IssPositionField`) has **no** `azimuth` — runtime-verified by feeding the real N2YO positions fixture (which carries `azimuth: 33.82`) through `buildIssCard`: the emitted position object is `{latitude, longitude, altitude, timestampUtc, fetchedAt, healthy}` and `'azimuth' in position === false`. So `api.ts` invented a field the payload never sends; `pos.azimuth` is `undefined` at runtime → the marker's x-coordinate is `NaN`. The azimuth data Task A actually exposed lives on `nextPass` (`startAzimuthDeg`/`maxAzimuthDeg`/`endAzimuthDeg`), which `api.ts`'s `IssNextPassField` does not even include. The ISS marker should consume a `nextPass` azimuth, not a non-existent `position.azimuth`.
+- **Residual hex literals (real defect):** `HorizonBand.tsx:166` `style={{ background: 'linear-gradient(to top, #3B7A57, transparent)' }}` and `BriefPage.tsx:232-233` SVG `stroke="#C9B187"`/`fill="#C9B187"` are literal hex, not design tokens.
+
+**Verified-good:** Sun marker reads real `sunAltitudeDeg` and no longer calls shared Sun-position functions; Jupiter marker reads `jupiter.altitudeDeg`/`azimuthDeg` matching the live payload; NEO sky marker is gone from the render with an accurate DECISIONS entry; the total-failure error UI renders live (backend down → fetch rejects with 500 → "Telemetry Failure" screen, console-confirmed).
+
+Phase 7's `Current Phase` marker stays open until the four defects above (eslint, prettier, ISS azimuth wiring, hex tokens) are resolved.
+
+## 2026-07-23 — Phase 7 CLOSED: four defects fixed, gates green
+
+All four open defects from the verification pass above are resolved; Phase 7's `Current Phase` marker advanced to Phase 8.
+
+- **eslint dead code:** removed the `julianDay` import and unused `jd`, plus the `observerLat`/`observerLon` locals that were only feeding the deleted client-side Sun/Jupiter math.
+- **prettier:** `--write` on all six touched files.
+- **ISS azimuth (the real bug + a design decision):** the wire payload has no per-instant ISS azimuth — only three sampled points on the next visible pass (`start`/`max`/`end`, each with a UTC timestamp). So `IssPositionField.azimuth` was deleted from `api.ts` (it never existed on the wire), and the six real `nextPass` azimuth fields the backend does send were added. `HorizonBand` now draws the ISS marker **only while the scrub time falls inside `[startUtc, endUtc]`**, interpolating azimuth and altitude along the pass's own timeline (rising leg start→max, descending leg max→end) rather than across the scrubber's full ±6h range. Azimuth interpolation is shortest-path so a North-crossing pass (e.g. 350°→10°) sweeps through 0° instead of winding backwards; altitude runs 0→`maxElevationDeg`→0 since peak elevation is the only altitude N2YO exposes and start/end sit at the horizon by the pass's visibility definition. Outside the window the ISS is not on a visible pass, so no marker is drawn — the same "absent, not fabricated" stance as the removed NEO marker. Rationale lives in a `HorizonBand.tsx` code comment too, since the "why it's not one number" is non-obvious to the next reader.
+- **hex → tokens:** confirmed mappings against `index.css` before substituting. `#C9B187` is an exact match for `--color-brass-300` (index.css:40) — used for the `BriefPage` ISS-arc SVG. `#3B7A57` had **no** matching token (it was an off-system value); the design system's aurora color is `--color-aurora` (`#7fa88a`, "muted sage-green — real weak aurora"), so the Horizon Band aurora glow now uses `var(--color-aurora)`. This is a small, deliberate visual shift toward the spec'd color rather than a like-for-like hex swap.
+- **stub removed:** `apps/web/src/DECISIONS_PHASE7_PENDING.md` deleted.
+
+Gate proof (real output): `npx tsc --build --force` → exit 0 (clean); `npx eslint apps/web/src --max-warnings=0` → exit 0; `npx prettier --check` on the six files → "All matched files use Prettier code style!" exit 0.
+
+**Carried forward (already logged above):** the Sun-marker azimuth is still a due-South placeholder; its proper fix is a backend `sunAzimuthDeg` field, tracked as a follow-up, not a Phase 7 blocker.
