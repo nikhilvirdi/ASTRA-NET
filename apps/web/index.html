@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO -->
+    <title>ASTRANET — Your Live Sky, Tonight</title>
+    <meta
+      name="description"
+      content="ASTRANET is a live, personalized sky companion — ISS passes, aurora odds, space weather, and tonight's best viewing spot, all tied to your real location and the actual sun."
+    />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://astranet.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ASTRANET — Your Live Sky, Tonight" />
+    <meta property="og:description" content="A live, personalized 3D sky companion." />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicon placeholder (replace with real asset in Phase 12) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!--
+      Google Fonts — three faces per DESIGN_SPEC.md §5.2 / ARCHITECTURE.md §2:
+        Archivo Variable  — display/interface (Arquivo was named in the atlas; Archivo is the corrected open-source name)
+        Martian Mono      — measurements (tabular figures, DESIGN_SPEC §5.4)
+        Newsreader        — explanatory prose / learning moment (optical-size variable)
+      Loaded via preconnect + link for best performance.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Martian+Mono:wght@100..800&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

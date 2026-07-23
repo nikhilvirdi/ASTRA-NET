@@ -440,3 +440,15 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - 📝 Logged, not fixed (see DECISIONS.md): `apps/api/scripts/ingest-*.js` eslint parsing errors (pre-existing, config decision — these keep repo-wide `eslint .` from fully passing); `color.ts:6` prefer-const (untouched — Antigravity's active Phase 8 star-field workstream); broad repo-wide Prettier debt in ~17 tracked config/doc files incl. `package-lock.json` (recommend a dedicated sweep, not a blanket `--write`); `ExplorePage.tsx`/`StarField.tsx` left untouched (active Phase 8 work). — by Claude Code
 - 📝 Note: the four formatted frontend files are untracked in git (Phase 7 frontend not yet committed); formatting applied on disk, not committed — first-adding in-progress multi-agent frontend source is left as a deliberate step. — by Claude Code
 - ⏭️ Next: Antigravity to (a) resolve `color.ts` prefer-const in-flow, (b) decide the `scripts/*.js` lint-config approach, (c) run a dedicated repo-wide Prettier sweep excluding the lockfile.
+
+## 2026-07-24 (Phase 8 Sky Anchor scene — independent verification, by Claude Code)
+
+- ✅ PASS — Overlay text live-wired: `ExplorePage` builds it from `getEffectiveLocation()` + a per-minute `sceneTime`; no hardcoded literal (grep clean); screenshot showed live values. — by Claude Code
+- ✅ PASS — Star positions: `equatorialToHorizontal` called with real RA/Dec/lat/lon/jd. Independent recompute confirms Polaris alt 33.91° ≈ latitude 34.08°, az ≈ 0° (ground truth); Vega high, Sirius below horizon, Arcturus low W. Catalog loads (8921 stars, mag ≤ 6.5). — by Claude Code
+- ✅ PASS — Point size = §2 `base·(1+0.35·(6.5−m))`; Tanner Helland RGB only in `lib/color.ts` (no dup); `@react-three/fiber` 8.18.0 in lockfile. — by Claude Code
+- ⛔ FAIL — Gates: `tsc --build --force` 3 errors in `StarField.tsx` (unguarded `number|undefined` buffer reads); `eslint` `color.ts:6` prefer-const; `prettier` `ExplorePage.tsx`+`StarField.tsx` unformatted. — by Claude Code
+- ⛔ FAIL — §2 brightness (`starBrightness`, `10^(−0.4·(m−6))`) never called; stars render full-intensity regardless of magnitude. — by Claude Code
+- 📝 Finding — catalog entry 0 is the Sun (mag −26.7, ra/dec/dist 0) → spurious ~50px point at a bogus position; ingest should filter it. — by Claude Code
+- ⚠️ Could NOT verify visual/FPS: automation runs Chrome backgrounded, so `/explore` tab is `visibilityState:"hidden"` → rAF suspended, R3F never paints (canvas black), FPS unmeasurable. Reported no number rather than an estimate. Scene _logic_ verified correct; live render/perf needs a real foreground browser. — by Claude Code
+- ⛔ WORKPLAN Current Phase marker NOT advanced (still Phase 8) — per instruction; also gates fail + brightness missing.
+- ⏭️ Next (for Antigravity): fix the 3 tsc buffer-read guards, color.ts prefer-const, prettier on the 2 files; implement §2 brightness in the render; filter the Sun from the catalog; and a real foreground-browser visual/FPS pass.
