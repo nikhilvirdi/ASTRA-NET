@@ -5,6 +5,7 @@ import {
   localSiderealTimeDeg,
   mod,
   sunEquatorialPosition,
+  sunHorizontalPosition,
 } from '@astranet/shared';
 import { buildSkyAnchorCard, classifyTwilightPhase } from './sky-anchor-card';
 import type { HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
@@ -46,6 +47,22 @@ describe('buildSkyAnchorCard', () => {
     expect(card).toBeDefined();
     expect(Number.isFinite(card.sunAltitudeDeg)).toBe(true);
     expect(card.jupiter).toBeNull();
+  });
+
+  it('exposes the Sun azimuth alongside its altitude, from the same §3 horizontal position', () => {
+    const now = new Date('2026-07-17T21:00:00Z');
+    const latDeg = 34.08;
+    const lonDeg = 74.8;
+
+    const card = buildSkyAnchorCard(latDeg, lonDeg, now, NO_JUPITER);
+    const expected = sunHorizontalPosition(now, latDeg, lonDeg);
+
+    // Both halves come from the one Sun-position call — never null (pure math,
+    // no external source), and the azimuth is a real bearing in [0, 360).
+    expect(card.sunAltitudeDeg).toBe(expected.altitudeDeg);
+    expect(card.sunAzimuthDeg).toBe(expected.azimuthDeg);
+    expect(card.sunAzimuthDeg).toBeGreaterThanOrEqual(0);
+    expect(card.sunAzimuthDeg).toBeLessThan(360);
   });
 
   it('reports "day" for an observer at the subsolar point (sun at zenith)', () => {

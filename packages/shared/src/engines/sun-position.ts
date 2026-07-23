@@ -1,6 +1,6 @@
 import { TWILIGHT_ISS_AURORA_DEG, TWILIGHT_STARS_DEG } from '../constants.js';
 import { degToRad, mod, radToDeg } from '../math-utils.js';
-import { equatorialToHorizontal, julianDay } from './sky-dome.js';
+import { equatorialToHorizontal, julianDay, type HorizontalPosition } from './sky-dome.js';
 
 export interface EquatorialPositionDeg {
   raDeg: number;
@@ -41,15 +41,29 @@ export function sunEquatorialPosition(jd: number): EquatorialPositionDeg {
   };
 }
 
+/**
+ * FORMULAS.md §4 — Sun's full horizontal position (altitude AND azimuth) for
+ * a given observer, via §3. The §3 transform already yields both components;
+ * `sunAltitudeDeg` below simply discards the azimuth, so exposing it here is
+ * exposure-only, not new computation.
+ */
+export function sunHorizontalPosition(
+  now: Date,
+  observerLatDeg: number,
+  observerLonEastDeg: number,
+): HorizontalPosition {
+  const jd = julianDay(now);
+  const { raDeg, decDeg } = sunEquatorialPosition(jd);
+  return equatorialToHorizontal(raDeg, decDeg, observerLatDeg, observerLonEastDeg, jd);
+}
+
 /** FORMULAS.md §4 — Sun's altitude for a given observer, via §3. */
 export function sunAltitudeDeg(
   now: Date,
   observerLatDeg: number,
   observerLonEastDeg: number,
 ): number {
-  const jd = julianDay(now);
-  const { raDeg, decDeg } = sunEquatorialPosition(jd);
-  return equatorialToHorizontal(raDeg, decDeg, observerLatDeg, observerLonEastDeg, jd).altitudeDeg;
+  return sunHorizontalPosition(now, observerLatDeg, observerLonEastDeg).altitudeDeg;
 }
 
 /** FORMULAS.md §4 — twilight decision: dark enough for ISS/aurora viewing. */

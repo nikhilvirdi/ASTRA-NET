@@ -20,7 +20,7 @@ import {
   isDarkEnoughForFaintStars,
   isDarkEnoughForIssOrAurora,
   julianDay,
-  sunAltitudeDeg,
+  sunHorizontalPosition,
   type HorizontalPosition,
 } from '@astranet/shared';
 import type { HorizonsRaDecData, HorizonsRaDecEntry } from '../clients/jpl-horizons/index.js';
@@ -30,6 +30,14 @@ export type TwilightPhase = 'day' | 'twilight' | 'night';
 
 export interface SkyAnchorCard {
   sunAltitudeDeg: number;
+  /**
+   * Sun's azimuth (degrees, 0=N, clockwise, [0,360)) for this observer —
+   * the other half of the FORMULAS.md §3 horizontal position the Sun engine
+   * already computes alongside `sunAltitudeDeg`. Non-nullable: like the
+   * altitude it is pure math over observer+time with no external source to
+   * fail (unlike `jupiter`, which depends on the Horizons ephemeris).
+   */
+  sunAzimuthDeg: number;
   twilightPhase: TwilightPhase;
   /** FORMULAS.md §4 — dark enough for ISS/aurora viewing (sun alt < -6deg). */
   isDarkEnoughForIssOrAurora: boolean;
@@ -75,7 +83,8 @@ export function buildSkyAnchorCard(
   now: Date,
   jupiterEphemeris: SourceState<HorizonsRaDecData>,
 ): SkyAnchorCard {
-  const sunAltDeg = sunAltitudeDeg(now, observerLatDeg, observerLonDeg);
+  const sun = sunHorizontalPosition(now, observerLatDeg, observerLonDeg);
+  const sunAltDeg = sun.altitudeDeg;
 
   const nearest =
     jupiterEphemeris.data?.entries != null
@@ -94,6 +103,7 @@ export function buildSkyAnchorCard(
 
   return {
     sunAltitudeDeg: sunAltDeg,
+    sunAzimuthDeg: sun.azimuthDeg,
     twilightPhase: classifyTwilightPhase(sunAltDeg),
     isDarkEnoughForIssOrAurora: isDarkEnoughForIssOrAurora(sunAltDeg),
     isDarkEnoughForFaintStars: isDarkEnoughForFaintStars(sunAltDeg),

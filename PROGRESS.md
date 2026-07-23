@@ -424,3 +424,11 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ✅ Gates green (real output): `npx tsc --build --force` → exit 0; `npx eslint apps/web/src --max-warnings=0` → exit 0; `npx prettier --check` (6 files) → "All matched files use Prettier code style!" exit 0. Azimuth interpolation math unit-checked (350°→10° @0.5 = 0°, endpoints exact).
 - ✅ Phase 7 CLOSED → `WORKPLAN.md` Current Phase advanced to Phase 8. Standing documented deviation carried forward: Sun-marker azimuth is a due-South placeholder pending a backend `sunAzimuthDeg` field (see DECISIONS.md).
 - ⏭️ Next: Phase 8 — The Explorable Universe (3D).
+
+## 2026-07-23 (Backend: `sunAzimuthDeg` field on skyAnchor, by Claude Code)
+
+- ✅ Done: `sunHorizontalPosition(now, lat, lon)` added to `packages/shared`'s Sun engine — exposure-only. `equatorialToHorizontal` (FORMULAS.md §3) already computed azimuth alongside altitude; `sunAltitudeDeg` simply discarded it. `sunAltitudeDeg` now delegates to the new function, so there is one computation path, not two. — by Claude Code
+- ✅ Done: `skyAnchor.data.sunAzimuthDeg` (non-nullable — pure math, no external source to fail, unlike `jupiter`) added to `SkyAnchorCard`; card computes the Sun position once and exposes both halves. — by Claude Code
+- ✅ Done: unit tests — engine test asserts azimuth ∈ [0,360), altitude identical to `sunAltitudeDeg`, and a hand-verified geometric anchor (observer 20° north of the subsolar point at H=0 → sun due south, az 180°, alt 70°); card test asserts both halves match `sunHorizontalPosition`. shared 112/112 (100% coverage held), api sky-anchor/build-brief 17/17. — by Claude Code
+- 📝 No Zod added, by design: unlike Jupiter's alt/az (derived from an external Horizons RA/Dec response, Zod-validated at that fetch boundary), the Sun position is pure Meeus math over time+observer with no external input to validate — same as `sunAltitudeDeg` itself carries none. Range correctness is asserted in the unit tests instead.
+- ⛔ Not done (frontend, deliberately out of scope): `HorizonBand.tsx`'s Sun marker still uses its due-South placeholder — wiring it to consume `sunAzimuthDeg` is a future Antigravity task now that the field exists.

@@ -6,6 +6,7 @@ import {
   isDarkEnoughForIssOrAurora,
   sunAltitudeDeg,
   sunEquatorialPosition,
+  sunHorizontalPosition,
 } from './sun-position';
 
 describe('sunEquatorialPosition', () => {
@@ -29,6 +30,38 @@ describe('sunAltitudeDeg', () => {
     const lonEastDeg = mod(raDeg - lstBase, 360);
 
     expect(sunAltitudeDeg(now, decDeg, lonEastDeg)).toBeCloseTo(90, 3);
+  });
+});
+
+describe('sunHorizontalPosition', () => {
+  it('exposes the azimuth the §3 transform already computes, and its altitude matches sunAltitudeDeg', () => {
+    const now = new Date('2026-07-17T21:00:00Z');
+    const latDeg = 34.08;
+    const lonDeg = 74.8;
+
+    const pos = sunHorizontalPosition(now, latDeg, lonDeg);
+
+    // Altitude is identical to what sunAltitudeDeg returns — proving the
+    // refactor is exposure-only, not a second computation path.
+    expect(pos.altitudeDeg).toBe(sunAltitudeDeg(now, latDeg, lonDeg));
+    // Azimuth is a real bearing in [0, 360).
+    expect(Number.isFinite(pos.azimuthDeg)).toBe(true);
+    expect(pos.azimuthDeg).toBeGreaterThanOrEqual(0);
+    expect(pos.azimuthDeg).toBeLessThan(360);
+  });
+
+  it('puts the sun due south for an observer north of the subsolar point (hour angle 0)', () => {
+    // With the sun on the observer's meridian (H=0) but the observer 20deg
+    // north of the sun's declination, the sun sits due south (azimuth 180deg)
+    // at altitude 70deg — a hand-verifiable geometric anchor for the azimuth.
+    const now = new Date('2000-01-01T12:00:00Z');
+    const jd = julianDay(now);
+    const { raDeg, decDeg } = sunEquatorialPosition(jd);
+    const subsolarLonEastDeg = mod(raDeg - localSiderealTimeDeg(jd, 0), 360);
+
+    const pos = sunHorizontalPosition(now, decDeg + 20, subsolarLonEastDeg);
+    expect(pos.altitudeDeg).toBeCloseTo(70, 3);
+    expect(pos.azimuthDeg).toBeCloseTo(180, 3);
   });
 });
 
