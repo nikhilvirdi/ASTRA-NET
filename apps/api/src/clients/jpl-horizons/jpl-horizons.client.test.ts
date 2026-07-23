@@ -121,10 +121,11 @@ describe('fetchHorizonsRaDec', () => {
   });
 
   it('fetches, parses, and validates a CSV RA/Dec ephemeris', async () => {
-    const fetchMock = vi.fn((_input: string | URL) =>
-      Promise.resolve(new Response(JSON.stringify(jupiterCsvFixture), { status: 200 })),
-    );
-    global.fetch = fetchMock;
+    let requestedUrl: string | undefined;
+    global.fetch = vi.fn((...args: unknown[]) => {
+      requestedUrl = String(args[0]);
+      return Promise.resolve(new Response(JSON.stringify(jupiterCsvFixture), { status: 200 }));
+    });
 
     const data = await fetchHorizonsRaDec(
       { command: '599', startTime: '2026-07-23', stopTime: '2026-07-24', stepSize: '1 h' },
@@ -140,11 +141,10 @@ describe('fetchHorizonsRaDec', () => {
     expect(data.fetchedAt).toBe(NOW.toISOString());
 
     // The query must pin the exact table shape the parser understands.
-    const url = String(fetchMock.mock.calls[0][0]);
-    expect(url).toContain('QUANTITIES=%271%27');
-    expect(url).toContain('ANG_FORMAT=%27DEG%27');
-    expect(url).toContain('CSV_FORMAT=%27YES%27');
-    expect(url).toContain('EPHEM_TYPE=%27OBSERVER%27');
+    expect(requestedUrl).toContain('QUANTITIES=%271%27');
+    expect(requestedUrl).toContain('ANG_FORMAT=%27DEG%27');
+    expect(requestedUrl).toContain('CSV_FORMAT=%27YES%27');
+    expect(requestedUrl).toContain('EPHEM_TYPE=%27OBSERVER%27');
   });
 
   it('returns null entries when the underlying fetch fails', async () => {

@@ -163,16 +163,16 @@ export function parseEphemerisRaDecLines(lines: string[]): HorizonsRaDecEntry[] 
   const entries: HorizonsRaDecEntry[] = [];
 
   for (const line of lines) {
-    const fields = line.split(',');
-    if (fields.length < 5) continue;
+    const [dateField, , , raField, decField] = line.split(',');
+    if (dateField === undefined || raField === undefined || decField === undefined) continue;
 
-    const timestampUtcMs = parseEphemerisTimestampUtcMs(fields[0].trim());
+    const timestampUtcMs = parseEphemerisTimestampUtcMs(dateField.trim());
     if (timestampUtcMs === null) continue;
 
     const result = HorizonsRaDecEntrySchema.safeParse({
       timestampUtcMs,
-      raDeg: Number(fields[3].trim()),
-      decDeg: Number(fields[4].trim()),
+      raDeg: Number(raField.trim()),
+      decDeg: Number(decField.trim()),
     });
     if (result.success) entries.push(result.data);
   }
