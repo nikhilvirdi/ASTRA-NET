@@ -402,3 +402,25 @@ All four open defects from the verification pass above are resolved; Phase 7's `
 Gate proof (real output): `npx tsc --build --force` → exit 0 (clean); `npx eslint apps/web/src --max-warnings=0` → exit 0; `npx prettier --check` on the six files → "All matched files use Prettier code style!" exit 0.
 
 **Carried forward (already logged above):** the Sun-marker azimuth is still a due-South placeholder; its proper fix is a backend `sunAzimuthDeg` field, tracked as a follow-up, not a Phase 7 blocker.
+
+## 2026-07-23 — Repo-wide gate audit (Claude Code): flagged debt confirmed closed; other pre-existing debt logged, not guessed
+
+Ran all three gates across the whole monorepo (`npx tsc --build --force`, `npx eslint . --max-warnings=0`, `npx prettier --check .`) to verify the pre-existing debt logged earlier this session — which Antigravity's sandbox cannot check itself.
+
+**tsc:** exit 0, clean.
+
+**Flagged debt — now CLOSED:**
+
+- `motion.ts`'s 3 `@typescript-eslint/no-unnecessary-type-assertion` errors: gone. Targeted `eslint apps/web/src/lib/motion.ts` is clean (exit 0). Resolved upstream since the earlier log entry.
+- Prettier gaps in the six flagged files: `index.css` and `motion.ts` were already clean; `App.tsx`, `PersistentNav.tsx`, `vite.config.ts`, `LoginPage.tsx` were still dirty and have now been `prettier --write`-formatted. All six re-check clean.
+
+**Other findings — logged, deliberately NOT fixed (ambiguous or out of the flagged scope, per "stop and log rather than guess"):**
+
+- `apps/api/scripts/ingest-light-pollution.js` + `ingest-stars.js` (tracked): eslint parsing errors — plain-JS files not included in any `tsconfig`, so typed linting can't parse them. Pre-existing, unrelated to the flagged debt. The fix is a config decision (add them to a tsconfig `include`, add a plain-JS eslint override, or add `scripts/` to `ignorePatterns`) with repo-wide lint implications — not mechanical, so left for a deliberate call. These are also why repo-wide `eslint . --max-warnings=0` does not fully pass.
+- `apps/web/src/lib/color.ts:6` — `prefer-const` on `temp` (mechanical). Left untouched: it is a brand-new, untracked blackbody-to-RGB helper tightly coupled to the untracked `components/explore/StarField.tsx`, i.e. part of Antigravity's active Phase 8 star-field workstream. Editing it risks colliding with in-progress work, so it's flagged for Antigravity rather than changed here.
+- Broad repo-wide Prettier debt (23 files total): beyond the six flagged, tracked config/doc files are also unformatted (`README.md`, `SCHEMA.md`, `TESTING.md`, `NOTES.md`, `docker-compose.yml`, `.eslintrc.json`, `.lintstagedrc.json`, `.prettierrc`, `.github/workflows/ci.yml`, `.claude/*`, `package.json`, `package-lock.json`, `apps/web/package.json`). NOT reformatted here: this is pre-existing debt outside the flagged scope, a blanket `prettier --write .` would produce large unrelated churn, and `package-lock.json` must not be prettier-managed (npm owns its format). Recommend a dedicated formatting-sweep commit that explicitly excludes the lockfile.
+- `apps/web/src/pages/ExplorePage.tsx` and `apps/web/src/components/explore/StarField.tsx` (Prettier-dirty): deliberately untouched — Antigravity's active Phase 8 scene work, explicitly out of bounds for this task.
+
+**Housekeeping:** the first repo-wide eslint run also flagged files under `apps/api/coverage/` and `packages/shared/coverage/`; those are git-ignored coverage reports I generated via `--coverage` runs this session, now deleted. Consider adding `coverage` to `.eslintrc.json`'s `ignorePatterns` (alongside `dist`/`build`) so a local coverage run can never break `eslint .` — flagged, not applied (config change, left as a deliberate call).
+
+**Git note:** the four flagged frontend files formatted here are all currently untracked in git (the Phase 7 frontend source is not yet committed — a pre-existing repo condition). The formatting is applied on disk but not committed, because first-adding actively-evolving, multi-agent frontend source to git is a consequential decision well beyond a formatting cleanup and should be a deliberate step, not a side effect of this audit.
