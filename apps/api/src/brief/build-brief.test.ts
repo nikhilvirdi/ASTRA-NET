@@ -19,6 +19,7 @@ function emptyPollerState(): PollerState {
     neows: empty(),
     gibs: empty(),
     horizons: empty(),
+    horizonsJupiter: empty(),
   };
 }
 

@@ -29,6 +29,7 @@ describe('buildHealthPayload', () => {
       neows: { healthy: false, fetchedAt: null },
       gibs: { healthy: false, fetchedAt: null },
       horizons: { healthy: false, fetchedAt: null },
+      horizonsJupiter: { healthy: false, fetchedAt: null },
     });
   });
 

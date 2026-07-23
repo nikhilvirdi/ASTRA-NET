@@ -14,7 +14,7 @@
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
 import type { SwpcFastData, SwpcSlowData } from '../clients/swpc/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
-import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
 
 /** Per-source state: the latest data, when it was fetched, and whether that fetch succeeded. */
@@ -36,6 +36,8 @@ export interface PollerState {
   /** GIBS has no fetch step (pure URL construction) — data holds the last-selected layer config. */
   gibs: SourceState<GibsLayerOptions>;
   horizons: SourceState<HorizonsData>;
+  /** Jupiter geocentric RA/Dec ephemeris — same JPL Horizons source as `horizons`, different target body. */
+  horizonsJupiter: SourceState<HorizonsRaDecData>;
 }
 
 export type SourceKey = keyof PollerState;
@@ -50,6 +52,7 @@ function createInitialState(): PollerState {
     neows: empty(),
     gibs: empty(),
     horizons: empty(),
+    horizonsJupiter: empty(),
   };
 }
 

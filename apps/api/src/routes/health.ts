@@ -40,6 +40,10 @@ export function buildHealthPayload(now: Date): HealthPayload {
       neows: { healthy: state.neows.healthy, fetchedAt: state.neows.fetchedAt },
       gibs: { healthy: state.gibs.healthy, fetchedAt: state.gibs.fetchedAt },
       horizons: { healthy: state.horizons.healthy, fetchedAt: state.horizons.fetchedAt },
+      horizonsJupiter: {
+        healthy: state.horizonsJupiter.healthy,
+        fetchedAt: state.horizonsJupiter.fetchedAt,
+      },
     },
   };
 }

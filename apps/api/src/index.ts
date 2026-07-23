@@ -15,7 +15,7 @@ import { runAccuracyJob, startAccuracyJobLoop } from './predictions/accuracy.js'
 import { fetchN2yoPositions } from './clients/n2yo/index.js';
 import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
-import { fetchHorizons } from './clients/jpl-horizons/index.js';
+import { fetchHorizons, fetchHorizonsRaDec } from './clients/jpl-horizons/index.js';
 import type { GoogleOAuthConfig } from './routes/auth.js';
 
 /**
@@ -90,7 +90,14 @@ try {
 }
 
 startFastTierLoop({ fetchN2yoPositions, fetchSwpcFast, n2yoApiKey });
-startSlowTierLoop({ fetchNasaDonki, fetchNasaNeows, fetchHorizons, fetchSwpcSlow, nasaApiKey });
+startSlowTierLoop({
+  fetchNasaDonki,
+  fetchNasaNeows,
+  fetchHorizons,
+  fetchHorizonsRaDec,
+  fetchSwpcSlow,
+  nasaApiKey,
+});
 startCacheSweepLoop({ prisma, sweepExpiredCache });
 startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob });
 

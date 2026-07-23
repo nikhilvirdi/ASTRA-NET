@@ -30,7 +30,7 @@ import {
 import { getSourceState, resetStore } from '../poller/store.js';
 import type { N2yoPositionsData } from '../clients/n2yo/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
-import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
 
 // Never connects: this file exercises routes that don't touch the DB,
@@ -59,6 +59,10 @@ const issSuccess: N2yoPositionsData = {
 const donkiSuccess: NasaDonkiData = { cmes: [], flares: [], fetchedAt: 't' };
 const neowsSuccess: NasaNeowsData = { elementCount: 0, objects: [], fetchedAt: 't' };
 const horizonsSuccess: HorizonsData = { ephemerisLines: ['line'], fetchedAt: 't' };
+const horizonsJupiterSuccess: HorizonsRaDecData = {
+  entries: [{ timestampUtcMs: 1, raDeg: 129.4, decDeg: 18.1 }],
+  fetchedAt: 't',
+};
 const swpcSlowSuccess: SwpcSlowData = {
   kpObserved: [{ timeTag: 't', kp: 3, aRunning: 12, stationCount: 8 }],
   kpForecast: null,
@@ -80,6 +84,7 @@ function makeSlowClients(overrides: Partial<SlowTierClients> = {}): SlowTierClie
     fetchNasaDonki: vi.fn().mockResolvedValue(donkiSuccess),
     fetchNasaNeows: vi.fn().mockResolvedValue(neowsSuccess),
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
+    fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
@@ -133,6 +138,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(health.sources.neows.healthy).toBe(true);
     expect(health.sources.gibs.healthy).toBe(true);
     expect(health.sources.horizons.healthy).toBe(true);
+    expect(health.sources.horizonsJupiter.healthy).toBe(true);
     expect(health.sources.spaceWeatherForecast.healthy).toBe(true);
 
     const streamChunk = await new Promise<string>((resolve, reject) => {
@@ -178,6 +184,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(getSourceState('neows').healthy).toBe(true);
     expect(getSourceState('gibs').healthy).toBe(true);
     expect(getSourceState('horizons').healthy).toBe(true);
+    expect(getSourceState('horizonsJupiter').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('iss').healthy).toBe(true);
   });

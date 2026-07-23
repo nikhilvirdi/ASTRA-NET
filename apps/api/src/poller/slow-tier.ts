@@ -6,9 +6,9 @@
  * no fetch step (pure URL construction, per `clients/gibs`) — this loop
  * just rotates its layer config into the store on the same cadence.
  *
- * `runSlowTierTick` is the testable unit: it calls the four Phase-1
- * network clients once, decides success/failure per-source, and writes to
- * the store. It takes `now` and the client functions as parameters rather
+ * `runSlowTierTick` is the testable unit: it makes the five Phase-1
+ * network client calls once (Horizons twice — Sun and Jupiter targets),
+ * decides success/failure per-source, and writes to the store. It takes `now` and the client functions as parameters rather
  * than reading the clock or importing the clients directly, so it can be
  * exercised without a live timer or network — mirrors `fast-tier.ts`.
  * `startSlowTierLoop` is the thin `setInterval` wrapper around it.
@@ -39,8 +39,8 @@
 
 import type { fetchNasaDonki, fetchNasaNeows } from '../clients/nasa/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
-import type { fetchHorizons } from '../clients/jpl-horizons/index.js';
-import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { fetchHorizons, fetchHorizonsRaDec } from '../clients/jpl-horizons/index.js';
+import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { fetchSwpcSlow } from '../clients/swpc/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
@@ -62,6 +62,16 @@ const HORIZONS_SUN_COMMAND = '10';
 const HORIZONS_GEOCENTRIC = '500@399';
 
 /**
+ * JPL Horizons target body: Jupiter (command '599'), geocentric — RA/Dec
+ * for the Brief's Sky Anchor Jupiter marker. Hourly steps so a
+ * nearest-row lookup at request time is at most 30min stale, over which
+ * Jupiter's geocentric RA/Dec drifts well under 0.01° — invisible at
+ * Horizon Band scale.
+ */
+const HORIZONS_JUPITER_COMMAND = '599';
+const HORIZONS_JUPITER_STEP = '1 h';
+
+/**
  * GIBS imagery layer rotated into the store each tick. Yesterday's date,
  * not today's — GIBS's daily mosaics for this layer are typically not
  * fully composited until the following day, so requesting "today" risks a
@@ -77,6 +87,7 @@ export interface SlowTierClients {
   fetchNasaDonki: typeof fetchNasaDonki;
   fetchNasaNeows: typeof fetchNasaNeows;
   fetchHorizons: typeof fetchHorizons;
+  fetchHorizonsRaDec: typeof fetchHorizonsRaDec;
   fetchSwpcSlow: typeof fetchSwpcSlow;
   nasaApiKey: string;
 }
@@ -133,6 +144,26 @@ function writeHorizonsResult(data: HorizonsData, nowIso: string): void {
   }
 }
 
+/**
+ * Writes the Jupiter ephemeris fetch result. Same source (JPL Horizons) as
+ * `writeHorizonsResult` above, so the same documented "serve last computed
+ * set" fallback applies: a failure keeps the previous store value when one
+ * exists, always marked unhealthy.
+ */
+function writeHorizonsJupiterResult(data: HorizonsRaDecData, nowIso: string): void {
+  if (data.entries !== null) {
+    setSourceState('horizonsJupiter', data, nowIso, true);
+    return;
+  }
+
+  const previous = getSourceState('horizonsJupiter');
+  if (previous.data !== null && previous.fetchedAt !== null) {
+    setSourceState('horizonsJupiter', previous.data, previous.fetchedAt, false);
+  } else {
+    setSourceState('horizonsJupiter', data, nowIso, false);
+  }
+}
+
 /** GIBS has no fetch step and cannot fail, so it's always written fresh and healthy. */
 function writeGibsResult(options: GibsLayerOptions, nowIso: string): void {
   setSourceState('gibs', options, nowIso, true);
@@ -163,13 +194,14 @@ function writeSpaceWeatherForecastResult(data: SwpcSlowData, nowIso: string): vo
 }
 
 /**
- * Runs one slow-tier poll: fetches DONKI, NeoWs, JPL Horizons, and the
- * slow-tier half of SWPC in parallel, then writes each result independently
+ * Runs one slow-tier poll: fetches DONKI, NeoWs, JPL Horizons (Sun and
+ * Jupiter), and the slow-tier half of SWPC in parallel, then writes each
+ * result independently
  * so one source failing never affects the others (degradation contract,
  * ARCHITECTURE.md §5). GIBS's layer config is rotated in directly since it
  * has no network call.
  *
- * All four network clients are documented to never throw (they catch
+ * All the network clients are documented to never throw (they catch
  * internally and return a null-data result), but `Promise.allSettled`
  * guards against anything genuinely unexpected without letting one
  * source's failure take down another's write.
@@ -179,37 +211,48 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   const today = formatDate(now);
   const tomorrow = formatDate(new Date(now.getTime() + MS_PER_DAY));
 
-  const [donkiResult, neowsResult, horizonsResult, swpcSlowResult] = await Promise.allSettled([
-    clients.fetchNasaDonki(
-      {
-        startDate: formatDate(new Date(now.getTime() - DONKI_LOOKBACK_DAYS * MS_PER_DAY)),
-        endDate: today,
-      },
-      clients.nasaApiKey,
-      now,
-    ),
-    clients.fetchNasaNeows(
-      {
-        startDate: today,
-        endDate: formatDate(new Date(now.getTime() + NEOWS_LOOKAHEAD_DAYS * MS_PER_DAY)),
-      },
-      clients.nasaApiKey,
-      now,
-    ),
-    clients.fetchHorizons(
-      {
-        command: HORIZONS_SUN_COMMAND,
-        startTime: today,
-        stopTime: tomorrow,
-        stepSize: '1 d',
-        center: HORIZONS_GEOCENTRIC,
-        makeEphem: 'YES',
-        ephemType: 'OBSERVER',
-      },
-      now,
-    ),
-    clients.fetchSwpcSlow(now),
-  ]);
+  const [donkiResult, neowsResult, horizonsResult, horizonsJupiterResult, swpcSlowResult] =
+    await Promise.allSettled([
+      clients.fetchNasaDonki(
+        {
+          startDate: formatDate(new Date(now.getTime() - DONKI_LOOKBACK_DAYS * MS_PER_DAY)),
+          endDate: today,
+        },
+        clients.nasaApiKey,
+        now,
+      ),
+      clients.fetchNasaNeows(
+        {
+          startDate: today,
+          endDate: formatDate(new Date(now.getTime() + NEOWS_LOOKAHEAD_DAYS * MS_PER_DAY)),
+        },
+        clients.nasaApiKey,
+        now,
+      ),
+      clients.fetchHorizons(
+        {
+          command: HORIZONS_SUN_COMMAND,
+          startTime: today,
+          stopTime: tomorrow,
+          stepSize: '1 d',
+          center: HORIZONS_GEOCENTRIC,
+          makeEphem: 'YES',
+          ephemType: 'OBSERVER',
+        },
+        now,
+      ),
+      clients.fetchHorizonsRaDec(
+        {
+          command: HORIZONS_JUPITER_COMMAND,
+          startTime: today,
+          stopTime: tomorrow,
+          stepSize: HORIZONS_JUPITER_STEP,
+          center: HORIZONS_GEOCENTRIC,
+        },
+        now,
+      ),
+      clients.fetchSwpcSlow(now),
+    ]);
 
   if (donkiResult.status === 'fulfilled') {
     writeDonkiResult(donkiResult.value, nowIso);
@@ -230,6 +273,16 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   } else {
     console.error('[poller/slow-tier] JPL Horizons threw unexpectedly:', horizonsResult.reason);
     writeHorizonsResult({ ephemerisLines: null, fetchedAt: nowIso }, nowIso);
+  }
+
+  if (horizonsJupiterResult.status === 'fulfilled') {
+    writeHorizonsJupiterResult(horizonsJupiterResult.value, nowIso);
+  } else {
+    console.error(
+      '[poller/slow-tier] JPL Horizons (Jupiter) threw unexpectedly:',
+      horizonsJupiterResult.reason,
+    );
+    writeHorizonsJupiterResult({ entries: null, fetchedAt: nowIso }, nowIso);
   }
 
   if (swpcSlowResult.status === 'fulfilled') {

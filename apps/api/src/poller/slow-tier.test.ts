@@ -7,7 +7,7 @@ import {
 } from './slow-tier.js';
 import { getSourceState, resetStore } from './store.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
-import type { HorizonsData } from '../clients/jpl-horizons/index.js';
+import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');
@@ -57,6 +57,13 @@ const horizonsSuccess: HorizonsData = {
 
 const horizonsFailure: HorizonsData = { ephemerisLines: null, fetchedAt: NOW_ISO };
 
+const horizonsJupiterSuccess: HorizonsRaDecData = {
+  entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 129.4, decDeg: 18.1 }],
+  fetchedAt: NOW_ISO,
+};
+
+const horizonsJupiterFailure: HorizonsRaDecData = { entries: null, fetchedAt: NOW_ISO };
+
 const swpcSlowSuccess: SwpcSlowData = {
   kpObserved: [{ timeTag: NOW_ISO, kp: 3, aRunning: 12, stationCount: 8 }],
   kpForecast: [{ timeTag: NOW_ISO, kp: 3, status: 'predicted', noaaScale: null }],
@@ -88,6 +95,7 @@ function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients 
     fetchNasaDonki: vi.fn().mockResolvedValue(donkiSuccess),
     fetchNasaNeows: vi.fn().mockResolvedValue(neowsSuccess),
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
+    fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
@@ -99,7 +107,7 @@ describe('runSlowTierTick', () => {
     resetStore();
   });
 
-  it('writes all five sources fresh and healthy on full success', async () => {
+  it('writes all six sources fresh and healthy on full success', async () => {
     const clients = makeClients();
 
     await runSlowTierTick(clients, NOW);
@@ -116,6 +124,11 @@ describe('runSlowTierTick', () => {
     });
     expect(getSourceState('horizons')).toEqual({
       data: horizonsSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: true,
+    });
+    expect(getSourceState('horizonsJupiter')).toEqual({
+      data: horizonsJupiterSuccess,
       fetchedAt: NOW_ISO,
       healthy: true,
     });
@@ -150,6 +163,16 @@ describe('runSlowTierTick', () => {
     );
     expect(clients.fetchHorizons).toHaveBeenCalledWith(
       expect.objectContaining({ command: '10', startTime: '2026-07-16', stopTime: '2026-07-17' }),
+      NOW,
+    );
+    expect(clients.fetchHorizonsRaDec).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: '599',
+        startTime: '2026-07-16',
+        stopTime: '2026-07-17',
+        stepSize: '1 h',
+        center: '500@399',
+      }),
       NOW,
     );
     expect(clients.fetchSwpcSlow).toHaveBeenCalledWith(NOW);
@@ -249,6 +272,51 @@ describe('runSlowTierTick', () => {
     });
   });
 
+  it('marks Jupiter ephemeris unhealthy with null entries on failure, no prior data', async () => {
+    const clients = makeClients({
+      fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterFailure),
+    });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSourceState('horizonsJupiter')).toEqual({
+      data: horizonsJupiterFailure,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('preserves the last known-good Jupiter ephemeris on a later failure', async () => {
+    const goodClients = makeClients();
+    await runSlowTierTick(goodClients, NOW);
+    expect(getSourceState('horizonsJupiter').healthy).toBe(true);
+
+    const failingClients = makeClients({
+      fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterFailure),
+    });
+    await runSlowTierTick(failingClients, LATER);
+
+    expect(getSourceState('horizonsJupiter')).toEqual({
+      data: horizonsJupiterSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('treats an unexpected Jupiter-ephemeris rejection as a failed fetch instead of throwing', async () => {
+    const clients = makeClients({
+      fetchHorizonsRaDec: vi.fn().mockRejectedValue(new Error('boom')),
+    });
+
+    await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
+    expect(getSourceState('horizonsJupiter')).toEqual({
+      data: { entries: null, fetchedAt: NOW_ISO },
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+    expect(getSourceState('horizons').healthy).toBe(true);
+  });
+
   it('marks spaceWeatherForecast unhealthy with null data on total failure, no prior data', async () => {
     const clients = makeClients({ fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowTotalFailure) });
 
@@ -317,6 +385,7 @@ describe('runSlowTierTick', () => {
     expect(getSourceState('donki').healthy).toBe(false);
     expect(getSourceState('neows').healthy).toBe(false);
     expect(getSourceState('horizons').healthy).toBe(true);
+    expect(getSourceState('horizonsJupiter').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('gibs').healthy).toBe(true);
   });

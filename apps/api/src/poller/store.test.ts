@@ -17,6 +17,7 @@ describe('poller store', () => {
     expect(all.neows).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.gibs).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.horizons).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.horizonsJupiter).toEqual({ data: null, fetchedAt: null, healthy: false });
   });
 
   it('writes and reads back a source by key', () => {
