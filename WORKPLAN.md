@@ -170,15 +170,16 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 
 **Atomic tasks:**
 
+- **Design system foundation** — build first, before any screen: color tokens (including the twilight solar-altitude interpolation ramp), type scale, spacing scale, and motion/timing tokens per `DESIGN_SPEC.md` Part II. This is the actual first atomic task of this phase, not the Daily Brief page itself.
 - React + Vite app shell, routing, persistent nav (auto-hiding on `/explore`).
 - Zustand store; Tailwind + shadcn/ui base.
-- Auth UI (`/login`, `/signup`) wired to Phase-5 routes; token handling.
-- `/` Daily Brief page rendering `/api/brief`, with per-card loading + "unavailable" states matching the degradation contract.
-- Freshness indicators (live pulse for fast tier, "updated Xm ago" for slow).
+- Auth UI (`/login`, `/signup`) wired to Phase-5 routes; token handling — visual spec: `DESIGN_SPEC.md` §16.
+- `/` Daily Brief page rendering `/api/brief`, with per-card loading + "unavailable" states matching the degradation contract; includes the Horizon Band signature element — visual spec: `DESIGN_SPEC.md` §9–10.
+- Freshness indicators (live pulse for fast tier, "updated Xm ago" for slow) — visual spec: `DESIGN_SPEC.md` §7.3 (the Freshness Rule).
 
-**Agent expectations:** Build against the _real_ endpoint, not mock data. Respect the degradation contract in the UI exactly as the backend defines it.
+**Agent expectations:** Build against the _real_ endpoint, not mock data. Respect the degradation contract in the UI exactly as the backend defines it. `DESIGN_SPEC.md` is a locked reference doc for this and every later frontend phase — same fidelity as `ARCHITECTURE.md`/`FORMULAS.md`; don't invent alternative colors, type, or layout.
 
-**Definition of Done:** A logged-in user sees a real, personalized Daily Brief that degrades gracefully when a source is down.
+**Definition of Done:** A logged-in user sees a real, personalized Daily Brief that degrades gracefully when a source is down, matching `DESIGN_SPEC.md`'s design system.
 
 ---
 
@@ -196,7 +197,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 - Diegetic text (troika-three-text) with accessible DOM mirror.
 - GSAP camera rig; semantic zooming; the "Rule of 7" clickable-object cap.
 
-**Agent expectations:** Do not add a new 3D object until the previous one is stable at target framerate. Every object explains itself in one plain sentence first (Pillar 1 & 2). No fictional objects — everything traces to a real catalog.
+**Agent expectations:** Do not add a new 3D object until the previous one is stable at target framerate. Every object explains itself in one plain sentence first (Pillar 1 & 2). No fictional objects — everything traces to a real catalog. Visual spec: `DESIGN_SPEC.md` §11 — the opening sequence, cursor gravity, Rule of 7 enforcement, and tethered overlay-panel design are all specified there; follow it rather than improvising a visual language for this scene.
 
 **Definition of Done:** A user drops from orbit into their real night sky, clicks the ISS and gets its story, and sees a live aurora ring — all at a stable framerate.
 
@@ -213,7 +214,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 - Ranked list + map markers; filter by tonight's event (aurora/meteor/ISS).
 - Spot detail: why it ranked there + directions link.
 
-**Agent expectations:** Reuse the Phase-2 best-spot engine — no re-implementing scoring in the UI. Keep the "why ranked" explanation honest and legible.
+**Agent expectations:** Reuse the Phase-2 best-spot engine — no re-implementing scoring in the UI. Keep the "why ranked" explanation honest and legible. Visual spec: `DESIGN_SPEC.md` §12 — the light-pollution-as-map-layer treatment and the three-bar score-breakdown display (same visual grammar as the Brief's Confidence Ticks).
 
 **Definition of Done:** For a real location, the finder recommends the nearest genuinely good spot with a transparent score breakdown.
 
@@ -230,7 +231,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 - `/accuracy` — public Recharts view of predicted vs. actual Kp + rolling hit-rate.
 - Personalized alerts wiring (ISS/aurora/meteor/NEO).
 
-**Agent expectations:** `/accuracy` must reflect the _real_ recorded track record from Phase 6 — never fabricated numbers. Delete-my-data must call the real Phase-6 deletion.
+**Agent expectations:** `/accuracy` must reflect the _real_ recorded track record from Phase 6 — never fabricated numbers. Delete-my-data must call the real Phase-6 deletion. Visual spec: `DESIGN_SPEC.md` §13 (Log) and §14 (Accuracy) — note §14's explicit "no cherry-picking controls" constraint on the accuracy chart.
 
 **Definition of Done:** Log and settings work per user; delete-my-data truly erases; accuracy page shows genuine historical performance.
 
@@ -246,7 +247,7 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 - OG/meta tags for rich link previews.
 - One-tap generate/share from the Daily Brief.
 
-**Agent expectations:** Fully public and login-free. The card must be self-contained and render correctly as a shared link preview.
+**Agent expectations:** Fully public and login-free. The card must be self-contained and render correctly as a shared link preview. Visual spec: `DESIGN_SPEC.md` §17 — including the twilight-accurate server-rendered OG image (the card should look visibly different depending on the actual time/location it was shared for).
 
 **Definition of Done:** A generated card opens for a logged-out visitor and previews correctly when the link is shared.
 

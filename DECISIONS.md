@@ -131,15 +131,7 @@ Both `.bin` files regenerated and both static-dataset tests pass for real (Siriu
 
 ## 2026-07-16 — One-time --no-verify commit to prevent data loss
 
-**Why:** Antigravity's 7 Phase 1 API clients had never been committed since
-being written, discovered only when the pre-commit hook (first real run
-against this code) caught 38 genuine ESLint errors (require-await,
-no-explicit-any, unsafe error-typed member access, unused vars). Given the
-acute risk of losing uncommitted work vs. the standing rule against
-bypassing the lint gate, committed once with --no-verify to preserve the
-code, with fixing all 38 errors as the immediate next task before Phase 1
-can be considered closed. This is not a standing exception — the gate
-re-applies normally on the next commit.
+**Why:** Antigravity's 7 Phase 1 API clients had never been committed since being written, discovered only when the pre-commit hook (first real run against this code) caught 38 genuine ESLint errors (require-await, no-explicit-any, unsafe error-typed member access, unused vars). Given the acute risk of losing uncommitted work vs. the standing rule against bypassing the lint gate, committed once with --no-verify to preserve the code, with fixing all 38 errors as the immediate next task before Phase 1 can be considered closed. This is not a standing exception — the gate re-applies normally on the next commit.
 
 ## 2026-07-16 — Fast-tier poller: ISS NORAD ID and reference observer point
 
@@ -265,3 +257,13 @@ Global `f_hist` (previous entry) still needs a DB read on _every_ request with a
 Flagged to the human rather than silently picking a side (per `CLAUDE.md`'s "don't silently override a locked doc" rule); they chose to follow SCHEMA.md. Implemented as `DELETE /api/auth/account` (`apps/api/src/routes/auth.ts`), `requireAuth`-gated (real auth required, unlike `/api/brief`'s optional auth), doing `prisma.user.deleteMany({ where: { id: userId } })` — `deleteMany` rather than `delete`, matching `logout`'s own established idiom, so a second call after the row is already gone is a clean no-op rather than a thrown P2025. The already-defined `onDelete: Cascade` FKs on `Session`/`Location`/`SkyLogEntry`/`Prediction` (all already applied in the `init` migration, no new migration needed) do the actual per-table removal — this is the one place in the codebase that relies on DB-level cascade rather than an explicit application-level delete, and it's deliberate here since SCHEMA.md itself calls that out as "the intended behavior, not soft-delete flags." Also clears the refresh-token cookie in the response, same as logout, since the Session it named no longer exists.
 
 **Residual doc inconsistency, not resolved by this decision:** `WORKPLAN.md`/`ARCHITECTURE.md` §7 still literally describe only three resource types, not the account itself — this decision follows SCHEMA.md as the more specific, mechanism-level source, but the wording gap between the docs remains unreconciled. Flagging for whoever next edits these three docs to tighten the language so a future reader doesn't hit the same ambiguity.
+
+## 2026-07-23 — Frontend design system: free-font substitution (Archivo, Martian Mono, Newsreader)
+
+**Why:** `DESIGN_SPEC.md` Part II names a licensed premium pairing (Atlas Grotesk/Atlas Typewriter, Lyon Text) alongside free equivalents for each of the three type roles. Per this project's standing "free/open-source unless no viable alternative exists" rule, chosen the free set: **Archivo** (display/interface), **Martian Mono** (measurements), **Newsreader** (explanatory prose). `ARCHITECTURE.md` §2 updated to name these as the actual chosen stack, so it stays the single source of truth for "what's actually used" rather than `DESIGN_SPEC.md`'s aspirational premium/free pairing.
+
+## 2026-07-23 — Twilight-interpolation function belongs in `packages/shared`, not `apps/web` (addendum to closed Phase 2)
+
+**Why:** `DESIGN_SPEC.md` §2's central mechanic — the entire UI palette interpolating from real computed solar altitude — is math, not styling: it's a pure function of an already-computed engine output (`sunAltitudeDeg`, from `packages/shared/src/engines/sun-position.ts`). Building it as a frontend-only utility would let `apps/web` reimplement/interpret solar-altitude logic independently of the backend engine, risking exactly the drift `ARCHITECTURE.md` §2's "engines living here means frontend and backend can never disagree" principle exists to prevent.
+
+This is a small addendum to Phase 2 (already closed), not new Phase 7/8 scope — flagged explicitly per `CLAUDE.md`'s "don't silently deviate from a locked doc" rule rather than letting it be added ad hoc inside `apps/web` during Phase 7. Claude Code owns adding this one function (twilight phase + palette-interpolation input, per `DESIGN_SPEC.md` §2's table of solar-altitude thresholds) to `packages/shared` before Phase 7's design-system-foundation task needs it. `apps/web` consumes the function's output; it does not reimplement the altitude→phase mapping itself.

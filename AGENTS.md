@@ -15,8 +15,9 @@ Shared instructions for **any** coding agent working on ASTRANET (Codex, Cursor,
 3. `FORMULAS.md` — every formula/constant, **frozen and verbatim.**
 4. `API_SOURCES.md` — external APIs: endpoint, key, rate limit, fallback per source.
 5. `SCHEMA.md` — data model reasoning (`prisma/schema.prisma` is the literal source of truth).
+6. `DESIGN_SPEC.md` — the locked visual/interaction design system for `apps/web` (Phases 7–11): color, typography, spacing, motion, and a full screen-by-screen spec. Required reading for any frontend work, with the same fidelity expected as `FORMULAS.md` — don't invent alternative colors, type, or layout.
 
-Do not start writing code from memory or general knowledge of "what a space app needs." These five files are authoritative over any assumption.
+Do not start writing code from memory or general knowledge of "what a space app needs." These six files are authoritative over any assumption.
 
 ---
 
@@ -51,7 +52,7 @@ Several agents may work on this repo in parallel. To avoid collisions:
 - Stay inside your assigned task/phase scope — don't opportunistically refactor files outside it.
 - Before starting, check `PROGRESS.md` for what's already done or in flight.
 - After finishing a task, update `PROGRESS.md` immediately — this is how other agents (and the human) know the current state.
-- If you must deviate from a locked doc (`ARCHITECTURE.md`, `FORMULAS.md`, `SCHEMA.md`), stop and record the proposed change in `DECISIONS.md` rather than just doing it — these files are shared contracts, not suggestions.
+- If you must deviate from a locked doc (`ARCHITECTURE.md`, `FORMULAS.md`, `SCHEMA.md`, `DESIGN_SPEC.md`), stop and record the proposed change in `DECISIONS.md` rather than just doing it — these files are shared contracts, not suggestions.
 - Ideas outside current scope go in `NOTES.md`, not into code.
 
 ---

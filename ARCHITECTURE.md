@@ -1,6 +1,6 @@
 # ASTRANET — Architecture
 
-Reference document for the locked technical architecture. This is the "what and why" behind the system. Formulas live in `FORMULAS.md`, external APIs in `API_SOURCES.md`, data model in `SCHEMA.md`, build order in `WORKPLAN.md`.
+Reference document for the locked technical architecture. This is the "what and why" behind the system. Formulas live in `FORMULAS.md`, external APIs in `API_SOURCES.md`, data model in `SCHEMA.md`, build order in `WORKPLAN.md`, frontend visual/interaction design in `DESIGN_SPEC.md`.
 
 ---
 
@@ -41,45 +41,51 @@ Reference document for the locked technical architecture. This is the "what and 
    NASA DONKI/NeoWs/GIBS · JPL Horizons · Open-Meteo
 ```
 
-**Central-poller principle:** ASTRANET polls each external source *once*, centrally, and fans results out to all users via the in-memory store + SSE. Upstream API load is therefore constant regardless of how many users are online — the single most important scaling decision in the system, and what keeps every free-tier rate limit comfortably satisfied.
+**Central-poller principle:** ASTRANET polls each external source _once_, centrally, and fans results out to all users via the in-memory store + SSE. Upstream API load is therefore constant regardless of how many users are online — the single most important scaling decision in the system, and what keeps every free-tier rate limit comfortably satisfied.
 
 ---
 
 ## 2. Locked Stack
 
 ### Language
+
 - **TypeScript everywhere** (frontend, backend, shared package). Strict mode. No `any` in committed code.
 
 ### Monorepo layout
+
 - `apps/api` — Express backend, poller, endpoints.
 - `apps/web` — React frontend.
 - `packages/shared` — shared TypeScript types **and the pure math engines**, imported by both sides. Engines living here means the frontend and backend can never disagree on a calculation.
 
 ### Frontend
-| Concern | Choice |
-|---|---|
-| Framework | React + Vite |
-| 3D | Three.js + React Three Fiber (R3F) + drei |
-| State | Zustand |
-| Styling | Tailwind CSS + shadcn/ui |
-| Camera/UI animation | GSAP |
-| Diegetic 3D text | troika-three-text (MSDF) |
-| Maps (Best-Spot) | MapLibre GL JS |
-| Charts (Accuracy) | Recharts |
-| Orbital propagation (client-side) | satellite.js |
+
+| Concern                           | Choice                                                                                                                                                                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework                         | React + Vite                                                                                                                                                                                                                                           |
+| 3D                                | Three.js + React Three Fiber (R3F) + drei                                                                                                                                                                                                              |
+| State                             | Zustand                                                                                                                                                                                                                                                |
+| Styling                           | Tailwind CSS + shadcn/ui                                                                                                                                                                                                                               |
+| Typography                        | Archivo (display/interface), Martian Mono (measurements), Newsreader (explanatory prose) — free equivalents of `DESIGN_SPEC.md`'s licensed pairing (Atlas Grotesk/Typewriter, Lyon Text), per the project's free-tools-first rule (see `DECISIONS.md`) |
+| Camera/UI animation               | GSAP                                                                                                                                                                                                                                                   |
+| Diegetic 3D text                  | troika-three-text (MSDF)                                                                                                                                                                                                                               |
+| Maps (Best-Spot)                  | MapLibre GL JS                                                                                                                                                                                                                                         |
+| Charts (Accuracy)                 | Recharts                                                                                                                                                                                                                                               |
+| Orbital propagation (client-side) | satellite.js                                                                                                                                                                                                                                           |
 
 ### Backend
-| Concern | Choice |
-|---|---|
-| Runtime/framework | Node.js + Express + TypeScript |
-| Database | PostgreSQL 16, self-hosted via Docker |
-| ORM | Prisma |
-| Auth | Custom JWT (15-min access + rotated refresh) + Argon2; optional Google OAuth 2.0 |
-| Realtime | Server-Sent Events (fast tier only) |
-| Validation | Zod (at every external-data boundary) |
-| Process management | pm2 or Docker restart policy |
+
+| Concern            | Choice                                                                           |
+| ------------------ | -------------------------------------------------------------------------------- |
+| Runtime/framework  | Node.js + Express + TypeScript                                                   |
+| Database           | PostgreSQL 16, self-hosted via Docker                                            |
+| ORM                | Prisma                                                                           |
+| Auth               | Custom JWT (15-min access + rotated refresh) + Argon2; optional Google OAuth 2.0 |
+| Realtime           | Server-Sent Events (fast tier only)                                              |
+| Validation         | Zod (at every external-data boundary)                                            |
+| Process management | pm2 or Docker restart policy                                                     |
 
 ### Tooling
+
 - Vitest (unit) + Playwright (e2e), ESLint + Prettier, GitHub Actions CI.
 
 ---
@@ -107,14 +113,18 @@ Reference document for the locked technical architecture. This is the "what and 
 The poller is one always-on process. It orchestrates the Phase-1 data clients on two schedules, writes normalized results to the in-memory store, and never contains prediction logic (that belongs to the engines).
 
 ### Fast tier — every 30–60s
+
 Data that genuinely moves on that timescale:
+
 - ISS position
 - SWPC solar wind + Kp-index
 
 Fast-tier updates are pushed to clients over **SSE `/stream`**, each datum tagged with a freshness timestamp. The UI shows a live pulse for these.
 
 ### Slow tier — every 5–15 min
+
 Data that changes slowly:
+
 - NASA DONKI (CME/flare events)
 - NASA NeoWs (near-Earth objects)
 - SWPC 3-day forecast / OVATION oval
@@ -124,12 +134,15 @@ Data that changes slowly:
 Slow-tier data is surfaced with an "updated Xm ago" label. Never promote a slow source into the fast tier.
 
 ### State store
+
 In-memory, normalized. Rebuilt by re-fetching on boot — **not** persisted, so a restart self-heals. Per-source health flags live here and feed the degradation contract.
 
 ### Honesty rule
+
 The UI never claims more freshness than the tier delivers: fast-tier = live pulse, slow-tier = explicit relative timestamp. Chronological Synchronicity (Pillar 5) is a promise, so freshness is always visible.
 
 ### Keep-warm
+
 A `/health` endpoint doubles as the keep-warm target and the poller/DB liveness check.
 
 ---
@@ -137,6 +150,7 @@ A `/health` endpoint doubles as the keep-warm target and the poller/DB liveness 
 ## 5. Degradation Contract
 
 The Daily Brief and every composite response are built from **independent cards**. Rules:
+
 - A single source failure blanks **only its own card** ("unavailable"), never the whole response or page.
 - Priority order: **Sky Anchor (static star catalog, always works) > ISS > space weather > NEO/imagery.**
 - The Brief renders if **any** card resolves.
@@ -168,16 +182,16 @@ This contract is enforced identically on backend (`/api/brief` composition) and 
 
 Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Log · Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding.
 
-| Route | Auth | Contents |
-|---|---|---|
-| `/` | public | **Daily Brief** — tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Logged-out = generic location; logged-in = saved location. |
-| `/explore` | public | **Explorable Universe (3D)** — opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation. |
-| `/best-spot` | public | **Best-Spot-Tonight Finder** — MapLibre map + ranked nearby viewing spots (clarity × darkness × travel), filterable by tonight's event. |
-| `/log` | required | **Personal Sky Log** — timeline of witnessed events + simple stats (total, streak, last aurora). |
-| `/settings` | required | Saved locations, alert toggles, account, **delete-my-data**. |
-| `/login`, `/signup` | public | Single auth page, mode toggle, redirect back after auth. |
-| `/share/:id` | public | **Shareable Sky Card** — no-login snapshot of a day's brief, OG-tagged. The growth loop. |
-| `/accuracy` | public | **Track record** — predicted vs. actual Kp over time + rolling hit-rate (Recharts). |
+| Route               | Auth     | Contents                                                                                                                                                                     |
+| ------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                 | public   | **Daily Brief** — tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Logged-out = generic location; logged-in = saved location. |
+| `/explore`          | public   | **Explorable Universe (3D)** — opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation.                                    |
+| `/best-spot`        | public   | **Best-Spot-Tonight Finder** — MapLibre map + ranked nearby viewing spots (clarity × darkness × travel), filterable by tonight's event.                                      |
+| `/log`              | required | **Personal Sky Log** — timeline of witnessed events + simple stats (total, streak, last aurora).                                                                             |
+| `/settings`         | required | Saved locations, alert toggles, account, **delete-my-data**.                                                                                                                 |
+| `/login`, `/signup` | public   | Single auth page, mode toggle, redirect back after auth.                                                                                                                     |
+| `/share/:id`        | public   | **Shareable Sky Card** — no-login snapshot of a day's brief, OG-tagged. The growth loop.                                                                                     |
+| `/accuracy`         | public   | **Track record** — predicted vs. actual Kp over time + rolling hit-rate (Recharts).                                                                                          |
 
 ---
 

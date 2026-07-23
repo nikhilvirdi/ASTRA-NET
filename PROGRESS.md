@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 6 — Persistence Features & Accuracy Loop` (Claude Code)
+**Current Phase:** `Phase 7 — Frontend Foundation & Daily Brief` (Antigravity)
 
 ---
 
@@ -324,3 +324,9 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ✅ Done: Definition of Done confirmed genuinely met: locations and log persist per user (tested), predictions are recorded and scored daily (accuracy job wired at boot), hit-rate visibly influences confidence (`historyFactor` wired into `buildBrief`, proven by the Task 4 end-to-end test moving `factors.history` off its neutral `0.5`), delete-my-data leaves nothing behind (this session's live verification against the built app, inspected directly via Prisma) — by Claude Code
 - ✅ Done: `WORKPLAN.md`'s Current Phase marker moved `Phase 6` → `Phase 7` (Frontend Foundation & Daily Brief, Antigravity's next owned phase per the human) — by Claude Code
 - ⏭️ Next: Phase 7 — React + Vite app shell, Zustand store, Tailwind + shadcn/ui, auth UI wired to Phase-5 routes, `/` Daily Brief consuming the real `/api/brief`. Not this session's work (owned by Antigravity per standing project convention).
+
+## 2026-07-23 (Design spec adopted ahead of Phase 7)
+
+- ✅ Done: `DESIGN_SPEC.md` adopted as the locked frontend visual/interaction design system (color, type, motion, screen-by-screen spec for Phases 7–11). `WORKPLAN.md` updated with a design-system-foundation first task for Phase 7 plus per-phase `DESIGN_SPEC.md` section references across Phases 7–11; `AGENTS.md` added it to required reading (now six files, was five); `ARCHITECTURE.md` §2 updated with the actual chosen (free) font stack — Archivo, Martian Mono, Newsreader — over `DESIGN_SPEC.md`'s licensed pairing. Both decisions logged in `DECISIONS.md`.
+- ✅ Done: Fixed this file's stale `Current Phase` header — it still read `Phase 6` despite the entry immediately above already confirming `WORKPLAN.md`'s marker was moved to `Phase 7`; now matches, with the correct owning agent (Antigravity) noted.
+- ⏭️ Next: Phase 7 — design-system-foundation task first (tokens per `DESIGN_SPEC.md` Part II, plus the twilight-interpolation function — added to `packages/shared`, not `apps/web`, per this session's `DECISIONS.md` entry), then app shell/auth UI/Daily Brief per `DESIGN_SPEC.md` §10/§16. Antigravity's phase.
