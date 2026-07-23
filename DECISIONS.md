@@ -275,3 +275,36 @@ This is a small addendum to Phase 2 (already closed), not new Phase 7/8 scope �
 Reused `FORMULAS.md` §0's already-frozen `TWILIGHT_ISS_AURORA_DEG` (-6°) and `TWILIGHT_STARS_DEG` (-18°) rather than re-declaring them — confirms `DESIGN_SPEC.md` §2 and `FORMULAS.md` §0 agree on those two thresholds, not a coincidence worth re-deriving. Added one new constant, `TWILIGHT_NAUTICAL_ASTRONOMICAL_DEG = -12` (nautical/astronomical boundary), sourced from `DESIGN_SPEC.md` §2 since `FORMULAS.md` doesn't name it — kept local to `twilight.ts` rather than added to `constants.ts`, since it isn't a `FORMULAS.md §0` frozen constant.
 
 Boundary ownership: each exact threshold value belongs to the darker/next phase (e.g. exactly -6° is `'nautical'`, not `'civil'`) — matches the real-world convention that civil twilight _ends_ the instant the Sun reaches -6° below the horizon (US Naval Observatory definition), used as the hand-verified anchor in `twilight.test.ts`.
+
+## 2026-07-23 — Phase 7 design-system-foundation: type scale as CSS custom properties; Tailwind v4 CSS-first config
+
+**Why:** Two related decisions, both confirmed by the human before building.
+
+**Type scale encoding — CSS custom properties, not Tailwind `fontSize`:** The spec defines each type step as a size + line-height + tracking _triple_. Tailwind's `fontSize` can hold triples but doesn't keep them coupled — three separate utility classes are still required. A CSS custom property + a `.type-*` semantic class keeps the triple atomic and enforces the spec's "set like a printed masthead" intent in a single declaration. Colors/spacing/radius/motion continue to use Tailwind utility classes where they benefit from composability.
+
+**Tailwind v4 CSS-first — no `tailwind.config.ts`:** Tailwind CSS v4 replaced the JS config file with CSS-first `@theme` blocks in the stylesheet. All design tokens (color, spacing, radius, motion duration/easing, font families) live in `apps/web/src/index.css`'s `@theme` block. `tailwind.config.ts` exists as a no-op comment so agents don't recreate a v3-style config.
+
+## 2026-07-23 — Phase 7 design-system-foundation: motion token consumer split (CSS vs GSAP)
+
+**Why:** DESIGN_SPEC.md §7.1 names GSAP ease functions deliberately — GSAP is the locked animation library (ARCHITECTURE.md §2) and these are real, distinct curve shapes. Tokens split by consumer:
+
+- **Micro** (`ease-out`): CSS only — spec says "ease-out" verbatim, a plain CSS keyword, no GSAP needed for hover/focus states.
+- **Transition** (`expo.out`): GSAP string `EASE_TRANSITION = "expo.out"` in `src/lib/motion.ts`. CSS fallback `cubic-bezier(0.16, 1, 0.3, 1)` also defined (user-confirmed correct curve).
+- **Cinematic** (`expo.inOut`): GSAP string `EASE_CINEMATIC = "expo.inOut"` in `src/lib/motion.ts`. No CSS bezier approximation defined — no non-GSAP consumer exists, and the expo.inOut approximation must be verified against easings.net before committing to CSS. If ever needed: verify, then add. See user message 2026-07-23 for the correction context.
+- **Ambient** (`sine.inOut`): OPEN for Phase 8. Both `EASE_AMBIENT = "sine.inOut"` (GSAP string) and `cubic-bezier(0.37, 0, 0.63, 1)` (CSS, from easings.net sineInOut reference) are defined. Phase 8 decides GSAP vs CSS and updates this entry.
+
+## 2026-07-23 — Phase 7 design-system-foundation: Sky ramp runtime wiring explicitly deferred
+
+**Why:** Sky-100 through sky-950 hex values are static and live in `@theme` and `:root` immediately. The runtime logic that reads the twilight interpolation value from `packages/shared`'s `twilightStateForSunAltitude()` and maps it to semantic surface slots (`--surface`, `--surface-secondary`, etc.) at runtime is deferred until that function's shape is confirmed stable and any consuming API decisions (polling interval, SSE delivery vs on-mount fetch) are made. A placeholder solar-altitude computation in `apps/web` would risk diverging from the shared engine. Semantic slots are statically wired to `sky-900` (night) as a safe default — users always get a readable interface regardless of actual twilight state, just without the live lighting effect.
+
+## 2026-07-23 — Phase 7 gap: `apps/web` typecheck never verified in Antigravity's sandbox, 18 real `tsc --build` errors found and closed
+
+**Why logged:** same class of issue as the Phase 1 static-dataset/fixture gaps above — Antigravity's sandbox cannot run typecheck commands, so Phase 7's `apps/web` output had never actually been run through `npx tsc --build`. Confirmed the 18 errors were real by reproducing them independently (see repro method below) before touching anything, per `CLAUDE.md`'s "verify yourself" rule.
+
+**Root cause, one root cause not three:** `apps/web/tsconfig.json` had no `compilerOptions.paths` entry for the `@/*` alias that `vite.config.ts`'s `resolve.alias` already defines, so Vite resolves `@/store`, `@/pages/*`, etc. at runtime but `tsc` couldn't. That single gap cascaded into all three reported symptoms: direct `TS2307` "Cannot find module '@/...'" errors, then every downstream Zustand selector on an unresolved `@/store` import losing its type and reporting `TS7006` implicit-`any` (e.g. `(s) => s.setUser`, `(s) => s.navVisible`), plus a wave of `TS17004` "Cannot use JSX unless the '--jsx' flag is provided" noise once the module graph broke. Fixed by adding `"paths": { "@/*": ["./src/*"], "@astranet/shared": ["../../packages/shared/src/index.ts"] }` to `apps/web/tsconfig.json`, matching `vite.config.ts`'s actual alias targets (checked directly, not assumed).
+
+**Repro/verify method:** stashed just `apps/web/tsconfig.json` + `apps/web/src/index.ts`, reran `tsc --build --force` — got the module-not-found/implicit-any cascade back exactly as described (e.g. `App.tsx(32,29): TS7006`, `PersistentNav.tsx(22,35)/(23,38): TS7006`), confirming the paths fix is the real root cause and not coincidental. Restored, then confirmed `npx tsc --build --force` (whole repo) and `npx tsc --noEmit -p apps/web/tsconfig.json` (standalone) both report zero errors.
+
+**Items 2 and 3 needed no separate fix once item 1 was corrected:** `apps/web/src/store/index.ts` already types `useAppStore` via `create<AppState>()` with `AppState` fully exported — once `@/store` resolves, every selector infers correctly with no per-callsite annotation needed. `apps/web/src/pages/LoginPage.tsx`'s `res.status` comes from the Fetch API's `Response.status` (plain `number`), so its `409`/`400`/`401` comparisons never actually narrow to a literal union in the current file — no widening was needed there either. Both were downstream symptoms of item 1's module-resolution failure, not independent bugs.
+
+**Scope discipline:** did not touch `apps/web/src/lib/motion.ts` (3 pre-existing `@typescript-eslint/no-unnecessary-type-assertion` lint errors) or the pre-existing Prettier formatting gaps in `App.tsx`, `PersistentNav.tsx`, `index.css`, `motion.ts`, `vite.config.ts`, and `LoginPage.tsx` (all line-width/formatting only, unrelated to the type-narrowing bug) — none of these are TypeScript errors, none regressed from this fix, and per the explicit scope of this takeover they remain Antigravity's Phase 7 work to close. One-time typecheck takeover only; Phase 7 ownership is unchanged.
