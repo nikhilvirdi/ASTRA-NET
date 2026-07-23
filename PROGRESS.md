@@ -452,3 +452,21 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ⚠️ Could NOT verify visual/FPS: automation runs Chrome backgrounded, so `/explore` tab is `visibilityState:"hidden"` → rAF suspended, R3F never paints (canvas black), FPS unmeasurable. Reported no number rather than an estimate. Scene _logic_ verified correct; live render/perf needs a real foreground browser. — by Claude Code
 - ⛔ WORKPLAN Current Phase marker NOT advanced (still Phase 8) — per instruction; also gates fail + brightness missing.
 - ⏭️ Next (for Antigravity): fix the 3 tsc buffer-read guards, color.ts prefer-const, prettier on the 2 files; implement §2 brightness in the render; filter the Sun from the catalog; and a real foreground-browser visual/FPS pass.
+
+## 2026-07-24 (Cleanup: ESLint config — coverage ignore + JS-scripts override, by Claude Code)
+
+- ✅ Done: `.eslintrc.json` `ignorePatterns` now includes `coverage`, so `--coverage` output can never break `eslint .` again. — by Claude Code
+- ✅ Done: added an `overrides` block for `apps/api/scripts/*.js` (`env: node`, `extends` `plugin:@typescript-eslint/disable-type-checked`, `parserOptions.project: null`, and `no-console: off`) — resolves the two recurring `ingest-stars.js`/`ingest-light-pollution.js` parse errors (files not in any tsconfig) without adding them to any tsconfig `include`. The `no-console: off` was necessary too: these standalone CLI ingest scripts log progress via `console.log`, which would otherwise fail `--max-warnings=0`. — by Claude Code
+- ✅ Gate confirmed (real run): `npx eslint . --max-warnings=0` → **exit 0**, genuinely clean repo-wide. The prior sole remaining blocker, `apps/web/src/lib/color.ts:6` `prefer-const`, was fixed to `const temp` by Antigravity in the interim, so nothing out-of-bounds was touched here. — by Claude Code
+- 📝 Commit note: the `.eslintrc.json` change was swept into a concurrent session's commit `5617357` ("Commit actual Phase 7 Daily Brief frontend deliverables") by that session's broad `git add` while the edit sat uncommitted in the working tree — so it landed in that commit rather than a dedicated one. Content is exactly as intended (verified against `5617357:.eslintrc.json`); history was **not** rewritten to reshuffle it, since `main` was being actively committed by another agent. — by Claude Code
+- 📝 Related: item-1 cleanup — the four already-formatted Phase 7 frontend files (`App.tsx`, `PersistentNav.tsx`, `vite.config.ts`, `LoginPage.tsx`) committed separately in `90b9236`; `index.css`/`motion.ts` were already tracked (see DECISIONS.md). — by Claude Code
+
+## 2026-07-24 (Phase 8 Sky Anchor — three confirmed defects fixed, by Claude Code)
+
+- ✅ Done: tsc strict-index-access — guarded the 5 strided `buffer[idx…]` reads in `StarField.tsx` (real `undefined` guard, narrows types; no `!` band-aid). — by Claude Code
+- ✅ Done: §2 brightness — `starBrightness(mag)` wired into the shader as a per-vertex `brightness` attribute × fragment alpha; dim stars now genuinely dimmer (range 0.631–1.0). — by Claude Code
+- ✅ Done: Sun filtered — runtime filter by identifying property (`distPc === 0`) fixes shipped `stars.bin`; `ingest-stars.js` also patched for clean future rebuilds (binary NOT regenerated — avoids network + catalog-perturbation risk). Geometry now packs accepted stars (no phantom origin points). — by Claude Code
+- ✅ Done: `color.ts` prefer-const; prettier on `ExplorePage.tsx`/`StarField.tsx`. — by Claude Code
+- ✅ Gates green (real): `tsc --build --force` exit 0; `eslint apps/web/src --max-warnings=0` exit 0; `prettier --check` (4 files) exit 0. Runtime replay vs real `stars.bin`: Sun skipped, 8920 kept, 0 phantom points, brightness [0.631, 1.0]. — by Claude Code
+- 📝 Touched Antigravity's untracked in-progress files (`StarField.tsx`, `ExplorePage.tsx`, `color.ts`) — required because the tsc errors are in `StarField.tsx`; see DECISIONS.md. Frontend left untracked/uncommitted; `ingest-stars.js` is the one tracked change. — by Claude Code
+- ⛔ Phase 8 NOT closed: live visual/FPS verification still outstanding (environment-limited, separate blocker) + further Phase 8 atomic tasks remain. Marker unchanged.
