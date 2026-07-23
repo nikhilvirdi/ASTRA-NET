@@ -387,3 +387,13 @@ Keep entries short — one line per item. Detail belongs in commit messages, not
 - ⛔ Found, not fixed (review only): `HorizonBand.tsx`, `ConfidenceTicks.tsx`, `FreshnessIndicator.tsx`, `LivePulse.tsx` hardcode literal hex values instead of using `index.css`'s token classes — values match today but bypass the design system.
 - ⛔ Found, not fixed (review only): new (not pre-existing) lint/format regressions in this session's own files — `BriefPage.tsx:17` unused `error` state (no user-visible error UI on total `/api/brief` failure), and 6 of this session's new files fail `prettier --check` (`HorizonBand.tsx`, `ConfidenceTicks.tsx`, `FreshnessIndicator.tsx`, `LivePulse.tsx`, `api.ts`, `BriefPage.tsx`).
 - 📝 Noted, out of scope: `DESIGN_SPEC.md` §10's Moon phase/rise-set requirement has no backing engine anywhere in the repo yet — pre-existing gap, not introduced by this work.
+
+## 2026-07-23 (Phase 7 backend close-out — Jupiter alt/az + ISS azimuth, by Claude Code)
+
+- ✅ Done: `fetchHorizonsRaDec` added to the Phase 1 JPL Horizons client (composes existing `fetchHorizons` pipeline; CSV OBSERVER table, `QUANTITIES='1'`, `ANG_FORMAT='DEG'`; per-row Zod validation) — by Claude Code
+- ✅ Done: `horizonsJupiter` slow-tier store slot (Jupiter `'599'`, geocentric, hourly steps; keep-last-known-good failure policy matching the existing Horizons Sun slot) + `/health` row — by Claude Code
+- ✅ Done: `skyAnchor.data.jupiter: { altitudeDeg, azimuthDeg } | null` on `/api/brief` — nearest ephemeris row run through the shared `equatorialToHorizontal` (confirmed generic, arbitrary RA/Dec) per request; null-degrades without blanking the card — by Claude Code
+- ✅ Done: ISS next-pass now exposes `startAzimuthDeg`/`maxAzimuthDeg`/`endAzimuthDeg` + compass strings — already fetched by the N2YO client since Phase 1, exposure only, no refetch/recompute — by Claude Code
+- ✅ Done: gates green — `npx tsc --build --force` zero errors; `eslint apps/api/src --max-warnings=0` clean; `prettier --check apps/api/src` clean; apps/api 333/333 tests (incl. real-Postgres brief tests) and packages/shared 110/110 passing — by Claude Code
+- ✅ Done: corrected the DECISIONS.md "Daily Brief Location Fallback" entry to the real 2-step chain (`store.location` -> Srinagar) and moved it out of the middle of the typecheck-gap entry it had been inserted into — by Claude Code
+- ⛔ Not done (frontend half, out of scope): `HorizonBand.tsx` still uses its hardcoded Jupiter RA/Dec and `apps/web/src/lib/api.ts` types don't yet declare the new payload fields — wiring the frontend to consume `skyAnchor.data.jupiter` and the pass azimuths remains open Phase 7 work.
