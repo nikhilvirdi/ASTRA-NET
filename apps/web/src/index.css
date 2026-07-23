@@ -1,0 +1,414 @@
+/**
+ * ASTRANET Design System — Main Stylesheet
+ *
+ * Tailwind CSS v4 (CSS-first). All design tokens live here in @theme blocks.
+ * No tailwind.config.ts / tailwind.config.js — that's a v3 pattern.
+ *
+ * Sections:
+ *   1. Tailwind base import
+ *   2. @theme — design tokens (color, spacing, radius, motion, typography)
+ *   3. Google Fonts variables
+ *   4. CSS custom properties (type scale, motion, sky slots) on :root
+ *   5. Base layer (resets, global rules)
+ *   6. Semantic type utility classes
+ *   7. Layout utilities
+ *   8. Reduced motion overrides (§7.6)
+ *
+ * References:
+ *   §4   Color    §5  Typography   §6  Spacing/Layout
+ *   §7   Motion   ARCHITECTURE.md §2  (font stack)
+ */
+
+/* ── 1. Tailwind v4 base ────────────────────────────────────────────────── */
+@import 'tailwindcss';
+
+/* ── 2. @theme — Tailwind design tokens ─────────────────────────────────── */
+@theme {
+  /* ─ §4.1 Sky ramp ─────────────────────────────────────────────────────── */
+  /* Hex values are STATIC. Runtime twilight → surface wiring is DEFERRED.   */
+  /* See packages/shared twilight function (Claude Code) — PROGRESS.md gap.  */
+  --color-sky-100: #eef1f1; /* Day surface. Cool paper, not cream.        */
+  --color-sky-200: #d6dcdc; /* Day secondary surface, dividers day mode.  */
+  --color-sky-400: #8b9898; /* Mid-tone. Disabled, tertiary text on light.*/
+  --color-sky-600: #3e4a4a; /* Nautical twilight surface.                 */
+  --color-sky-800: #1c2424; /* Astronomical twilight surface.             */
+  --color-sky-900: #111818; /* Night surface. The deepest base.           */
+  --color-sky-950: #0a0e0e; /* Immersive/3D void. /explore only.          */
+
+  /* ─ §4.2 Brass ────────────────────────────────────────────────────────── */
+  /* Calibration marks, tick rules, scale numerals. Never decorative.        */
+  --color-brass-300: #c9b187; /* Tick marks and scale rules on dark surfaces*/
+  --color-brass-500: #9a8258; /* Secondary data labels, axis numerals.      */
+  --color-brass-700: #6b5a3c; /* Brass on light surfaces (day mode).        */
+
+  /* ─ §4.3 Ember ────────────────────────────────────────────────────────── */
+  /* The red. Live state, alerts ONLY. Never decoration/borders/gradients.   */
+  --color-ember-400: #e0614c; /* Live-pulse indicator, active state.        */
+  --color-ember-600: #c4362a; /* Primary action, alert emphasis.            */
+  --color-ember-800: #7e241c; /* Red Light Mode base.                       */
+
+  /* ─ §4.4 Phenomenon colors ────────────────────────────────────────────── */
+  /* One muted, specific color per real sky phenomenon.                      */
+  --color-aurora: #7fa88a; /* Muted sage-green — real weak aurora.       */
+  --color-solar: #d9a05b; /* Solar activity, CME, flares.               */
+  --color-orbital: #a8b4bc; /* ISS and satellites. Cool metallic grey.    */
+  --color-neo: #b08968; /* Near-Earth objects. Dusty rock.            */
+
+  /* ─ §6.1 Spacing scale (4px base) ────────────────────────────────────── */
+  --spacing-0_5: 2px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-24: 96px;
+  --spacing-32: 128px;
+  --spacing-48: 192px;
+  --spacing-64: 256px;
+
+  /* ─ §6.3 Corner radius ────────────────────────────────────────────────── */
+  /* Deliberately tight. Sharp = readout, soft = control.                    */
+  --radius-none: 0; /* Rules, dividers, Horizon Band, data plots.     */
+  --radius-sm: 2px; /* Input fields, small controls.                  */
+  --radius-md: 6px; /* Buttons, toggles.                              */
+  --radius-full: 9999px; /* Circular objects only: dial, sky marker, avatar*/
+
+  /* ─ §7.1 Motion — Tailwind duration utilities ─────────────────────────── */
+  --duration-micro: 150ms; /* midpoint 120–180ms  hover/focus (CSS) */
+  --duration-transition: 400ms; /* midpoint 320–480ms  GSAP: "expo.out"  */
+  --duration-cinematic: 1200ms; /* midpoint 800–1600ms GSAP: "expo.inOut"*/
+  --duration-ambient: 10000ms; /* midpoint 4–20s      Phase 8 open      */
+
+  /* ─ §7.1 Motion — Tailwind easing utilities ───────────────────────────── */
+  /* Micro: spec says "ease-out" verbatim — CSS keyword, no GSAP.            */
+  --ease-micro: ease-out;
+  /* expo.out CSS approximation — confirmed correct cubic-bezier.            */
+  --ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* expo.inOut: GSAP owns this via "expo.inOut" string (see motion.ts).     */
+  /* No CSS approximation needed — no non-GSAP consumer exists yet.         */
+  /* sine.inOut: standard approximation, source: easings.net sineInOut.     */
+  --ease-sine-in-out: cubic-bezier(0.37, 0, 0.63, 1);
+
+  /* ─ Typography — font families ─────────────────────────────────────────── */
+  /* Full scale lives as CSS custom properties on :root below.               */
+  --font-archivo: 'Archivo', system-ui, sans-serif;
+  --font-mono: 'Martian Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-newsreader: 'Newsreader', Georgia, serif;
+
+  /* ─ §6.4 Elevation — no shadows ───────────────────────────────────────── */
+  /* §6.4: "There are no drop shadows in the 2D interface."
+     Expressed as a CSS reset in @layer base below (not a @theme token —
+     Tailwind v4 ships shadow-none already; no custom --shadow-* entry needed). */
+
+  /* ─ §6.4 Backdrop blur — /explore overlay panels only ─────────────────── */
+  /* Single exception: diegetically justified as "looking through atmosphere" */
+  --blur-atmosphere: 12px;
+}
+
+/* ── 3. CSS custom properties — type scale & motion ─────────────────────── */
+/*    These complement @theme but hold values not expressible as Tailwind    */
+/*    utility-token patterns (e.g. per-step line-height + tracking triples). */
+@layer base {
+  :root {
+    /* ─ §5.3 Type scale — custom properties ─────────────────────────────── */
+    /* "A restrained scale. Sizes in rem at a 16px root."                    */
+
+    /* Display / proportional (Archivo) */
+    --font-size-display-xl: 5.5rem;
+    --line-height-display-xl: 0.95;
+    --tracking-display-xl: -0.03em;
+
+    --font-size-display-l: 3.75rem;
+    --line-height-display-l: 1;
+    --tracking-display-l: -0.025em;
+
+    --font-size-display-m: 2.5rem; /* card headlines, mobile Brief headline */
+    --line-height-display-m: 1.05;
+    --tracking-display-m: -0.02em;
+
+    --font-size-title: 1.5rem;
+    --line-height-title: 1.2;
+    --tracking-title: -0.01em;
+
+    --font-size-body-l: 1.125rem; /* serif — explanation prose ONLY */
+    --line-height-body-l: 1.6;
+    --tracking-body-l: 0em;
+
+    --font-size-body: 1rem;
+    --line-height-body: 1.55;
+    --tracking-body: 0em;
+
+    --font-size-caption: 0.875rem;
+    --line-height-caption: 1.4;
+    --tracking-caption: 0.01em;
+
+    --font-size-micro: 0.75rem; /* eyebrows + mono stamps — uppercase */
+    --line-height-micro: 1.3;
+    --tracking-micro: 0.08em;
+
+    /* Data / monospaced (Martian Mono) §5.3 §5.4 */
+    --font-size-data-l: 2rem; /* featured measurement */
+    --line-height-data-l: 1;
+    --tracking-data-l: -0.01em;
+
+    --font-size-data: 1rem; /* inline measurement */
+    --line-height-data: 1.4;
+    --tracking-data: 0em;
+
+    /* ─ §7.1 Motion — duration/easing aliases (CSS consumer convenience) ─── */
+    --dur-micro: 150ms;
+    --dur-transition: 400ms;
+    --dur-cinematic: 1200ms;
+    --dur-ambient: 10s;
+
+    --ease-micro: ease-out;
+    --ease-expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+    /* expo.inOut intentionally omitted — GSAP owns this. See src/lib/motion.ts */
+    --ease-sine-in-out: cubic-bezier(0.37, 0, 0.63, 1);
+
+    /* ─ §4.1 Sky ramp — slot custom properties ──────────────────────────── */
+    /* Static hex values. Runtime twilight wiring DEFERRED — see PROGRESS.md */
+    --sky-100: #eef1f1;
+    --sky-200: #d6dcdc;
+    --sky-400: #8b9898;
+    --sky-600: #3e4a4a;
+    --sky-800: #1c2424;
+    --sky-900: #111818;
+    --sky-950: #0a0e0e;
+
+    /* Semantic surface slots — statically wired to night until twilight fn. */
+    /* The twilight hook (Phase 7 follow-on, after packages/shared fn lands) */
+    /* will override these at runtime via solar-altitude interpolation.      */
+    --surface: var(--sky-900);
+    --surface-secondary: var(--sky-800);
+    --surface-tertiary: var(--sky-600);
+    --on-surface: var(--sky-100);
+    --on-surface-muted: var(--sky-400);
+  }
+}
+
+/* ── 4. Base layer — resets & global rules ───────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    /* §6.4: "There are no drop shadows in the 2D interface." */
+    box-shadow: none;
+  }
+
+  input {
+    /* Override browser default input chrome */
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+  }
+
+  /* Chrome/Edge/Safari force their own input background + text color on
+     autofilled fields; a plain background-color rule (even with appearance:
+     none above) cannot override that forced styling. The inset box-shadow
+     trick paints over it; the long transition delays the yellow flash. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    box-shadow: 0 0 0 1000px var(--surface) inset;
+    -webkit-text-fill-color: var(--on-surface);
+    caret-color: var(--on-surface);
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  html {
+    /* §6.4: "The 2D interface never uses pure black." sky-950 only on /explore */
+    background-color: var(--surface);
+    color: var(--on-surface);
+    font-family: 'Archivo', system-ui, sans-serif;
+    /* §5.4: Tabular lining figures throughout */
+    font-variant-numeric: tabular-nums lining-nums;
+    /* Smooth surface transitions when twilight function updates --surface */
+    transition: background-color var(--dur-transition) var(--ease-expo-out);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  /* §6 Quality Floor: "visible keyboard focus on every interactive element,
+     styled as a 2px brass-300 outline offset 2px. Never removed, never a
+     browser default." */
+  :focus-visible {
+    outline: 2px solid #c9b187; /* brass-300 */
+    outline-offset: 2px;
+  }
+
+  /* §5.1: "measurements are monospaced — always, everywhere, without exception" */
+  time,
+  data,
+  output {
+    font-family: 'Martian Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* ── 5. Semantic type utility classes (§5.3) ─────────────────────────────── */
+@layer utilities {
+  /* ── Display / proportional (Archivo) ─────────────────────────────────── */
+
+  .type-display-xl {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-display-xl);
+    line-height: var(--line-height-display-xl);
+    letter-spacing: var(--tracking-display-xl);
+    font-weight: 600;
+  }
+
+  .type-display-l {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-display-l);
+    line-height: var(--line-height-display-l);
+    letter-spacing: var(--tracking-display-l);
+    font-weight: 600;
+  }
+
+  .type-display-m {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-display-m);
+    line-height: var(--line-height-display-m);
+    letter-spacing: var(--tracking-display-m);
+    font-weight: 600;
+  }
+
+  .type-title {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-title);
+    line-height: var(--line-height-title);
+    letter-spacing: var(--tracking-title);
+    font-weight: 500;
+  }
+
+  .type-body-l {
+    /* §5.2: used ONLY for plain-language explanations and 60-second learning moment */
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: var(--font-size-body-l);
+    line-height: var(--line-height-body-l);
+    letter-spacing: var(--tracking-body-l);
+    font-weight: 400;
+  }
+
+  .type-body {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+    letter-spacing: var(--tracking-body);
+    font-weight: 400;
+  }
+
+  .type-caption {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: var(--font-size-caption);
+    line-height: var(--line-height-caption);
+    letter-spacing: var(--tracking-caption);
+    font-weight: 400;
+  }
+
+  .type-micro {
+    /* §5.3: "Eyebrows and mono stamps. Uppercase." */
+    font-family: 'Martian Mono', ui-monospace, monospace;
+    font-size: var(--font-size-micro);
+    line-height: var(--line-height-micro);
+    letter-spacing: var(--tracking-micro);
+    font-weight: 400;
+    text-transform: uppercase;
+  }
+
+  /* ── Data / monospaced (Martian Mono) §5.3 §5.4 ─────────────────────── */
+
+  .type-data-l {
+    font-family: 'Martian Mono', ui-monospace, monospace;
+    font-size: var(--font-size-data-l);
+    line-height: var(--line-height-data-l);
+    letter-spacing: var(--tracking-data-l);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  .type-data {
+    font-family: 'Martian Mono', ui-monospace, monospace;
+    font-size: var(--font-size-data);
+    line-height: var(--line-height-data);
+    letter-spacing: var(--tracking-data);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* ── 6. Layout utilities ─────────────────────────────────────────────────── */
+@layer utilities {
+  /* §6.4 Elevation pattern — hairline rule, never drop shadow */
+  /* "1px sky-600 at 40% opacity, used to separate, never to enclose"        */
+  .hairline {
+    border-bottom: 1px solid rgb(62 74 74 / 0.4); /* sky-600 at 40% */
+  }
+
+  /* §6.2 Observation Grid — asymmetric two-track layout */
+  .observation-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 68ch) 240px;
+    column-gap: 96px; /* §6.2 gutter */
+  }
+
+  /* Laptop 1024–1280px: margin track narrows, gutter tightens */
+  @media (max-width: 1280px) and (min-width: 1024px) {
+    .observation-grid {
+      grid-template-columns: minmax(0, 68ch) 180px;
+      column-gap: 64px;
+    }
+  }
+
+  /* Tablet ≤1024px: margin track collapses inline — must be designed, not automated */
+  @media (max-width: 1024px) {
+    .observation-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* §5.3 Headline measure cap */
+  .headline-measure {
+    max-width: 68ch;
+  }
+
+  /* §6.4 Single backdrop-blur exception — /explore overlay panels only */
+  .backdrop-blur-atmosphere {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* ── 7. §7.6 Reduced motion overrides ───────────────────────────────────── */
+/*    "Under prefers-reduced-motion: ambient loops stop entirely, the live   */
+/*     pulse becomes a static dot with a mono timestamp, freshness rules     */
+/*     jump in steps, load sequence collapses to a single 200ms fade."      */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-micro: 0ms;
+    --dur-transition: 200ms; /* §7.6: "collapses to a single 200ms fade" */
+    --dur-cinematic: 200ms;
+    --dur-ambient: 0ms;
+    --ease-micro: linear;
+    --ease-expo-out: linear;
+    --ease-sine-in-out: linear;
+  }
+
+  /* Stop all CSS animation loops (ambient effect classes from Phase 8) */
+  .ambient-loop,
+  .star-twinkle,
+  .aurora-drift {
+    animation: none !important;
+  }
+}
