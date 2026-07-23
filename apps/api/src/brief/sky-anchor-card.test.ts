@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { julianDay, localSiderealTimeDeg, mod, sunEquatorialPosition } from '@astranet/shared';
+import {
+  equatorialToHorizontal,
+  julianDay,
+  localSiderealTimeDeg,
+  mod,
+  sunEquatorialPosition,
+} from '@astranet/shared';
 import { buildSkyAnchorCard, classifyTwilightPhase } from './sky-anchor-card';
+import type { HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
+import type { SourceState } from '../poller/store.js';
+
+const NO_JUPITER: SourceState<HorizonsRaDecData> = {
+  data: null,
+  fetchedAt: null,
+  healthy: false,
+};
+
+function jupiterState(
+  entries: HorizonsRaDecData['entries'],
+  fetchedAt = '2026-07-17T00:00:00.000Z',
+): SourceState<HorizonsRaDecData> {
+  return { data: { entries, fetchedAt }, fetchedAt, healthy: true };
+}
 
 describe('classifyTwilightPhase', () => {
   it('is "day" at and above the -6deg threshold', () => {
@@ -20,10 +41,11 @@ describe('classifyTwilightPhase', () => {
 });
 
 describe('buildSkyAnchorCard', () => {
-  it('never throws and always returns a resolved card, given only lat/lon/now', () => {
-    const card = buildSkyAnchorCard(999, 999, new Date('2026-07-17T00:00:00Z'));
+  it('never throws and always returns a resolved card, even with no Jupiter ephemeris', () => {
+    const card = buildSkyAnchorCard(999, 999, new Date('2026-07-17T00:00:00Z'), NO_JUPITER);
     expect(card).toBeDefined();
     expect(Number.isFinite(card.sunAltitudeDeg)).toBe(true);
+    expect(card.jupiter).toBeNull();
   });
 
   it('reports "day" for an observer at the subsolar point (sun at zenith)', () => {
@@ -36,7 +58,7 @@ describe('buildSkyAnchorCard', () => {
     const lstBase = localSiderealTimeDeg(jd, 0);
     const lonEastDeg = mod(raDeg - lstBase, 360);
 
-    const card = buildSkyAnchorCard(decDeg, lonEastDeg, now);
+    const card = buildSkyAnchorCard(decDeg, lonEastDeg, now, NO_JUPITER);
     expect(card.sunAltitudeDeg).toBeCloseTo(90, 3);
     expect(card.twilightPhase).toBe('day');
     expect(card.isDarkEnoughForIssOrAurora).toBe(false);
@@ -54,10 +76,59 @@ describe('buildSkyAnchorCard', () => {
     const antipodalLatDeg = -decDeg;
     const antipodalLonEastDeg = mod(subsolarLonEastDeg + 180, 360);
 
-    const card = buildSkyAnchorCard(antipodalLatDeg, antipodalLonEastDeg, now);
+    const card = buildSkyAnchorCard(antipodalLatDeg, antipodalLonEastDeg, now, NO_JUPITER);
     expect(card.sunAltitudeDeg).toBeCloseTo(-90, 3);
     expect(card.twilightPhase).toBe('night');
     expect(card.isDarkEnoughForIssOrAurora).toBe(true);
     expect(card.isDarkEnoughForFaintStars).toBe(true);
+  });
+
+  it("computes Jupiter's alt/az by running the ephemeris RA/Dec through the shared FORMULAS.md §3 transform", () => {
+    const now = new Date('2026-07-17T21:00:00Z');
+    const latDeg = 34.08;
+    const lonDeg = 74.8;
+    const entry = { timestampUtcMs: now.getTime(), raDeg: 129.42611, decDeg: 18.09309 };
+
+    const card = buildSkyAnchorCard(latDeg, lonDeg, now, jupiterState([entry]));
+
+    const expected = equatorialToHorizontal(
+      entry.raDeg,
+      entry.decDeg,
+      latDeg,
+      lonDeg,
+      julianDay(now),
+    );
+    expect(card.jupiter).toEqual(expected);
+  });
+
+  it('picks the ephemeris row nearest to now, regardless of row order', () => {
+    const now = new Date('2026-07-17T21:20:00Z');
+    const farEntry = {
+      timestampUtcMs: now.getTime() + 5 * 3_600_000,
+      raDeg: 200,
+      decDeg: -5,
+    };
+    const nearEntry = {
+      timestampUtcMs: now.getTime() - 20 * 60_000,
+      raDeg: 129.4,
+      decDeg: 18.1,
+    };
+
+    const card = buildSkyAnchorCard(34.08, 74.8, now, jupiterState([farEntry, nearEntry]));
+
+    const expected = equatorialToHorizontal(
+      nearEntry.raDeg,
+      nearEntry.decDeg,
+      34.08,
+      74.8,
+      julianDay(now),
+    );
+    expect(card.jupiter).toEqual(expected);
+  });
+
+  it('degrades jupiter to null when the ephemeris has null entries', () => {
+    const card = buildSkyAnchorCard(34.08, 74.8, new Date(), jupiterState(null));
+    expect(card.jupiter).toBeNull();
+    expect(Number.isFinite(card.sunAltitudeDeg)).toBe(true);
   });
 });

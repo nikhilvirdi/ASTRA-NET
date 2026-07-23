@@ -112,6 +112,14 @@ function fullPollerState(): PollerState {
     fetchedAt: NOW.toISOString(),
     healthy: true,
   };
+  state.horizonsJupiter = {
+    data: {
+      entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 129.42611, decDeg: 18.09309 }],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
   return state;
 }
 
@@ -125,6 +133,9 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');
     expect(brief.skyAnchor.data).not.toBeNull();
+    expect(brief.skyAnchor.data?.jupiter).not.toBeNull();
+    expect(Number.isFinite(brief.skyAnchor.data?.jupiter?.altitudeDeg)).toBe(true);
+    expect(Number.isFinite(brief.skyAnchor.data?.jupiter?.azimuthDeg)).toBe(true);
     expect(brief.iss.status).toBe('ok');
     expect(brief.iss.data?.position?.latitude).toBe(12.3);
     expect(brief.iss.data?.nextPass).toBeNull();
@@ -247,6 +258,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.status).toBe('ok');
     expect(brief.skyAnchor.status).toBe('ok');
     expect(brief.skyAnchor.data).not.toBeNull();
+    expect(brief.skyAnchor.data?.jupiter).toBeNull();
     expect(brief.iss.status).toBe('unavailable');
     expect(brief.spaceWeather.status).toBe('unavailable');
     expect(brief.spaceWeather.data).toBeNull();

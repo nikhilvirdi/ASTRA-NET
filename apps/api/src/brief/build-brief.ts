@@ -62,10 +62,13 @@ export function buildBrief(
    */
   predictionHistory: { hits: number; trials: number },
 ): DailyBrief {
-  // Sky Anchor is pure Sun-position math over observer/now — it has no
-  // external source to fail, so it always resolves (ARCHITECTURE.md §5's
-  // top-priority "always works" card).
-  const skyAnchor = okCard(buildSkyAnchorCard(observerLatDeg, observerLonDeg, now));
+  // Sky Anchor always resolves (ARCHITECTURE.md §5's top-priority "always
+  // works" card): its Sun half is pure math over observer/now with no
+  // external source to fail, and its Jupiter sub-field degrades to null on
+  // its own when the Horizons ephemeris is down.
+  const skyAnchor = okCard(
+    buildSkyAnchorCard(observerLatDeg, observerLonDeg, now, pollerState.horizonsJupiter),
+  );
 
   const issCardData = buildIssCard(pollerState.iss, issVisualPasses, now);
   const iss: BriefCard<IssCard> =
