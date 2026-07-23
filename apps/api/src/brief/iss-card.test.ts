@@ -74,6 +74,35 @@ describe('buildIssCard', () => {
     expect(card.nextPass?.startUtc).toBe(NOW_SECONDS + 3600);
   });
 
+  it('exposes the fetched pass azimuths (start/peak/end) on the next-pass field', () => {
+    const visualPasses: N2yoVisualPassesData = {
+      satId: 25544,
+      satName: 'ISS',
+      passes: [
+        pass(NOW_SECONDS + 3600, {
+          startAzimuth: 311.2,
+          startAzimuthCompass: 'NW',
+          maxAzimuth: 42.5,
+          maxAzimuthCompass: 'NE',
+          endAzimuth: 133.8,
+          endAzimuthCompass: 'SE',
+        }),
+      ],
+      fetchedAt: NOW.toISOString(),
+    };
+
+    const card = buildIssCard(issState(null, false), visualPasses, NOW);
+
+    expect(card.nextPass).toMatchObject({
+      startAzimuthDeg: 311.2,
+      startAzimuthCompass: 'NW',
+      maxAzimuthDeg: 42.5,
+      maxAzimuthCompass: 'NE',
+      endAzimuthDeg: 133.8,
+      endAzimuthCompass: 'SE',
+    });
+  });
+
   it('picks the soonest upcoming pass regardless of input order', () => {
     const visualPasses: N2yoVisualPassesData = {
       satId: 25544,

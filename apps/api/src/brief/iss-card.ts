@@ -39,6 +39,18 @@ export interface IssNextPassField {
   maxElevationDeg: number;
   magnitude: number;
   durationSeconds: number;
+  /**
+   * Where on the horizon the pass starts/peaks/ends — straight from the
+   * same N2YO visualpasses response as the timing fields above (already
+   * fetched and schema-validated by the Phase 1 client; exposure only,
+   * nothing refetched or recomputed).
+   */
+  startAzimuthDeg: number;
+  startAzimuthCompass: string;
+  maxAzimuthDeg: number;
+  maxAzimuthCompass: string;
+  endAzimuthDeg: number;
+  endAzimuthCompass: string;
 }
 
 export interface IssCard {
@@ -83,6 +95,12 @@ export function buildIssCard(
         maxElevationDeg: nextPassRaw.maxElevation,
         magnitude: nextPassRaw.magnitude,
         durationSeconds: nextPassRaw.duration,
+        startAzimuthDeg: nextPassRaw.startAzimuth,
+        startAzimuthCompass: nextPassRaw.startAzimuthCompass,
+        maxAzimuthDeg: nextPassRaw.maxAzimuth,
+        maxAzimuthCompass: nextPassRaw.maxAzimuthCompass,
+        endAzimuthDeg: nextPassRaw.endAzimuth,
+        endAzimuthCompass: nextPassRaw.endAzimuthCompass,
       }
     : null;
 
