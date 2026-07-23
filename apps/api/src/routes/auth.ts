@@ -315,6 +315,41 @@ export function registerAuthRoutes(app: Express, deps: AuthRouteDeps): void {
   });
 
   /**
+   * WORKPLAN.md Phase 6's final task — delete-my-data. Deleting the
+   * `User` row itself, not explicit per-table deletes, per `SCHEMA.md`'s
+   * unambiguous "deleting a User cascades to their Sessions, Locations,
+   * SkyLogEntries, and Predictions... cascade is the intended behavior,
+   * not soft-delete flags" — the `onDelete: Cascade` FKs already defined
+   * on all four child models (`prisma/schema.prisma`) do the actual
+   * removal. Logged in `DECISIONS.md`: this reads as full account
+   * deletion, which is a stronger behavior than `ARCHITECTURE.md` §7 /
+   * WORKPLAN.md's own task phrasing ("removal of a user's locations +
+   * log + predictions") literally describes — SCHEMA.md is the more
+   * specific, mechanism-level locked doc, so it wins.
+   *
+   * `deleteMany` (not `delete`), matching `logout`'s own idiom: a second
+   * call with the same still-valid (DB-free-verified) access token after
+   * the User is already gone is a clean no-op, not a thrown P2025.
+   * Session is gone with it, so the refresh cookie is cleared too —
+   * same as logout, since there is no session left for it to name.
+   */
+  app.delete(
+    '/api/auth/account',
+    requireAuth({ jwtAccessSecret }),
+    async (req: Request, res: Response) => {
+      const userId = req.userId as string;
+      try {
+        await prisma.user.deleteMany({ where: { id: userId } });
+        clearRefreshTokenCookie(res);
+        res.status(200).json({ deleted: true });
+      } catch (error) {
+        logUnexpectedAuthError('delete-account', error);
+        res.status(500).json({ error: 'internal error' });
+      }
+    },
+  );
+
+  /**
    * The first route `requireAuth` actually protects (WORKPLAN.md Phase
    * 5's DoD: "...and access a protected route"). Deliberately minimal —
    * a "who am I" endpoint any authed client needs regardless of Phase

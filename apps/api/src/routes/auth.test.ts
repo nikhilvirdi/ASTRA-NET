@@ -447,6 +447,106 @@ describe('GET /api/auth/me', () => {
   });
 });
 
+describe('DELETE /api/auth/account', () => {
+  it('rejects an unauthenticated request', async () => {
+    const res = await request(createTestApp()).delete('/api/auth/account');
+    expect(res.status).toBe(401);
+  });
+
+  it('deletes the User and cascades to their Location, SkyLogEntry, and Prediction rows, clearing the refresh cookie', async () => {
+    const app = createTestApp();
+    const { accessToken, refreshToken, email } = await signupAndLogin(app, 'delete-basic');
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+
+    await prisma.location.create({
+      data: { userId: user.id, label: 'Home', latitude: 40, longitude: -74, isDefault: true },
+    });
+    await prisma.skyLogEntry.create({
+      data: { userId: user.id, eventType: 'aurora', timestamp: new Date(), source: 'manual' },
+    });
+    await prisma.prediction.create({
+      data: { userId: user.id, targetTime: new Date(), predictedKp: 4, confidence: 0.6 },
+    });
+
+    const res = await request(app)
+      .delete('/api/auth/account')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ deleted: true });
+    const setCookie = (res.headers['set-cookie'] as unknown as string[]).join('; ');
+    expect(setCookie).toContain('refreshToken=;');
+
+    await expect(prisma.user.findUnique({ where: { id: user.id } })).resolves.toBeNull();
+    await expect(prisma.location.findMany({ where: { userId: user.id } })).resolves.toEqual([]);
+    await expect(prisma.skyLogEntry.findMany({ where: { userId: user.id } })).resolves.toEqual([]);
+    await expect(prisma.prediction.findMany({ where: { userId: user.id } })).resolves.toEqual([]);
+    await expect(
+      prisma.session.findUnique({ where: { hashedRefreshToken: hashRefreshToken(refreshToken) } }),
+    ).resolves.toBeNull();
+  });
+
+  it("leaves another user's locations, sky log entries, and predictions completely untouched", async () => {
+    const app = createTestApp();
+    const deleter = await signupAndLogin(app, 'delete-cross-deleter');
+    const bystander = await signupAndLogin(app, 'delete-cross-bystander');
+    const bystanderUser = await prisma.user.findUniqueOrThrow({
+      where: { email: bystander.email },
+    });
+
+    await prisma.location.create({
+      data: {
+        userId: bystanderUser.id,
+        label: 'Untouched',
+        latitude: 10,
+        longitude: 10,
+        isDefault: true,
+      },
+    });
+    await prisma.skyLogEntry.create({
+      data: {
+        userId: bystanderUser.id,
+        eventType: 'meteor_shower',
+        timestamp: new Date(),
+        source: 'manual',
+      },
+    });
+    await prisma.prediction.create({
+      data: { userId: bystanderUser.id, targetTime: new Date(), predictedKp: 3, confidence: 0.4 },
+    });
+
+    const res = await request(app)
+      .delete('/api/auth/account')
+      .set('Authorization', `Bearer ${deleter.accessToken}`);
+    expect(res.status).toBe(200);
+
+    await expect(
+      prisma.user.findUnique({ where: { id: bystanderUser.id } }),
+    ).resolves.not.toBeNull();
+    await expect(prisma.location.count({ where: { userId: bystanderUser.id } })).resolves.toBe(1);
+    await expect(prisma.skyLogEntry.count({ where: { userId: bystanderUser.id } })).resolves.toBe(
+      1,
+    );
+    await expect(prisma.prediction.count({ where: { userId: bystanderUser.id } })).resolves.toBe(1);
+  });
+
+  it('is idempotent: a second delete with the same still-valid access token still succeeds', async () => {
+    const app = createTestApp();
+    const { accessToken } = await signupAndLogin(app, 'delete-twice');
+
+    const first = await request(app)
+      .delete('/api/auth/account')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .delete('/api/auth/account')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual({ deleted: true });
+  });
+});
+
 describe('GET /api/auth/google', () => {
   it('redirects to Google with the configured client id/redirect uri and sets a state cookie', async () => {
     const res = await request(createTestAppWithGoogleOAuth(null)).get('/api/auth/google');
