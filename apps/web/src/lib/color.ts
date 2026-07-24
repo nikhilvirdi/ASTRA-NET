@@ -1,4 +1,17 @@
 /**
+ * Read a design-system color token (index.css custom property) for use where
+ * CSS can't reach — WebGL uniforms, canvas fills. Keeps 3D materials on the
+ * same single source of truth as the DOM instead of re-hardcoding hex values
+ * (the exact drift Phase 7's hex→token cleanup removed). The fallback covers
+ * non-browser environments (tests) and must mirror the token's value.
+ */
+export function cssColorToken(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value === '' ? fallback : value;
+}
+
+/**
  * Tanner Helland's blackbody-to-RGB approximation.
  * https://tannerhelland.com/2012/10/26/color-temperature-algorithm.html
  */
