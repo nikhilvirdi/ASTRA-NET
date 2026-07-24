@@ -31,3 +31,24 @@ export const CelestrakOmmResponseSchema = z.array(CelestrakOmmEntrySchema);
 
 export type CelestrakOmmEntry = z.infer<typeof CelestrakOmmEntrySchema>;
 export type CelestrakOmmResponse = z.infer<typeof CelestrakOmmResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// CelesTrak TLE (FORMAT=tle) — a name line + two fixed-column element lines.
+// Validated structurally (length, line-number marker, matching catalog
+// number between the two element lines) rather than by TLE checksum: every
+// other Phase 1 client validates upstream *shape*, not upstream arithmetic,
+// and satellite.js's own `twoline2satrec` does not verify checksums either.
+// ---------------------------------------------------------------------------
+export const CelestrakTleRecordSchema = z
+  .object({
+    name: z.string().min(1),
+    line1: z.string().length(69).startsWith('1 '),
+    line2: z.string().length(69).startsWith('2 '),
+  })
+  .refine((r) => r.line1.slice(2, 7) === r.line2.slice(2, 7), {
+    message: 'line1/line2 catalog number mismatch',
+  });
+
+export const CelestrakTleRecordsSchema = z.array(CelestrakTleRecordSchema);
+
+export type CelestrakTleRecordParsed = z.infer<typeof CelestrakTleRecordSchema>;

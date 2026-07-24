@@ -16,6 +16,7 @@ import type { SwpcFastData, SwpcSlowData } from '../clients/swpc/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
+import type { CelestrakTleData } from '../clients/celestrak/index.js';
 
 /** Per-source state: the latest data, when it was fetched, and whether that fetch succeeded. */
 export interface SourceState<T> {
@@ -38,6 +39,12 @@ export interface PollerState {
   horizons: SourceState<HorizonsData>;
   /** Jupiter geocentric RA/Dec ephemeris — same JPL Horizons source as `horizons`, different target body. */
   horizonsJupiter: SourceState<HorizonsRaDecData>;
+  /**
+   * Curated satellite population's raw TLE element sets (CelesTrak, GROUP
+   * "visual" — see DECISIONS.md). Observer-independent orbital elements
+   * only; alt/az propagation stays client-side (ARCHITECTURE.md §2).
+   */
+  satellites: SourceState<CelestrakTleData>;
 }
 
 export type SourceKey = keyof PollerState;
@@ -53,6 +60,7 @@ function createInitialState(): PollerState {
     gibs: empty(),
     horizons: empty(),
     horizonsJupiter: empty(),
+    satellites: empty(),
   };
 }
 

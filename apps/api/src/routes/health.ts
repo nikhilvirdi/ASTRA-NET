@@ -44,6 +44,7 @@ export function buildHealthPayload(now: Date): HealthPayload {
         healthy: state.horizonsJupiter.healthy,
         fetchedAt: state.horizonsJupiter.fetchedAt,
       },
+      satellites: { healthy: state.satellites.healthy, fetchedAt: state.satellites.fetchedAt },
     },
   };
 }

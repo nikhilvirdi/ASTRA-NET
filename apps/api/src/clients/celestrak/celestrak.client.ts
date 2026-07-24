@@ -5,8 +5,13 @@
  * Validates with Zod, applies timeout+retry, never throws.
  */
 
-import { CelestrakData, CelestrakOmmRecord } from './celestrak.types.js';
-import { CelestrakOmmResponseSchema } from './celestrak.schemas.js';
+import {
+  CelestrakData,
+  CelestrakOmmRecord,
+  CelestrakTleData,
+  CelestrakTleRecord,
+} from './celestrak.types.js';
+import { CelestrakOmmResponseSchema, CelestrakTleRecordsSchema } from './celestrak.schemas.js';
 
 const BASE = 'https://celestrak.org/NORAD/elements/gp.php';
 
@@ -21,15 +26,17 @@ export interface FetchCelestrakParams {
 
 /**
  * Fetches a URL with a per-request timeout and exponential-backoff retry.
- * Returns the parsed JSON body on success.
- * Throws on final failure (caller catches per-product).
+ * `parseResponse` extracts the body (JSON by default; the TLE endpoint below
+ * passes `(r) => r.text()` since CelesTrak's FORMAT=tle response is plain
+ * text, not JSON). Throws on final failure (caller catches per-product).
  */
-async function fetchWithRetry(
+async function fetchWithRetry<T = unknown>(
   url: string,
+  parseResponse: (response: Response) => Promise<T> = (r) => r.json() as Promise<T>,
   timeoutMs: number = FETCH_TIMEOUT_MS,
   maxAttempts: number = MAX_ATTEMPTS,
   initialBackoffMs: number = INITIAL_BACKOFF_MS,
-): Promise<unknown> {
+): Promise<T> {
   let lastError: unknown;
   let backoff = initialBackoffMs;
 
@@ -47,7 +54,7 @@ async function fetchWithRetry(
         throw new Error(`HTTP ${response.status} for ${url}`);
       }
 
-      return await response.json();
+      return await parseResponse(response);
     } catch (err) {
       lastError = err;
       const is4xx = err instanceof Error && err.message.includes('not retrying');
@@ -118,4 +125,67 @@ export async function fetchCelestrakOmm(
   }
 }
 
-export { CELESTRAK_FALLBACK } from './celestrak.types.js';
+/**
+ * Splits CelesTrak's FORMAT=tle plain-text response into name/line1/line2
+ * triples. Each satellite is three lines (name, then the two fixed-column
+ * element lines); trailing blank lines from the response are dropped before
+ * chunking. Returns null if the text doesn't chunk evenly into triples —
+ * a truncated/corrupt response, treated the same as any other parse failure.
+ */
+function parseCelestrakTleText(raw: string): CelestrakTleRecord[] | null {
+  const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0 || lines.length % 3 !== 0) return null;
+
+  const candidates: unknown[] = [];
+  for (let i = 0; i < lines.length; i += 3) {
+    candidates.push({
+      name: lines[i]?.trim() ?? '',
+      line1: lines[i + 1]?.trimEnd() ?? '',
+      line2: lines[i + 2]?.trimEnd() ?? '',
+    });
+  }
+
+  const result = CelestrakTleRecordsSchema.safeParse(candidates);
+  if (!result.success) return null;
+
+  return result.data.map((entry) => ({
+    name: entry.name,
+    noradCatId: Number.parseInt(entry.line1.slice(2, 7), 10),
+    line1: entry.line1,
+    line2: entry.line2,
+  }));
+}
+
+/**
+ * Fetch raw TLE (two-line element) text from CelesTrak for a GROUP or CATNR
+ * — the format satellite.js's `twoline2satrec` consumes directly. Sibling
+ * to `fetchCelestrakOmm` (same retry/timeout pipeline, same endpoint, only
+ * FORMAT differs) rather than a separate client, per the reuse-Phase-1
+ * instruction.
+ */
+export async function fetchCelestrakTle(
+  params: FetchCelestrakParams,
+  now: Date,
+): Promise<CelestrakTleData> {
+  const url = new URL(BASE);
+  url.searchParams.set('FORMAT', 'tle');
+  if (params.catnr !== undefined) {
+    url.searchParams.set('CATNR', params.catnr.toString());
+  } else if (params.group) {
+    url.searchParams.set('GROUP', params.group);
+  } else {
+    console.error('[celestrak] fetch failed: Must provide catnr or group');
+    return { records: null, fetchedAt: now.toISOString() };
+  }
+
+  try {
+    const raw = await fetchWithRetry<string>(url.toString(), (r) => r.text());
+    const records = parseCelestrakTleText(raw);
+    return { records, fetchedAt: now.toISOString() };
+  } catch (err) {
+    console.error('[celestrak] TLE fetch failed:', err);
+    return { records: null, fetchedAt: now.toISOString() };
+  }
+}
+
+export { CELESTRAK_FALLBACK, CELESTRAK_TLE_FALLBACK } from './celestrak.types.js';

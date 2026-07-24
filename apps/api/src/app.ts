@@ -13,6 +13,7 @@ import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerAuthRoutes, type AuthRouteDeps } from './routes/auth.js';
 import { registerLocationsRoutes } from './routes/locations.js';
 import { registerSkyLogRoutes } from './routes/sky-log.js';
+import { registerSatellitesRoute } from './routes/satellites.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -29,6 +30,7 @@ export function createApp(deps: CreateAppDeps): Express {
 
   registerHealthRoute(app);
   registerStreamRoute(app);
+  registerSatellitesRoute(app);
   registerBriefRoute(app, deps);
   registerAuthRoutes(app, {
     prisma: deps.prisma,

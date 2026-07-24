@@ -20,6 +20,7 @@ function emptyPollerState(): PollerState {
     gibs: empty(),
     horizons: empty(),
     horizonsJupiter: empty(),
+    satellites: empty(),
   };
 }
 

@@ -1,12 +1,13 @@
 /**
  * Slow-tier poller loop (ARCHITECTURE.md §4): NASA DONKI (CME/flares), NASA
- * NeoWs (near-Earth objects), JPL Horizons (Sun ephemeris), and the
- * slow-tier half of SWPC (observed Kp history, 3-day forecast, propagated
- * solar wind), refreshed every 5-15min and written into the store. GIBS has
- * no fetch step (pure URL construction, per `clients/gibs`) — this loop
- * just rotates its layer config into the store on the same cadence.
+ * NeoWs (near-Earth objects), JPL Horizons (Sun ephemeris), the slow-tier
+ * half of SWPC (observed Kp history, 3-day forecast, propagated solar
+ * wind), and CelesTrak (curated satellite population's TLE elements),
+ * refreshed every 5-15min and written into the store. GIBS has no fetch
+ * step (pure URL construction, per `clients/gibs`) — this loop just
+ * rotates its layer config into the store on the same cadence.
  *
- * `runSlowTierTick` is the testable unit: it makes the five Phase-1
+ * `runSlowTierTick` is the testable unit: it makes the six Phase-1
  * network client calls once (Horizons twice — Sun and Jupiter targets),
  * decides success/failure per-source, and writes to the store. It takes `now` and the client functions as parameters rather
  * than reading the clock or importing the clients directly, so it can be
@@ -30,6 +31,9 @@
  *   is written fresh and healthy, since the source did respond.
  * - GIBS: pure URL construction, cannot fail — always written fresh and
  *   healthy.
+ * - CelesTrak: "use last cached TLE set (valid for hours/days); only if
+ *   never fetched does satellite rendering degrade" — a failure keeps the
+ *   previous store value when one exists, still marked unhealthy.
  *
  * This loop only ever calls `fetchSwpcSlow` — the fast-tier SWPC products
  * (1-min Kp, RTSW plasma) are `fast-tier.ts`'s `fetchSwpcFast`, on its own
@@ -44,6 +48,8 @@ import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/in
 import type { fetchSwpcSlow } from '../clients/swpc/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
+import type { fetchCelestrakTle } from '../clients/celestrak/index.js';
+import type { CelestrakTleData } from '../clients/celestrak/index.js';
 import { getSourceState, setSourceState } from './store.js';
 
 /** ARCHITECTURE.md §4: slow tier polls every 5-15min. */
@@ -79,6 +85,21 @@ const HORIZONS_JUPITER_STEP = '1 h';
  */
 const GIBS_LAYER = 'VIIRS_SNPP_CorrectedReflectance_TrueColor';
 
+/**
+ * CelesTrak's own curated "visually notable" group (~100-160 naked-eye
+ * objects, incl. ISS) — a bounded, meaningful slice per API_SOURCES.md's
+ * intent, not an invented selection rule. See DECISIONS.md.
+ */
+const SATELLITE_GROUP = 'visual';
+
+/**
+ * Defensive cap on the exposed population, matching the frontend's own
+ * `?simSats` ceiling (`apps/web/src/lib/dev-sim-satellites.ts`) — guards
+ * against CelesTrak's curated group ever growing past a sane count for a
+ * night-sky scene, independent of whatever `SATELLITE_GROUP` returns today.
+ */
+const MAX_SATELLITES = 200;
+
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -89,6 +110,7 @@ export interface SlowTierClients {
   fetchHorizons: typeof fetchHorizons;
   fetchHorizonsRaDec: typeof fetchHorizonsRaDec;
   fetchSwpcSlow: typeof fetchSwpcSlow;
+  fetchCelestrakTle: typeof fetchCelestrakTle;
   nasaApiKey: string;
 }
 
@@ -169,6 +191,29 @@ function writeGibsResult(options: GibsLayerOptions, nowIso: string): void {
   setSourceState('gibs', options, nowIso, true);
 }
 
+/**
+ * Writes the CelesTrak satellite-population fetch result. A failure keeps
+ * the previous store value when one exists — matches API_SOURCES.md's
+ * documented "use last cached TLE set (valid for hours/days); only if never
+ * fetched does satellite rendering degrade" — but is always marked
+ * unhealthy. A successful fetch is capped at `MAX_SATELLITES` before
+ * writing (defensive bound, not a CelesTrak behavior).
+ */
+function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
+  if (data.records !== null) {
+    const capped: CelestrakTleData = { ...data, records: data.records.slice(0, MAX_SATELLITES) };
+    setSourceState('satellites', capped, nowIso, true);
+    return;
+  }
+
+  const previous = getSourceState('satellites');
+  if (previous.data !== null && previous.fetchedAt !== null) {
+    setSourceState('satellites', previous.data, previous.fetchedAt, false);
+  } else {
+    setSourceState('satellites', data, nowIso, false);
+  }
+}
+
 function isSwpcSlowTotalFailure(data: SwpcSlowData): boolean {
   return data.kpObserved === null && data.kpForecast === null && data.solarWind === null;
 }
@@ -211,48 +256,55 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   const today = formatDate(now);
   const tomorrow = formatDate(new Date(now.getTime() + MS_PER_DAY));
 
-  const [donkiResult, neowsResult, horizonsResult, horizonsJupiterResult, swpcSlowResult] =
-    await Promise.allSettled([
-      clients.fetchNasaDonki(
-        {
-          startDate: formatDate(new Date(now.getTime() - DONKI_LOOKBACK_DAYS * MS_PER_DAY)),
-          endDate: today,
-        },
-        clients.nasaApiKey,
-        now,
-      ),
-      clients.fetchNasaNeows(
-        {
-          startDate: today,
-          endDate: formatDate(new Date(now.getTime() + NEOWS_LOOKAHEAD_DAYS * MS_PER_DAY)),
-        },
-        clients.nasaApiKey,
-        now,
-      ),
-      clients.fetchHorizons(
-        {
-          command: HORIZONS_SUN_COMMAND,
-          startTime: today,
-          stopTime: tomorrow,
-          stepSize: '1 d',
-          center: HORIZONS_GEOCENTRIC,
-          makeEphem: 'YES',
-          ephemType: 'OBSERVER',
-        },
-        now,
-      ),
-      clients.fetchHorizonsRaDec(
-        {
-          command: HORIZONS_JUPITER_COMMAND,
-          startTime: today,
-          stopTime: tomorrow,
-          stepSize: HORIZONS_JUPITER_STEP,
-          center: HORIZONS_GEOCENTRIC,
-        },
-        now,
-      ),
-      clients.fetchSwpcSlow(now),
-    ]);
+  const [
+    donkiResult,
+    neowsResult,
+    horizonsResult,
+    horizonsJupiterResult,
+    swpcSlowResult,
+    satellitesResult,
+  ] = await Promise.allSettled([
+    clients.fetchNasaDonki(
+      {
+        startDate: formatDate(new Date(now.getTime() - DONKI_LOOKBACK_DAYS * MS_PER_DAY)),
+        endDate: today,
+      },
+      clients.nasaApiKey,
+      now,
+    ),
+    clients.fetchNasaNeows(
+      {
+        startDate: today,
+        endDate: formatDate(new Date(now.getTime() + NEOWS_LOOKAHEAD_DAYS * MS_PER_DAY)),
+      },
+      clients.nasaApiKey,
+      now,
+    ),
+    clients.fetchHorizons(
+      {
+        command: HORIZONS_SUN_COMMAND,
+        startTime: today,
+        stopTime: tomorrow,
+        stepSize: '1 d',
+        center: HORIZONS_GEOCENTRIC,
+        makeEphem: 'YES',
+        ephemType: 'OBSERVER',
+      },
+      now,
+    ),
+    clients.fetchHorizonsRaDec(
+      {
+        command: HORIZONS_JUPITER_COMMAND,
+        startTime: today,
+        stopTime: tomorrow,
+        stepSize: HORIZONS_JUPITER_STEP,
+        center: HORIZONS_GEOCENTRIC,
+      },
+      now,
+    ),
+    clients.fetchSwpcSlow(now),
+    clients.fetchCelestrakTle({ group: SATELLITE_GROUP }, now),
+  ]);
 
   if (donkiResult.status === 'fulfilled') {
     writeDonkiResult(donkiResult.value, nowIso);
@@ -299,6 +351,13 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
     { layer: GIBS_LAYER, date: formatDate(new Date(now.getTime() - MS_PER_DAY)) },
     nowIso,
   );
+
+  if (satellitesResult.status === 'fulfilled') {
+    writeSatellitesResult(satellitesResult.value, nowIso);
+  } else {
+    console.error('[poller/slow-tier] CelesTrak threw unexpectedly:', satellitesResult.reason);
+    writeSatellitesResult({ records: null, fetchedAt: nowIso }, nowIso);
+  }
 }
 
 /**

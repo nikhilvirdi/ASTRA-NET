@@ -32,6 +32,7 @@ import type { N2yoPositionsData } from '../clients/n2yo/index.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
+import type { CelestrakTleData } from '../clients/celestrak/index.js';
 
 // Never connects: this file exercises routes that don't touch the DB,
 // and Prisma only opens a connection on first query.
@@ -69,6 +70,17 @@ const swpcSlowSuccess: SwpcSlowData = {
   solarWind: null,
   fetchedAt: 't',
 };
+const satellitesSuccess: CelestrakTleData = {
+  records: [
+    {
+      name: 'ISS (ZARYA)',
+      noradCatId: 25544,
+      line1: '1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927',
+      line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537',
+    },
+  ],
+  fetchedAt: 't',
+};
 
 function makeFastClients(overrides: Partial<FastTierClients> = {}): FastTierClients {
   return {
@@ -86,6 +98,7 @@ function makeSlowClients(overrides: Partial<SlowTierClients> = {}): SlowTierClie
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
     fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
+    fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesSuccess),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
   };
@@ -140,6 +153,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(health.sources.horizons.healthy).toBe(true);
     expect(health.sources.horizonsJupiter.healthy).toBe(true);
     expect(health.sources.spaceWeatherForecast.healthy).toBe(true);
+    expect(health.sources.satellites.healthy).toBe(true);
 
     const streamChunk = await new Promise<string>((resolve, reject) => {
       const req = http.get(`http://localhost:${String(port)}/stream`, (res) => {
@@ -175,6 +189,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(getSourceState('solarWind')).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(getSourceState('donki').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
+    expect(getSourceState('satellites').healthy).toBe(true);
 
     stopFast = startFastTierLoop(makeFastClients());
     await vi.advanceTimersByTimeAsync(0);
@@ -186,6 +201,7 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(getSourceState('horizons').healthy).toBe(true);
     expect(getSourceState('horizonsJupiter').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
+    expect(getSourceState('satellites').healthy).toBe(true);
     expect(getSourceState('iss').healthy).toBe(true);
   });
 

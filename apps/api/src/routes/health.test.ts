@@ -30,6 +30,7 @@ describe('buildHealthPayload', () => {
       gibs: { healthy: false, fetchedAt: null },
       horizons: { healthy: false, fetchedAt: null },
       horizonsJupiter: { healthy: false, fetchedAt: null },
+      satellites: { healthy: false, fetchedAt: null },
     });
   });
 

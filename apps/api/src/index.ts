@@ -16,6 +16,7 @@ import { fetchN2yoPositions } from './clients/n2yo/index.js';
 import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
 import { fetchHorizons, fetchHorizonsRaDec } from './clients/jpl-horizons/index.js';
+import { fetchCelestrakTle } from './clients/celestrak/index.js';
 import type { GoogleOAuthConfig } from './routes/auth.js';
 
 /**
@@ -96,6 +97,7 @@ startSlowTierLoop({
   fetchHorizons,
   fetchHorizonsRaDec,
   fetchSwpcSlow,
+  fetchCelestrakTle,
   nasaApiKey,
 });
 startCacheSweepLoop({ prisma, sweepExpiredCache });

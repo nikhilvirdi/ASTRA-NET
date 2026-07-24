@@ -9,6 +9,7 @@ import { getSourceState, resetStore } from './store.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
+import type { CelestrakTleData } from '../clients/celestrak/index.js';
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
@@ -90,6 +91,20 @@ const swpcSlowTotalFailure: SwpcSlowData = {
   fetchedAt: NOW_ISO,
 };
 
+const satellitesSuccess: CelestrakTleData = {
+  records: [
+    {
+      name: 'ISS (ZARYA)',
+      noradCatId: 25544,
+      line1: '1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927',
+      line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537',
+    },
+  ],
+  fetchedAt: NOW_ISO,
+};
+
+const satellitesFailure: CelestrakTleData = { records: null, fetchedAt: NOW_ISO };
+
 function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients {
   return {
     fetchNasaDonki: vi.fn().mockResolvedValue(donkiSuccess),
@@ -97,6 +112,7 @@ function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients 
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
     fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
+    fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesSuccess),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
   };
@@ -107,7 +123,7 @@ describe('runSlowTierTick', () => {
     resetStore();
   });
 
-  it('writes all six sources fresh and healthy on full success', async () => {
+  it('writes all seven sources fresh and healthy on full success', async () => {
     const clients = makeClients();
 
     await runSlowTierTick(clients, NOW);
@@ -144,6 +160,11 @@ describe('runSlowTierTick', () => {
       layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor',
       date: '2026-07-15',
     });
+    expect(getSourceState('satellites')).toEqual({
+      data: satellitesSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: true,
+    });
   });
 
   it('calls each client with the injected apiKey/now and a real date window', async () => {
@@ -176,6 +197,7 @@ describe('runSlowTierTick', () => {
       NOW,
     );
     expect(clients.fetchSwpcSlow).toHaveBeenCalledWith(NOW);
+    expect(clients.fetchCelestrakTle).toHaveBeenCalledWith({ group: 'visual' }, NOW);
   });
 
   it('marks NeoWs unhealthy with null-objects data on failure, no prior data', async () => {
@@ -374,6 +396,70 @@ describe('runSlowTierTick', () => {
     expect(getSourceState('donki').healthy).toBe(true);
   });
 
+  it('marks satellites unhealthy with null records on failure, no prior data', async () => {
+    const clients = makeClients({
+      fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesFailure),
+    });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSourceState('satellites')).toEqual({
+      data: satellitesFailure,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('preserves the last known-good satellite population on a later failure', async () => {
+    const goodClients = makeClients();
+    await runSlowTierTick(goodClients, NOW);
+    expect(getSourceState('satellites').healthy).toBe(true);
+
+    const failingClients = makeClients({
+      fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesFailure),
+    });
+    await runSlowTierTick(failingClients, LATER);
+
+    expect(getSourceState('satellites')).toEqual({
+      data: satellitesSuccess,
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+  });
+
+  it('caps the satellite population at MAX_SATELLITES on a successful fetch', async () => {
+    const oversized: CelestrakTleData = {
+      records: Array.from({ length: 250 }, (_, i) => ({
+        name: `SAT ${i}`,
+        noradCatId: i,
+        line1: satellitesSuccess.records![0]!.line1,
+        line2: satellitesSuccess.records![0]!.line2,
+      })),
+      fetchedAt: NOW_ISO,
+    };
+    const clients = makeClients({ fetchCelestrakTle: vi.fn().mockResolvedValue(oversized) });
+
+    await runSlowTierTick(clients, NOW);
+
+    const stored = getSourceState('satellites');
+    expect(stored.healthy).toBe(true);
+    expect(stored.data?.records).toHaveLength(200);
+  });
+
+  it('treats an unexpected CelesTrak rejection as a failed fetch instead of throwing', async () => {
+    const clients = makeClients({
+      fetchCelestrakTle: vi.fn().mockRejectedValue(new Error('boom')),
+    });
+
+    await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
+    expect(getSourceState('satellites')).toEqual({
+      data: { records: null, fetchedAt: NOW_ISO },
+      fetchedAt: NOW_ISO,
+      healthy: false,
+    });
+    expect(getSourceState('donki').healthy).toBe(true);
+  });
+
   it('one source failing does not affect the others (degradation contract)', async () => {
     const clients = makeClients({
       fetchNasaDonki: vi.fn().mockResolvedValue(donkiTotalFailure),
@@ -388,6 +474,7 @@ describe('runSlowTierTick', () => {
     expect(getSourceState('horizonsJupiter').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('gibs').healthy).toBe(true);
+    expect(getSourceState('satellites').healthy).toBe(true);
   });
 
   it('treats an unexpected DONKI rejection as a total failure instead of throwing', async () => {
