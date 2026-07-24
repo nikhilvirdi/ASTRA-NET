@@ -123,6 +123,69 @@ export interface DailyBrief {
   learningMoment: string;
 }
 
+// ─── Types matching SSE /stream payload (fast tier only) ─────────────────────
+// Mirrors apps/api/src/routes/stream.ts — ISS + SWPC solar wind/Kp. Slow-tier
+// sources are deliberately absent from the stream's shape (§4 honesty rule).
+
+/** Mirror of the poller store's per-source envelope. */
+export interface StreamSourceState<T> {
+  data: T | null;
+  /** ISO-8601 timestamp of the last successful fetch — the freshness tag. */
+  fetchedAt: string | null;
+  healthy: boolean;
+}
+
+export interface StreamKpCurrent {
+  timeTag: string;
+  kpIndex: number;
+  /** Continuous estimated Kp — the primary Kp used by FORMULAS.md §7. */
+  estimatedKp: number;
+  kpCode: string;
+}
+
+export interface StreamRtswPlasma {
+  timeTag: string;
+  source: string;
+  protonSpeed: number | null; // km/s
+  protonDensity: number | null; // p/cm³
+  protonTemperature: number | null; // K
+  overallQuality: number;
+}
+
+export interface StreamSwpcFastData {
+  kpCurrent: StreamKpCurrent | null;
+  rtswPlasma: StreamRtswPlasma | null;
+  fetchedAt: string;
+}
+
+export interface StreamIssPosition {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  azimuth: number;
+  elevation: number;
+  ra: number;
+  dec: number;
+  /** Unix timestamp in seconds. */
+  timestamp: number;
+  eclipsed: boolean;
+}
+
+/** Mirror of the N2YO client's N2yoPositionsData. */
+export interface StreamIssData {
+  satId: number;
+  satName: string;
+  positions: StreamIssPosition[] | null;
+  fetchedAt: string;
+}
+
+export interface FastTierStreamPayload {
+  iss: StreamSourceState<StreamIssData>;
+  solarWind: StreamSourceState<StreamSwpcFastData>;
+  /** When the SSE push was sent — NOT when data was fetched. Never conflate. */
+  streamedAt: string;
+}
+
 // ─── Default Location Anchor ──────────────────────────────────────────────────
 // Srinagar, India — explicit placeholder matching DESIGN_SPEC.md §10 & test suites
 export const DEFAULT_OBSERVER_LOCATION: UserLocation = {

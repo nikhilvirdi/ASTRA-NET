@@ -22,6 +22,12 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      // SSE fast-tier stream (ISS + solar wind/Kp) — lives at /stream, not
+      // /api/stream, on the backend (ARCHITECTURE.md §4). Same target.
+      '/stream': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 });
