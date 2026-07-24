@@ -62,6 +62,38 @@ export const DUR_CINEMATIC_MS = 1200;
  * 800ms+:    Entries reveal in 60ms stagger, lifting 8px with opacity.
  * 1200ms:    Margin-track provenance fades in last, at 60% opacity.
  */
+/**
+ * §11 Opening sequence — the first 45 seconds of /explore, first visit only.
+ * Timestamps in seconds from sequence start, straight from §11's table.
+ * Only the 0:20 orbit rise carries a stated duration/ease (1.6s, expo.inOut);
+ * everything else animating inside the sequence uses the §7.1 class that
+ * fits it (sky fade-up = cinematic).
+ *
+ * The ISS steps (0:12 reveal, 0:20 click-rise, 0:26 tethered text) are
+ * consumed by the ISS click workstream — the constants live here so both
+ * halves of the sequence run off one copy of the table, not two.
+ */
+export const OPENING_SEQUENCE = {
+  /** 0:00 — black; a single centered mono location line. */
+  blackAt: 0,
+  /** 0:04 — the user's real night sky fades up. */
+  skyFadeUpAt: 4,
+  /** Fade-up length: §11 states none; cinematic upper bound (§7.1, 800–1600ms). */
+  skyFadeUpDuration: 1.6,
+  /** 0:12 — one point of light (ISS) begins moving; cursor gravity biases toward it. */
+  issRevealAt: 12,
+  /** 0:20 on click — "a long expo.inOut rise from ground to orbit, 1.6s" (stated). */
+  orbitRiseDuration: 1.6,
+  orbitRiseEase: EASE_CINEMATIC,
+  /** 0:26 — diegetic text materializes on a tether from the station. */
+  diegeticTextAt: 26,
+  /** 0:40 — the user drags; camera breaks lock; control is theirs. */
+  lockBreakAt: 40,
+} as const;
+
+/** §7.6 — under prefers-reduced-motion, load/opening sequences collapse to a single 200ms fade. */
+export const DUR_REDUCED_MOTION_FADE = 0.2;
+
 export const PAGE_LOAD = {
   surfaceStart: 0,
   surfaceEnd: 0.4,
