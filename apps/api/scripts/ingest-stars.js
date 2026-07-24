@@ -33,7 +33,9 @@ const MAG_LIMIT = 6.5;
  *                        NOT Gaia bp_rp, so bvFromGaiaBpRp() must not be
  *                        applied to this data)
  *
- * No rows are dropped: every star with vmag <= 6.5 passes through, sentinel
+ * Only the Sun (HYG's origin object, distance 0) is excluded — it is not a
+ * background star and would render as an oversized point at a bogus fixed
+ * position. Every actual star with vmag <= 6.5 passes through, sentinel
  * distances included, per FORMULAS.md §1's "never drop, pin instead" rule.
  */
 async function ingestStars() {
@@ -83,6 +85,15 @@ async function ingestStars() {
     const ci = parseFloat(cols[idxCi]);
 
     if (isNaN(raHours) || isNaN(decDeg) || isNaN(distPc)) {
+      skipped++;
+      continue;
+    }
+
+    // Exclude the Sun: HYG carries it as the origin object at distance 0. It
+    // isn't a background star and would render as a huge point at a bogus
+    // fixed position. Real stars have distance > 0 (bad-parallax rows are
+    // sentineled at 100000 pc), so distance 0 uniquely identifies it.
+    if (distPc === 0) {
       skipped++;
       continue;
     }
