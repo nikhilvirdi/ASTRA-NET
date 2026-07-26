@@ -37,8 +37,16 @@ export interface PollerState {
   /** GIBS has no fetch step (pure URL construction) — data holds the last-selected layer config. */
   gibs: SourceState<GibsLayerOptions>;
   horizons: SourceState<HorizonsData>;
-  /** Jupiter geocentric RA/Dec ephemeris — same JPL Horizons source as `horizons`, different target body. */
+  /**
+   * Per-body geocentric RA/Dec ephemerides — same JPL Horizons source as
+   * `horizons` (the Sun), different target body each, same pattern for all
+   * five (see DECISIONS.md).
+   */
   horizonsJupiter: SourceState<HorizonsRaDecData>;
+  horizonsVenus: SourceState<HorizonsRaDecData>;
+  horizonsMars: SourceState<HorizonsRaDecData>;
+  horizonsSaturn: SourceState<HorizonsRaDecData>;
+  horizonsMercury: SourceState<HorizonsRaDecData>;
   /**
    * Curated satellite population's raw TLE element sets (CelesTrak, GROUP
    * "visual" — see DECISIONS.md). Observer-independent orbital elements
@@ -60,6 +68,10 @@ function createInitialState(): PollerState {
     gibs: empty(),
     horizons: empty(),
     horizonsJupiter: empty(),
+    horizonsVenus: empty(),
+    horizonsMars: empty(),
+    horizonsSaturn: empty(),
+    horizonsMercury: empty(),
     satellites: empty(),
   };
 }

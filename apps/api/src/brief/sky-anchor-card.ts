@@ -9,10 +9,12 @@
  *
  * The Sun half of this card takes zero I/O and zero poller state — a pure
  * function of observer position and time — so the card as a whole genuinely
- * cannot fail the way a network-backed card can. The Jupiter sub-field
- * (Phase 7) reads the poller's `horizonsJupiter` slot and degrades to null
- * on its own when that ephemeris is unavailable, without ever blanking the
- * card — the same independent-sub-field pattern as `iss-card.ts`.
+ * cannot fail the way a network-backed card can. The planet sub-fields
+ * (Jupiter from Phase 7; Venus/Mars/Saturn/Mercury extending the same
+ * pattern — see DECISIONS.md) each read their own poller ephemeris slot and
+ * degrade to null independently when that body's ephemeris is unavailable,
+ * without ever blanking the card or affecting any other body — the same
+ * independent-sub-field pattern as `iss-card.ts`.
  */
 
 import {
@@ -28,6 +30,15 @@ import type { SourceState } from '../poller/store.js';
 
 export type TwilightPhase = 'day' | 'twilight' | 'night';
 
+/** One poller ephemeris slot per planet marker, all the same shape. */
+export interface PlanetEphemerides {
+  jupiter: SourceState<HorizonsRaDecData>;
+  venus: SourceState<HorizonsRaDecData>;
+  mars: SourceState<HorizonsRaDecData>;
+  saturn: SourceState<HorizonsRaDecData>;
+  mercury: SourceState<HorizonsRaDecData>;
+}
+
 export interface SkyAnchorCard {
   sunAltitudeDeg: number;
   /**
@@ -35,7 +46,7 @@ export interface SkyAnchorCard {
    * the other half of the FORMULAS.md §3 horizontal position the Sun engine
    * already computes alongside `sunAltitudeDeg`. Non-nullable: like the
    * altitude it is pure math over observer+time with no external source to
-   * fail (unlike `jupiter`, which depends on the Horizons ephemeris).
+   * fail (unlike the planet fields, which depend on the Horizons ephemeris).
    */
   sunAzimuthDeg: number;
   twilightPhase: TwilightPhase;
@@ -44,11 +55,16 @@ export interface SkyAnchorCard {
   /** FORMULAS.md §4 — dark enough for faint-star realism (sun alt < -18deg). */
   isDarkEnoughForFaintStars: boolean;
   /**
-   * Jupiter's real current position for this observer: the poller's JPL
-   * Horizons RA/Dec run through the shared FORMULAS.md §3 transform. Null
-   * when the Jupiter ephemeris is unavailable — never blanks the card.
+   * Each planet's real current position for this observer: the poller's JPL
+   * Horizons RA/Dec for that body, run through the shared FORMULAS.md §3
+   * transform. Null when that body's ephemeris is unavailable — never
+   * blanks the card, and one body's null never affects another's.
    */
   jupiter: HorizontalPosition | null;
+  venus: HorizontalPosition | null;
+  mars: HorizontalPosition | null;
+  saturn: HorizontalPosition | null;
+  mercury: HorizontalPosition | null;
 }
 
 /**
@@ -77,29 +93,37 @@ function selectNearestEntry(entries: HorizonsRaDecEntry[], now: Date): HorizonsR
   }, null);
 }
 
+/**
+ * Resolves one body's real position from its poller ephemeris slot: nearest
+ * row to `now`, run through the shared FORMULAS.md §3 transform. Null when
+ * there's no data at all — shared by all five planet fields since the
+ * resolution logic is identical for each, only the input ephemeris differs.
+ */
+function resolvePlanetPosition(
+  ephemeris: SourceState<HorizonsRaDecData>,
+  observerLatDeg: number,
+  observerLonDeg: number,
+  now: Date,
+  jd: number,
+): HorizontalPosition | null {
+  const nearest =
+    ephemeris.data?.entries != null ? selectNearestEntry(ephemeris.data.entries, now) : null;
+  return nearest !== null
+    ? equatorialToHorizontal(nearest.raDeg, nearest.decDeg, observerLatDeg, observerLonDeg, jd)
+    : null;
+}
+
 export function buildSkyAnchorCard(
   observerLatDeg: number,
   observerLonDeg: number,
   now: Date,
-  jupiterEphemeris: SourceState<HorizonsRaDecData>,
+  planetEphemerides: PlanetEphemerides,
 ): SkyAnchorCard {
   const sun = sunHorizontalPosition(now, observerLatDeg, observerLonDeg);
   const sunAltDeg = sun.altitudeDeg;
-
-  const nearest =
-    jupiterEphemeris.data?.entries != null
-      ? selectNearestEntry(jupiterEphemeris.data.entries, now)
-      : null;
-  const jupiter =
-    nearest !== null
-      ? equatorialToHorizontal(
-          nearest.raDeg,
-          nearest.decDeg,
-          observerLatDeg,
-          observerLonDeg,
-          julianDay(now),
-        )
-      : null;
+  const jd = julianDay(now);
+  const resolve = (ephemeris: SourceState<HorizonsRaDecData>): HorizontalPosition | null =>
+    resolvePlanetPosition(ephemeris, observerLatDeg, observerLonDeg, now, jd);
 
   return {
     sunAltitudeDeg: sunAltDeg,
@@ -107,6 +131,10 @@ export function buildSkyAnchorCard(
     twilightPhase: classifyTwilightPhase(sunAltDeg),
     isDarkEnoughForIssOrAurora: isDarkEnoughForIssOrAurora(sunAltDeg),
     isDarkEnoughForFaintStars: isDarkEnoughForFaintStars(sunAltDeg),
-    jupiter,
+    jupiter: resolve(planetEphemerides.jupiter),
+    venus: resolve(planetEphemerides.venus),
+    mars: resolve(planetEphemerides.mars),
+    saturn: resolve(planetEphemerides.saturn),
+    mercury: resolve(planetEphemerides.mercury),
   };
 }

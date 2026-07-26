@@ -58,12 +58,42 @@ const horizonsSuccess: HorizonsData = {
 
 const horizonsFailure: HorizonsData = { ephemerisLines: null, fetchedAt: NOW_ISO };
 
-const horizonsJupiterSuccess: HorizonsRaDecData = {
+const horizonsRaDecSuccess: HorizonsRaDecData = {
   entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 129.4, decDeg: 18.1 }],
   fetchedAt: NOW_ISO,
 };
 
-const horizonsJupiterFailure: HorizonsRaDecData = { entries: null, fetchedAt: NOW_ISO };
+const horizonsRaDecFailure: HorizonsRaDecData = { entries: null, fetchedAt: NOW_ISO };
+
+/**
+ * The five bodies fed by `fetchHorizonsRaDec`, one call per tick each —
+ * command codes verified live against the real JPL Horizons API (see
+ * DECISIONS.md), not assumed. Used to parametrize the per-body tests below
+ * rather than five near-duplicate copies of the same test.
+ */
+const RA_DEC_BODIES = [
+  { name: 'Jupiter', command: '599', key: 'horizonsJupiter' },
+  { name: 'Venus', command: '299', key: 'horizonsVenus' },
+  { name: 'Mars', command: '499', key: 'horizonsMars' },
+  { name: 'Saturn', command: '699', key: 'horizonsSaturn' },
+  { name: 'Mercury', command: '199', key: 'horizonsMercury' },
+] as const;
+
+/**
+ * A `fetchHorizonsRaDec` mock that fails only the one body named by
+ * `failingCommand` (matched against the request's own `command`) and
+ * succeeds for every other body — needed because all five bodies now share
+ * the one client function, called once per body per tick.
+ */
+function raDecMockFailingOnly(failingCommand: string | null): ReturnType<typeof vi.fn> {
+  return vi
+    .fn()
+    .mockImplementation((params: { command: string }) =>
+      Promise.resolve(
+        params.command === failingCommand ? horizonsRaDecFailure : horizonsRaDecSuccess,
+      ),
+    );
+}
 
 const swpcSlowSuccess: SwpcSlowData = {
   kpObserved: [{ timeTag: NOW_ISO, kp: 3, aRunning: 12, stationCount: 8 }],
@@ -110,7 +140,7 @@ function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients 
     fetchNasaDonki: vi.fn().mockResolvedValue(donkiSuccess),
     fetchNasaNeows: vi.fn().mockResolvedValue(neowsSuccess),
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
-    fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterSuccess),
+    fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsRaDecSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
     fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesSuccess),
     nasaApiKey: 'TEST_KEY',
@@ -123,7 +153,7 @@ describe('runSlowTierTick', () => {
     resetStore();
   });
 
-  it('writes all seven sources fresh and healthy on full success', async () => {
+  it('writes all eleven sources fresh and healthy on full success', async () => {
     const clients = makeClients();
 
     await runSlowTierTick(clients, NOW);
@@ -143,11 +173,13 @@ describe('runSlowTierTick', () => {
       fetchedAt: NOW_ISO,
       healthy: true,
     });
-    expect(getSourceState('horizonsJupiter')).toEqual({
-      data: horizonsJupiterSuccess,
-      fetchedAt: NOW_ISO,
-      healthy: true,
-    });
+    for (const { key } of RA_DEC_BODIES) {
+      expect(getSourceState(key)).toEqual({
+        data: horizonsRaDecSuccess,
+        fetchedAt: NOW_ISO,
+        healthy: true,
+      });
+    }
     expect(getSourceState('spaceWeatherForecast')).toEqual({
       data: swpcSlowSuccess,
       fetchedAt: NOW_ISO,
@@ -186,16 +218,19 @@ describe('runSlowTierTick', () => {
       expect.objectContaining({ command: '10', startTime: '2026-07-16', stopTime: '2026-07-17' }),
       NOW,
     );
-    expect(clients.fetchHorizonsRaDec).toHaveBeenCalledWith(
-      expect.objectContaining({
-        command: '599',
-        startTime: '2026-07-16',
-        stopTime: '2026-07-17',
-        stepSize: '1 h',
-        center: '500@399',
-      }),
-      NOW,
-    );
+    expect(clients.fetchHorizonsRaDec).toHaveBeenCalledTimes(RA_DEC_BODIES.length);
+    for (const { command } of RA_DEC_BODIES) {
+      expect(clients.fetchHorizonsRaDec).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command,
+          startTime: '2026-07-16',
+          stopTime: '2026-07-17',
+          stepSize: '1 h',
+          center: '500@399',
+        }),
+        NOW,
+      );
+    }
     expect(clients.fetchSwpcSlow).toHaveBeenCalledWith(NOW);
     expect(clients.fetchCelestrakTle).toHaveBeenCalledWith({ group: 'visual' }, NOW);
   });
@@ -294,49 +329,59 @@ describe('runSlowTierTick', () => {
     });
   });
 
-  it('marks Jupiter ephemeris unhealthy with null entries on failure, no prior data', async () => {
-    const clients = makeClients({
-      fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterFailure),
+  describe.each(RA_DEC_BODIES)('$name ephemeris ($key)', ({ command, key }) => {
+    it('marks it unhealthy with null entries on failure, no prior data, other bodies unaffected', async () => {
+      const clients = makeClients({ fetchHorizonsRaDec: raDecMockFailingOnly(command) });
+
+      await runSlowTierTick(clients, NOW);
+
+      expect(getSourceState(key)).toEqual({
+        data: horizonsRaDecFailure,
+        fetchedAt: NOW_ISO,
+        healthy: false,
+      });
+      for (const other of RA_DEC_BODIES) {
+        if (other.key !== key) expect(getSourceState(other.key).healthy).toBe(true);
+      }
     });
 
-    await runSlowTierTick(clients, NOW);
+    it('preserves the last known-good ephemeris on a later failure', async () => {
+      const goodClients = makeClients();
+      await runSlowTierTick(goodClients, NOW);
+      expect(getSourceState(key).healthy).toBe(true);
 
-    expect(getSourceState('horizonsJupiter')).toEqual({
-      data: horizonsJupiterFailure,
-      fetchedAt: NOW_ISO,
-      healthy: false,
-    });
-  });
+      const failingClients = makeClients({ fetchHorizonsRaDec: raDecMockFailingOnly(command) });
+      await runSlowTierTick(failingClients, LATER);
 
-  it('preserves the last known-good Jupiter ephemeris on a later failure', async () => {
-    const goodClients = makeClients();
-    await runSlowTierTick(goodClients, NOW);
-    expect(getSourceState('horizonsJupiter').healthy).toBe(true);
-
-    const failingClients = makeClients({
-      fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsJupiterFailure),
-    });
-    await runSlowTierTick(failingClients, LATER);
-
-    expect(getSourceState('horizonsJupiter')).toEqual({
-      data: horizonsJupiterSuccess,
-      fetchedAt: NOW_ISO,
-      healthy: false,
-    });
-  });
-
-  it('treats an unexpected Jupiter-ephemeris rejection as a failed fetch instead of throwing', async () => {
-    const clients = makeClients({
-      fetchHorizonsRaDec: vi.fn().mockRejectedValue(new Error('boom')),
+      expect(getSourceState(key)).toEqual({
+        data: horizonsRaDecSuccess,
+        fetchedAt: NOW_ISO,
+        healthy: false,
+      });
     });
 
-    await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
-    expect(getSourceState('horizonsJupiter')).toEqual({
-      data: { entries: null, fetchedAt: NOW_ISO },
-      fetchedAt: NOW_ISO,
-      healthy: false,
+    it('treats an unexpected rejection as a failed fetch instead of throwing, other bodies unaffected', async () => {
+      const clients = makeClients({
+        fetchHorizonsRaDec: vi
+          .fn()
+          .mockImplementation((params: { command: string }) =>
+            params.command === command
+              ? Promise.reject(new Error('boom'))
+              : Promise.resolve(horizonsRaDecSuccess),
+          ),
+      });
+
+      await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
+      expect(getSourceState(key)).toEqual({
+        data: { entries: null, fetchedAt: NOW_ISO },
+        fetchedAt: NOW_ISO,
+        healthy: false,
+      });
+      expect(getSourceState('horizons').healthy).toBe(true);
+      for (const other of RA_DEC_BODIES) {
+        if (other.key !== key) expect(getSourceState(other.key).healthy).toBe(true);
+      }
     });
-    expect(getSourceState('horizons').healthy).toBe(true);
   });
 
   it('marks spaceWeatherForecast unhealthy with null data on total failure, no prior data', async () => {
@@ -471,7 +516,9 @@ describe('runSlowTierTick', () => {
     expect(getSourceState('donki').healthy).toBe(false);
     expect(getSourceState('neows').healthy).toBe(false);
     expect(getSourceState('horizons').healthy).toBe(true);
-    expect(getSourceState('horizonsJupiter').healthy).toBe(true);
+    for (const { key } of RA_DEC_BODIES) {
+      expect(getSourceState(key).healthy).toBe(true);
+    }
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('gibs').healthy).toBe(true);
     expect(getSourceState('satellites').healthy).toBe(true);

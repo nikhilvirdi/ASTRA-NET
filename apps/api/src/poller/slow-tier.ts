@@ -7,12 +7,15 @@
  * step (pure URL construction, per `clients/gibs`) — this loop just
  * rotates its layer config into the store on the same cadence.
  *
- * `runSlowTierTick` is the testable unit: it makes the six Phase-1
- * network client calls once (Horizons twice — Sun and Jupiter targets),
- * decides success/failure per-source, and writes to the store. It takes `now` and the client functions as parameters rather
- * than reading the clock or importing the clients directly, so it can be
- * exercised without a live timer or network — mirrors `fast-tier.ts`.
- * `startSlowTierLoop` is the thin `setInterval` wrapper around it.
+ * `runSlowTierTick` is the testable unit: it makes the six Phase-1 network
+ * client calls once each tick, except JPL Horizons — that one runs six times
+ * (the Sun via `fetchHorizons`, plus Jupiter/Venus/Mars/Saturn/Mercury via
+ * `fetchHorizonsRaDec`, one call per body, same pattern each time) — decides
+ * success/failure per-source, and writes to the store. It takes `now` and
+ * the client functions as parameters rather than reading the clock or
+ * importing the clients directly, so it can be exercised without a live
+ * timer or network — mirrors `fast-tier.ts`. `startSlowTierLoop` is the thin
+ * `setInterval` wrapper around it.
  *
  * Failure handling follows API_SOURCES.md's per-source fallback, not a
  * single generic rule:
@@ -68,14 +71,20 @@ const HORIZONS_SUN_COMMAND = '10';
 const HORIZONS_GEOCENTRIC = '500@399';
 
 /**
- * JPL Horizons target body: Jupiter (command '599'), geocentric — RA/Dec
- * for the Brief's Sky Anchor Jupiter marker. Hourly steps so a
- * nearest-row lookup at request time is at most 30min stale, over which
- * Jupiter's geocentric RA/Dec drifts well under 0.01° — invisible at
+ * JPL Horizons target bodies for the Sky Anchor's planet markers, geocentric
+ * — real, standard JPL Horizons major-body IDs (verified live against the
+ * API before wiring in; not invented), not just Jupiter's precedent reused
+ * blindly. Same reasoning as Jupiter's original comment: hourly steps so a
+ * nearest-row lookup at request time is at most 30min stale, over which any
+ * of these bodies' geocentric RA/Dec drifts well under 0.01° — invisible at
  * Horizon Band scale.
  */
+const HORIZONS_MERCURY_COMMAND = '199';
+const HORIZONS_VENUS_COMMAND = '299';
+const HORIZONS_MARS_COMMAND = '499';
 const HORIZONS_JUPITER_COMMAND = '599';
-const HORIZONS_JUPITER_STEP = '1 h';
+const HORIZONS_SATURN_COMMAND = '699';
+const HORIZONS_PLANET_STEP = '1 h';
 
 /**
  * GIBS imagery layer rotated into the store each tick. Yesterday's date,
@@ -166,23 +175,33 @@ function writeHorizonsResult(data: HorizonsData, nowIso: string): void {
   }
 }
 
+/** The five per-body RA/Dec ephemeris store slots, all fed by `fetchHorizonsRaDec`. */
+type HorizonsRaDecKey =
+  'horizonsJupiter' | 'horizonsVenus' | 'horizonsMars' | 'horizonsSaturn' | 'horizonsMercury';
+
 /**
- * Writes the Jupiter ephemeris fetch result. Same source (JPL Horizons) as
- * `writeHorizonsResult` above, so the same documented "serve last computed
- * set" fallback applies: a failure keeps the previous store value when one
- * exists, always marked unhealthy.
+ * Writes a per-body RA/Dec ephemeris fetch result. Same source (JPL
+ * Horizons) as `writeHorizonsResult` above, so the same documented "serve
+ * last computed set" fallback applies: a failure keeps the previous store
+ * value when one exists, always marked unhealthy. One shared function for
+ * all five bodies (Jupiter/Venus/Mars/Saturn/Mercury) — the fallback logic
+ * is identical, only the store key differs.
  */
-function writeHorizonsJupiterResult(data: HorizonsRaDecData, nowIso: string): void {
+function writeHorizonsRaDecResult(
+  key: HorizonsRaDecKey,
+  data: HorizonsRaDecData,
+  nowIso: string,
+): void {
   if (data.entries !== null) {
-    setSourceState('horizonsJupiter', data, nowIso, true);
+    setSourceState(key, data, nowIso, true);
     return;
   }
 
-  const previous = getSourceState('horizonsJupiter');
+  const previous = getSourceState(key);
   if (previous.data !== null && previous.fetchedAt !== null) {
-    setSourceState('horizonsJupiter', previous.data, previous.fetchedAt, false);
+    setSourceState(key, previous.data, previous.fetchedAt, false);
   } else {
-    setSourceState('horizonsJupiter', data, nowIso, false);
+    setSourceState(key, data, nowIso, false);
   }
 }
 
@@ -239,12 +258,31 @@ function writeSpaceWeatherForecastResult(data: SwpcSlowData, nowIso: string): vo
 }
 
 /**
- * Runs one slow-tier poll: fetches DONKI, NeoWs, JPL Horizons (Sun and
- * Jupiter), and the slow-tier half of SWPC in parallel, then writes each
- * result independently
- * so one source failing never affects the others (degradation contract,
- * ARCHITECTURE.md §5). GIBS's layer config is rotated in directly since it
- * has no network call.
+ * Writes one of the five per-body RA/Dec `Promise.allSettled` results
+ * (fulfilled or rejected) — shared by Jupiter/Venus/Mars/Saturn/Mercury so
+ * the fulfilled/rejected handling isn't repeated five times for what is
+ * otherwise identical logic.
+ */
+function handleHorizonsRaDecResult(
+  result: PromiseSettledResult<HorizonsRaDecData>,
+  key: HorizonsRaDecKey,
+  label: string,
+  nowIso: string,
+): void {
+  if (result.status === 'fulfilled') {
+    writeHorizonsRaDecResult(key, result.value, nowIso);
+  } else {
+    console.error(`[poller/slow-tier] JPL Horizons (${label}) threw unexpectedly:`, result.reason);
+    writeHorizonsRaDecResult(key, { entries: null, fetchedAt: nowIso }, nowIso);
+  }
+}
+
+/**
+ * Runs one slow-tier poll: fetches DONKI, NeoWs, JPL Horizons (Sun plus
+ * Jupiter/Venus/Mars/Saturn/Mercury), and the slow-tier half of SWPC in
+ * parallel, then writes each result independently so one source failing
+ * never affects the others (degradation contract, ARCHITECTURE.md §5).
+ * GIBS's layer config is rotated in directly since it has no network call.
  *
  * All the network clients are documented to never throw (they catch
  * internally and return a null-data result), but `Promise.allSettled`
@@ -256,11 +294,23 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   const today = formatDate(now);
   const tomorrow = formatDate(new Date(now.getTime() + MS_PER_DAY));
 
+  const raDecParams = (command: string) => ({
+    command,
+    startTime: today,
+    stopTime: tomorrow,
+    stepSize: HORIZONS_PLANET_STEP,
+    center: HORIZONS_GEOCENTRIC,
+  });
+
   const [
     donkiResult,
     neowsResult,
     horizonsResult,
     horizonsJupiterResult,
+    horizonsVenusResult,
+    horizonsMarsResult,
+    horizonsSaturnResult,
+    horizonsMercuryResult,
     swpcSlowResult,
     satellitesResult,
   ] = await Promise.allSettled([
@@ -292,16 +342,11 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
       },
       now,
     ),
-    clients.fetchHorizonsRaDec(
-      {
-        command: HORIZONS_JUPITER_COMMAND,
-        startTime: today,
-        stopTime: tomorrow,
-        stepSize: HORIZONS_JUPITER_STEP,
-        center: HORIZONS_GEOCENTRIC,
-      },
-      now,
-    ),
+    clients.fetchHorizonsRaDec(raDecParams(HORIZONS_JUPITER_COMMAND), now),
+    clients.fetchHorizonsRaDec(raDecParams(HORIZONS_VENUS_COMMAND), now),
+    clients.fetchHorizonsRaDec(raDecParams(HORIZONS_MARS_COMMAND), now),
+    clients.fetchHorizonsRaDec(raDecParams(HORIZONS_SATURN_COMMAND), now),
+    clients.fetchHorizonsRaDec(raDecParams(HORIZONS_MERCURY_COMMAND), now),
     clients.fetchSwpcSlow(now),
     clients.fetchCelestrakTle({ group: SATELLITE_GROUP }, now),
   ]);
@@ -327,15 +372,11 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
     writeHorizonsResult({ ephemerisLines: null, fetchedAt: nowIso }, nowIso);
   }
 
-  if (horizonsJupiterResult.status === 'fulfilled') {
-    writeHorizonsJupiterResult(horizonsJupiterResult.value, nowIso);
-  } else {
-    console.error(
-      '[poller/slow-tier] JPL Horizons (Jupiter) threw unexpectedly:',
-      horizonsJupiterResult.reason,
-    );
-    writeHorizonsJupiterResult({ entries: null, fetchedAt: nowIso }, nowIso);
-  }
+  handleHorizonsRaDecResult(horizonsJupiterResult, 'horizonsJupiter', 'Jupiter', nowIso);
+  handleHorizonsRaDecResult(horizonsVenusResult, 'horizonsVenus', 'Venus', nowIso);
+  handleHorizonsRaDecResult(horizonsMarsResult, 'horizonsMars', 'Mars', nowIso);
+  handleHorizonsRaDecResult(horizonsSaturnResult, 'horizonsSaturn', 'Saturn', nowIso);
+  handleHorizonsRaDecResult(horizonsMercuryResult, 'horizonsMercury', 'Mercury', nowIso);
 
   if (swpcSlowResult.status === 'fulfilled') {
     writeSpaceWeatherForecastResult(swpcSlowResult.value, nowIso);

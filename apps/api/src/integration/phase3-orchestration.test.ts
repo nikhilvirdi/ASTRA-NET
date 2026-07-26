@@ -152,6 +152,10 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(health.sources.gibs.healthy).toBe(true);
     expect(health.sources.horizons.healthy).toBe(true);
     expect(health.sources.horizonsJupiter.healthy).toBe(true);
+    expect(health.sources.horizonsVenus.healthy).toBe(true);
+    expect(health.sources.horizonsMars.healthy).toBe(true);
+    expect(health.sources.horizonsSaturn.healthy).toBe(true);
+    expect(health.sources.horizonsMercury.healthy).toBe(true);
     expect(health.sources.spaceWeatherForecast.healthy).toBe(true);
     expect(health.sources.satellites.healthy).toBe(true);
 
@@ -200,6 +204,10 @@ describe('Phase 3 orchestration: both loops running together, served over real H
     expect(getSourceState('gibs').healthy).toBe(true);
     expect(getSourceState('horizons').healthy).toBe(true);
     expect(getSourceState('horizonsJupiter').healthy).toBe(true);
+    expect(getSourceState('horizonsVenus').healthy).toBe(true);
+    expect(getSourceState('horizonsMars').healthy).toBe(true);
+    expect(getSourceState('horizonsSaturn').healthy).toBe(true);
+    expect(getSourceState('horizonsMercury').healthy).toBe(true);
     expect(getSourceState('spaceWeatherForecast').healthy).toBe(true);
     expect(getSourceState('satellites').healthy).toBe(true);
     expect(getSourceState('iss').healthy).toBe(true);

@@ -20,6 +20,10 @@ function emptyPollerState(): PollerState {
     gibs: empty(),
     horizons: empty(),
     horizonsJupiter: empty(),
+    horizonsVenus: empty(),
+    horizonsMars: empty(),
+    horizonsSaturn: empty(),
+    horizonsMercury: empty(),
     satellites: empty(),
   };
 }
@@ -121,6 +125,38 @@ function fullPollerState(): PollerState {
     fetchedAt: NOW.toISOString(),
     healthy: true,
   };
+  state.horizonsVenus = {
+    data: {
+      entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 169.5, decDeg: 4.9 }],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
+  state.horizonsMars = {
+    data: {
+      entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 210.1, decDeg: -15.2 }],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
+  state.horizonsSaturn = {
+    data: {
+      entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 330.4, decDeg: -12.7 }],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
+  state.horizonsMercury = {
+    data: {
+      entries: [{ timestampUtcMs: NOW.getTime(), raDeg: 140.2, decDeg: 15.8 }],
+      fetchedAt: NOW.toISOString(),
+    },
+    fetchedAt: NOW.toISOString(),
+    healthy: true,
+  };
   return state;
 }
 
@@ -137,6 +173,11 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.skyAnchor.data?.jupiter).not.toBeNull();
     expect(Number.isFinite(brief.skyAnchor.data?.jupiter?.altitudeDeg)).toBe(true);
     expect(Number.isFinite(brief.skyAnchor.data?.jupiter?.azimuthDeg)).toBe(true);
+    for (const planet of ['venus', 'mars', 'saturn', 'mercury'] as const) {
+      expect(brief.skyAnchor.data?.[planet]).not.toBeNull();
+      expect(Number.isFinite(brief.skyAnchor.data?.[planet]?.altitudeDeg)).toBe(true);
+      expect(Number.isFinite(brief.skyAnchor.data?.[planet]?.azimuthDeg)).toBe(true);
+    }
     expect(brief.iss.status).toBe('ok');
     expect(brief.iss.data?.position?.latitude).toBe(12.3);
     expect(brief.iss.data?.nextPass).toBeNull();
@@ -260,6 +301,10 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.skyAnchor.status).toBe('ok');
     expect(brief.skyAnchor.data).not.toBeNull();
     expect(brief.skyAnchor.data?.jupiter).toBeNull();
+    expect(brief.skyAnchor.data?.venus).toBeNull();
+    expect(brief.skyAnchor.data?.mars).toBeNull();
+    expect(brief.skyAnchor.data?.saturn).toBeNull();
+    expect(brief.skyAnchor.data?.mercury).toBeNull();
     expect(brief.iss.status).toBe('unavailable');
     expect(brief.spaceWeather.status).toBe('unavailable');
     expect(brief.spaceWeather.data).toBeNull();

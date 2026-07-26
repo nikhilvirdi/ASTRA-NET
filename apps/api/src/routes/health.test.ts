@@ -30,6 +30,10 @@ describe('buildHealthPayload', () => {
       gibs: { healthy: false, fetchedAt: null },
       horizons: { healthy: false, fetchedAt: null },
       horizonsJupiter: { healthy: false, fetchedAt: null },
+      horizonsVenus: { healthy: false, fetchedAt: null },
+      horizonsMars: { healthy: false, fetchedAt: null },
+      horizonsSaturn: { healthy: false, fetchedAt: null },
+      horizonsMercury: { healthy: false, fetchedAt: null },
       satellites: { healthy: false, fetchedAt: null },
     });
   });

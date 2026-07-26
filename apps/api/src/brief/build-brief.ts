@@ -64,10 +64,16 @@ export function buildBrief(
 ): DailyBrief {
   // Sky Anchor always resolves (ARCHITECTURE.md §5's top-priority "always
   // works" card): its Sun half is pure math over observer/now with no
-  // external source to fail, and its Jupiter sub-field degrades to null on
-  // its own when the Horizons ephemeris is down.
+  // external source to fail, and each planet sub-field degrades to null on
+  // its own when that body's Horizons ephemeris is down.
   const skyAnchor = okCard(
-    buildSkyAnchorCard(observerLatDeg, observerLonDeg, now, pollerState.horizonsJupiter),
+    buildSkyAnchorCard(observerLatDeg, observerLonDeg, now, {
+      jupiter: pollerState.horizonsJupiter,
+      venus: pollerState.horizonsVenus,
+      mars: pollerState.horizonsMars,
+      saturn: pollerState.horizonsSaturn,
+      mercury: pollerState.horizonsMercury,
+    }),
   );
 
   const issCardData = buildIssCard(pollerState.iss, issVisualPasses, now);

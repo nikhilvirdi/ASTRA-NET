@@ -18,6 +18,10 @@ describe('poller store', () => {
     expect(all.gibs).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.horizons).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.horizonsJupiter).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.horizonsVenus).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.horizonsMars).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.horizonsSaturn).toEqual({ data: null, fetchedAt: null, healthy: false });
+    expect(all.horizonsMercury).toEqual({ data: null, fetchedAt: null, healthy: false });
     expect(all.satellites).toEqual({ data: null, fetchedAt: null, healthy: false });
   });
 
