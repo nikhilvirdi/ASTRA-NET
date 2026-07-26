@@ -4,6 +4,7 @@ import { useAppStore, type UserLocation } from '@/store';
 
 export interface SkyAnchorCardData {
   sunAltitudeDeg: number;
+  sunAzimuthDeg: number;
   twilightPhase: 'day' | 'twilight' | 'night';
   isDarkEnoughForIssOrAurora: boolean;
   isDarkEnoughForFaintStars: boolean;
@@ -187,17 +188,17 @@ export interface FastTierStreamPayload {
 }
 
 // ─── Default Location Anchor ──────────────────────────────────────────────────
-// Srinagar, India — explicit placeholder matching DESIGN_SPEC.md §10 & test suites
+// Jammu, India — explicit placeholder matching DESIGN_SPEC.md §10 & test suites
 export const DEFAULT_OBSERVER_LOCATION: UserLocation = {
-  lat: 34.08,
-  lon: 74.8,
-  name: 'SRINAGAR',
+  lat: 32.73,
+  lon: 74.87,
+  name: 'JAMMU',
 };
 
 /**
  * Resolves effective location using fallback chain:
  * 1. Explicit store.location
- * 2. Default Srinagar coordinates (34.08, 74.80)
+ * 2. Default Jammu coordinates (32.73, 74.87)
  */
 export function getEffectiveLocation(): UserLocation {
   const storeLocation = useAppStore.getState().location;

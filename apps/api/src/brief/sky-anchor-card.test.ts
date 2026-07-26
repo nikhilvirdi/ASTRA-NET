@@ -51,6 +51,9 @@ describe('buildSkyAnchorCard', () => {
 
   it('exposes the Sun azimuth alongside its altitude, from the same §3 horizontal position', () => {
     const now = new Date('2026-07-17T21:00:00Z');
+    // Arbitrary fixture coordinates, reused by the other tests in this file
+    // below — this card is generic over any lat/lon; not tied to apps/web's
+    // DEFAULT_OBSERVER_LOCATION (Jammu since 2026-07-27).
     const latDeg = 34.08;
     const lonDeg = 74.8;
 

@@ -36,6 +36,8 @@ describe('sunAltitudeDeg', () => {
 describe('sunHorizontalPosition', () => {
   it('exposes the azimuth the §3 transform already computes, and its altitude matches sunAltitudeDeg', () => {
     const now = new Date('2026-07-17T21:00:00Z');
+    // Arbitrary fixture coordinates — this engine is generic over any lat/lon;
+    // not tied to apps/web's DEFAULT_OBSERVER_LOCATION (Jammu since 2026-07-27).
     const latDeg = 34.08;
     const lonDeg = 74.8;
 

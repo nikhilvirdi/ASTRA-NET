@@ -343,7 +343,7 @@ The entry point. Must work logged-out. Must answer the question in under three s
 #### Composition, top to bottom
 
 **Eyebrow strip** (mono, `micro`, uppercase, `brass-500`)
-`SRINAGAR · 34.08°N 74.80°E · WED 22 JUL · CIVIL TWILIGHT ENDS 19:48`
+`JAMMU · 32.73°N 74.87°E · WED 22 JUL · CIVIL TWILIGHT ENDS 20:01`
 
 Left-aligned. A location switcher sits at its right end as a text button, not a dropdown chip — it should read as part of the line, not a control bolted on.
 
@@ -388,7 +388,7 @@ A single locked cinematic, only on first visit (subsequent visits drop the user 
 
 | Time | Event                                                                                                                                                                                   |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00 | Black. A single mono line, centered, small: `34.08°N 74.80°E · 21:04 LOCAL`. Ambient audio fades in — low wind, no music.                                                               |
+| 0:00 | Black. A single mono line, centered, small: `32.73°N 74.87°E · 21:04 LOCAL`. Ambient audio fades in — low wind, no music.                                                               |
 | 0:04 | The user's real night sky fades up. Stars at true positions, magnitude-scaled. No labels yet. The horizon rule is faintly visible at the bottom.                                        |
 | 0:12 | One point of light begins moving. Cursor gravity gently biases toward it. A hairline tether and a single mono label appear: `ISS`.                                                      |
 | 0:20 | On click: the camera lifts — a long `expo.inOut` rise from ground to orbit, 1.6s — and locks to the ISS in true orbital motion. Ambient audio shifts from wind to a low mechanical hum. |
