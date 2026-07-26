@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as satellite from 'satellite.js';
+import { isVisiblePass, julianDay, sunAltitudeDeg, sunEquatorialPosition } from '@astranet/shared';
 import type { SkyObjectInput } from '@/lib/semantic-zoom';
 import { useAppStore } from '@/store';
 
@@ -89,6 +90,23 @@ export function useSatellites(): PropagatedSatellite[] {
         height: 0,
       };
 
+      // Same FORMULAS.md §5 visible-pass test the ISS card already applies
+      // (packages/shared's isVisiblePass: elevation >= 10deg AND observer in
+      // darkness AND satellite outside Earth's shadow) — reused, not
+      // reimplemented, so both surfaces agree on what "visible" means.
+      // Observer darkness and the Sun's direction are the same for every
+      // satellite this tick, so computed once here rather than per-satellite.
+      const sunAltObserverDeg = sunAltitudeDeg(now, loc.lat, loc.lon);
+      const jd = julianDay(now);
+      const { raDeg, decDeg } = sunEquatorialPosition(jd);
+      const raRad = satellite.degreesToRadians(raDeg);
+      const decRad = satellite.degreesToRadians(decDeg);
+      const sunUnitVector = {
+        x: Math.cos(decRad) * Math.cos(raRad),
+        y: Math.cos(decRad) * Math.sin(raRad),
+        z: Math.sin(decRad),
+      };
+
       const results: PropagatedSatellite[] = [];
       for (const { id, name, satrec } of satrecsRef.current) {
         const positionAndVelocity = satellite.propagate(satrec, now);
@@ -98,18 +116,19 @@ export function useSatellites(): PropagatedSatellite[] {
 
         const positionEcf = satellite.eciToEcf(positionEci, gmst);
         const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
+        const altitudeDeg = satellite.radiansToDegrees(lookAngles.elevation);
 
-        // DECISION: No explicit culling of objects below horizon (altitudeDeg < 0).
-        // Below-horizon Sun/ISS/satellite markers currently render unclipped —
-        // SkyDome is a thin decorative horizon ring, not an occluding geometry
-        // (corrected claim; see DECISIONS.md). Kept unculled here to match the
-        // existing Sun/ISS behavior, not because anything actually hides them.
+        // Below the visible-pass bar (too low, observer not dark enough, or
+        // the satellite itself is in Earth's shadow): not actually seeable,
+        // so it isn't shown — same standard the ISS pass already applies.
+        if (!isVisiblePass(altitudeDeg, sunAltObserverDeg, positionEci, sunUnitVector)) continue;
+
         results.push({
           id,
           name,
           kind: 'satellite',
           azimuthDeg: satellite.radiansToDegrees(lookAngles.azimuth),
-          altitudeDeg: satellite.radiansToDegrees(lookAngles.elevation),
+          altitudeDeg,
           pinned: false,
         });
       }

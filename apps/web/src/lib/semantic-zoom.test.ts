@@ -4,6 +4,8 @@ import {
   angularSeparationDeg,
   drillFovDeg,
   fovToZoomLevel,
+  HORIZON_REFRACTION_DEG,
+  isAboveHorizon,
   MAX_CLICKABLE_OBJECTS,
   mergeRadiusDeg,
   sphericalCentroid,
@@ -11,6 +13,23 @@ import {
   type SkyObjectInput,
   type ZoomLevel,
 } from './semantic-zoom';
+
+describe('isAboveHorizon', () => {
+  it('is true well above the horizon', () => {
+    expect(isAboveHorizon(45)).toBe(true);
+  });
+
+  it('is true at the true horizon (0deg) and within the refraction margin below it', () => {
+    expect(isAboveHorizon(0)).toBe(true);
+    expect(isAboveHorizon(-HORIZON_REFRACTION_DEG / 2)).toBe(true);
+    expect(isAboveHorizon(-HORIZON_REFRACTION_DEG)).toBe(true);
+  });
+
+  it('is false once genuinely below the horizon, past the refraction margin', () => {
+    expect(isAboveHorizon(-HORIZON_REFRACTION_DEG - 0.01)).toBe(false);
+    expect(isAboveHorizon(-36.5)).toBe(false);
+  });
+});
 
 const LEVELS: ZoomLevel[] = [0, 1, 2];
 

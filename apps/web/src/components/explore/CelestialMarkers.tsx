@@ -8,6 +8,7 @@ import {
   aggregateSkyObjects,
   drillFovDeg,
   fovToZoomLevel,
+  isAboveHorizon,
   type ClusterRenderable,
   type ShellRenderable,
   type SkyObjectInput,
@@ -464,10 +465,14 @@ export function CelestialMarkers({
     // 1. ISS Marker — position interpolated along the next visible pass via
     // the shared `@/lib/pass-interpolation` (same source as the Horizon
     // Band); outside the pass window there is no real position, so no marker.
+    // The pass itself is already sunlit/dark-sky filtered server-side (N2YO's
+    // visual-pass semantics), but interpolation can still land below the
+    // horizon right at a pass's start/end edge, so the same horizon check
+    // applies here as everywhere else.
     const issPass = brief.iss?.status === 'ok' ? brief.iss.data?.nextPass : null;
     if (issPass) {
       const pos = interpolatePassPosition(issPass, currentTime.getTime() / 1000);
-      if (pos) {
+      if (pos && isAboveHorizon(pos.altitudeDeg)) {
         list.push({
           id: 'iss',
           name: 'ISS (ZARYA)',
@@ -484,15 +489,21 @@ export function CelestialMarkers({
       }
     }
 
-    // 2. Jupiter Marker
-    if (brief.skyAnchor?.data?.jupiter) {
+    // 2. Jupiter Marker — real altitude, no floor. (A prior `Math.max(2, ...)`
+    // floor here silently kept Jupiter's marker pinned just above the ground
+    // at all times, which is what let it render as a bright clickable object
+    // even tens of degrees below the true horizon — see DECISIONS.md.)
+    if (
+      brief.skyAnchor?.data?.jupiter &&
+      isAboveHorizon(brief.skyAnchor.data.jupiter.altitudeDeg)
+    ) {
       const jup = brief.skyAnchor.data.jupiter;
       list.push({
         id: 'jupiter',
         name: 'JUPITER',
         type: 'jupiter',
         azimuthDeg: jup.azimuthDeg,
-        altitudeDeg: Math.max(2, jup.altitudeDeg),
+        altitudeDeg: jup.altitudeDeg,
         color: '#C9B187', // --color-brass-300
         sentence:
           "The solar system's largest planet, glowing brightly in tonight's celestial field.",
@@ -505,7 +516,7 @@ export function CelestialMarkers({
     // 3. Sun Marker — real azimuth (shared §4 engine, exposed on
     // `skyAnchor.data.sunAzimuthDeg`); the due-South placeholder this used to
     // carry is retired now that the backend field exists (see DECISIONS.md).
-    if (brief.skyAnchor?.data) {
+    if (brief.skyAnchor?.data && isAboveHorizon(brief.skyAnchor.data.sunAltitudeDeg)) {
       const sunAlt = brief.skyAnchor.data.sunAltitudeDeg;
       const sunAz = brief.skyAnchor.data.sunAzimuthDeg;
       list.push({

@@ -33,6 +33,22 @@
  * only recomputes when the camera crosses a band edge, never per frame.
  */
 
+/**
+ * Standard atmospheric refraction at the horizon (~34' = 0.5667deg): a body's
+ * true geometric altitude can be slightly below the horizon and still be
+ * visually above it, since the atmosphere bends light near grazing
+ * incidence — the same figure almanacs use for sunrise/sunset horizon dip.
+ * A real, documented value, not an invented threshold; not in FORMULAS.md
+ * (no locked doc governs it), so it lives here as presentation policy
+ * rather than packages/shared.
+ */
+export const HORIZON_REFRACTION_DEG = 34 / 60;
+
+/** True below this, a body is genuinely below the horizon (see above). */
+export function isAboveHorizon(altitudeDeg: number): boolean {
+  return altitudeDeg >= -HORIZON_REFRACTION_DEG;
+}
+
 export type SkyObjectKind = 'satellite' | 'planet' | 'sun';
 
 export interface SkyObjectInput {
