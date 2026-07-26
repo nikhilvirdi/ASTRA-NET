@@ -62,7 +62,23 @@ export function DiegeticText({
     // Face the observer at the origin (+Z toward target for non-camera objects).
     mesh.lookAt(0, 0, 0);
     mesh.sync();
-  }, [mesh, text, fontSize, colorToken, colorFallback, letterSpacing, position]);
+    // Depend on the individual coordinates, not the `position` array itself:
+    // every caller passes an inline `[x, y, z]` literal, a fresh reference on
+    // every render. CelestialMarkers re-renders every animation frame (its
+    // useFrame reports screen positions upward), so depending on the array
+    // reference re-ran this effect — and troika's mesh.sync() — 60x/sec per
+    // label, pegging the main thread until the tab stopped responding.
+  }, [
+    mesh,
+    text,
+    fontSize,
+    colorToken,
+    colorFallback,
+    letterSpacing,
+    position[0],
+    position[1],
+    position[2],
+  ]);
 
   // Materialize (§7.1 transition; §7.6 reduced-motion collapse).
   useEffect(() => {

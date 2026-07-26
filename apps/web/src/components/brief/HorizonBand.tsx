@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { DailyBrief } from '@/lib/api';
+import { interpolatePassPosition } from '@/lib/pass-interpolation';
 
 interface HorizonBandProps {
   brief: DailyBrief | null;
@@ -16,17 +17,6 @@ interface MarkerItem {
   altitudeDeg: number;
   colorClass: string;
   available: boolean;
-}
-
-/**
- * Shortest-path angular interpolation between two azimuths (degrees), so a
- * pass that crosses due North (e.g. 350° → 10°) sweeps the short way through
- * 0° rather than winding 340° backwards. `t` is the 0..1 fraction along the
- * segment; the result is normalized to [0, 360).
- */
-function interpolateAzimuth(fromDeg: number, toDeg: number, t: number): number {
-  const delta = ((toDeg - fromDeg + 540) % 360) - 180;
-  return (fromDeg + delta * t + 360) % 360;
 }
 
 // Compass direction ticks (0° to 360°)
@@ -72,43 +62,22 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
       available: true,
     });
 
-    // 2. ISS Position — the wire payload carries NO "azimuth right now"; the
-    // only real azimuths N2YO gives are three sampled points on the next
-    // visible pass (start → max → end), each with its own UTC timestamp. So
-    // the ISS marker is only placed while the scrub time falls inside that
-    // pass window, and its position is interpolated along the pass's own
-    // timeline — not linearly across the scrubber's full ±6h range. Peak
-    // elevation is the only altitude N2YO exposes; start/end are at the
-    // horizon by definition (the pass's visibility threshold), so altitude
-    // is interpolated 0 → maxElevation → 0 across the two segments. Outside
-    // the window the ISS is not on a visible pass, so no marker is drawn
-    // rather than fabricating a position (same stance as the removed NEO marker).
+    // 2. ISS Position — interpolated along the next visible pass's own
+    // timeline (start → max → end); no marker outside the pass window. The
+    // full rationale lives with the shared implementation in
+    // `@/lib/pass-interpolation` — note the scrub time moves along the pass's
+    // timeline, not linearly across the scrubber's full ±6h range.
     const pass = brief?.iss?.status === 'ok' ? (brief.iss.data?.nextPass ?? null) : null;
     if (pass) {
-      const tSec = effectiveTime.getTime() / 1000;
-      if (tSec >= pass.startUtc && tSec <= pass.endUtc) {
-        let azimuthDeg: number;
-        let altitudeDeg: number;
-        if (tSec <= pass.maxUtc) {
-          // Rising leg: start → max.
-          const span = pass.maxUtc - pass.startUtc;
-          const f = span > 0 ? (tSec - pass.startUtc) / span : 1;
-          azimuthDeg = interpolateAzimuth(pass.startAzimuthDeg, pass.maxAzimuthDeg, f);
-          altitudeDeg = pass.maxElevationDeg * f;
-        } else {
-          // Descending leg: max → end.
-          const span = pass.endUtc - pass.maxUtc;
-          const f = span > 0 ? (tSec - pass.maxUtc) / span : 1;
-          azimuthDeg = interpolateAzimuth(pass.maxAzimuthDeg, pass.endAzimuthDeg, f);
-          altitudeDeg = pass.maxElevationDeg * (1 - f);
-        }
+      const pos = interpolatePassPosition(pass, effectiveTime.getTime() / 1000);
+      if (pos) {
         list.push({
           id: 'iss',
           label: 'ISS',
           sublabel: `Pass ${new Date(pass.startUtc * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
           type: 'iss',
-          azimuthDeg,
-          altitudeDeg,
+          azimuthDeg: pos.azimuthDeg,
+          altitudeDeg: pos.altitudeDeg,
           colorClass: 'bg-orbital',
           available: true,
         });

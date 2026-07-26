@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { sunHorizontalPosition, degToRad, clamp } from '@astranet/shared';
+import { degToRad, clamp } from '@astranet/shared';
+import type { DailyBrief } from '@/lib/api';
 import { DUR_CINEMATIC, DUR_REDUCED_MOTION_FADE, EASE_AMBIENT, EASE_CINEMATIC } from '@/lib/motion';
 import { cssColorToken } from '@/lib/color';
 
@@ -11,14 +12,20 @@ import { cssColorToken } from '@/lib/color';
  * visualized as a visible pulse washing outward from the Sun").
  *
  * A faint brass wash expands radially across the sky dome from the Sun's
- * true position (shared §4 engine — real geometry even below the horizon at
- * night, which is where the Sun is whenever stars are visible). One wash
- * cycle's period is mapped from the live RTSW proton speed: faster wind,
- * faster pulse, clamped to §7.1's 4–20s ambient band.
+ * true position — `skyAnchor.data.sunAzimuthDeg`/`sunAltitudeDeg` (shared §4
+ * engine, computed server-side; real geometry even below the horizon at
+ * night, which is where the Sun is whenever stars are visible). This is the
+ * same field `CelestialMarkers`' Sun marker reads, so the wash and the
+ * marker dot always agree on where the Sun actually is — no independent
+ * client-side recompute to drift out of sync with it. One wash cycle's
+ * period is mapped from the live RTSW proton speed: faster wind, faster
+ * pulse, clamped to §7.1's 4–20s ambient band.
  *
- * Honesty (API_SOURCES.md SWPC fallback): no solar wind speed → no pulse.
- * Nothing here invents a baseline. An unhealthy-but-present value renders at
- * half opacity, mirroring §10's dimmed-to-50% unavailable convention.
+ * Honesty (API_SOURCES.md SWPC fallback): no solar wind speed, or no Sun
+ * position yet (brief not loaded / skyAnchor unavailable) → no pulse.
+ * Nothing here invents a baseline or a placeholder direction. An
+ * unhealthy-but-present value renders at half opacity, mirroring §10's
+ * dimmed-to-50% unavailable convention.
  *
  * Ambient object: not clickable, consumes none of §11's Rule-of-7 slots.
  * §7.6: under prefers-reduced-motion the loop never starts and the wash
@@ -27,9 +34,7 @@ import { cssColorToken } from '@/lib/color';
  */
 
 interface HeliospherePulseProps {
-  observerLat: number;
-  observerLon: number;
-  currentTime: Date;
+  brief: DailyBrief | null;
   /** Live RTSW proton speed, km/s, or null when unavailable. */
   solarWindSpeedKmS: number | null;
   /** The SWPC fast-tier source's own health flag. */
@@ -91,9 +96,7 @@ const fragmentShader = `
 `;
 
 export function HeliospherePulse({
-  observerLat,
-  observerLon,
-  currentTime,
+  brief,
   solarWindSpeedKmS,
   healthy,
 }: HeliospherePulseProps): React.ReactElement {
@@ -108,15 +111,21 @@ export function HeliospherePulse({
   const geometry = useMemo(() => new THREE.SphereGeometry(PULSE_RADIUS, 48, 24), []);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  // True Sun direction (shared §4 engine), same az/alt→xyz mapping as StarField.
+  // Same `skyAnchor.data` fields CelestialMarkers' Sun marker reads — one
+  // source of truth for where the Sun actually is, null until the brief
+  // resolves it.
+  const sunAzimuthDeg = brief?.skyAnchor?.data?.sunAzimuthDeg ?? null;
+  const sunAltitudeDeg = brief?.skyAnchor?.data?.sunAltitudeDeg ?? null;
+
+  // True Sun direction, same az/alt→xyz mapping as StarField.
   useEffect(() => {
-    const sun = sunHorizontalPosition(currentTime, observerLat, observerLon);
-    const alt = degToRad(sun.altitudeDeg);
-    const az = degToRad(sun.azimuthDeg);
+    if (sunAzimuthDeg === null || sunAltitudeDeg === null) return;
+    const alt = degToRad(sunAltitudeDeg);
+    const az = degToRad(sunAzimuthDeg);
     uniforms.current.uSunDir.value
       .set(Math.cos(alt) * Math.sin(az), Math.sin(alt), -Math.cos(alt) * Math.cos(az))
       .normalize();
-  }, [currentTime, observerLat, observerLon]);
+  }, [sunAzimuthDeg, sunAltitudeDeg]);
 
   // The looping wash. Created once at the base (slowest) period; live speed
   // changes retime it via timeScale so a mid-wash update speeds the same
@@ -138,7 +147,8 @@ export function HeliospherePulse({
   // Live data → visibility and tempo.
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const available = solarWindSpeedKmS !== null && !reduced;
+    const available =
+      solarWindSpeedKmS !== null && sunAzimuthDeg !== null && sunAltitudeDeg !== null && !reduced;
     const targetOpacity = available ? (healthy ? 1 : 0.5) : 0;
     const opacityTween = gsap.to(uniforms.current.uOpacity, {
       value: targetOpacity,
@@ -153,7 +163,7 @@ export function HeliospherePulse({
     return () => {
       opacityTween.kill();
     };
-  }, [solarWindSpeedKmS, healthy]);
+  }, [solarWindSpeedKmS, healthy, sunAzimuthDeg, sunAltitudeDeg]);
 
   return (
     <mesh geometry={geometry} renderOrder={2}>
