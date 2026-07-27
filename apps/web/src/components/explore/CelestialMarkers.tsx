@@ -47,6 +47,8 @@ export interface ScreenPos {
   x: number;
   y: number;
   inView: boolean;
+  azimuthDeg?: number;
+  altitudeDeg?: number;
 }
 
 /** A semantic-zoom drill-in request (cluster/shell click). */
@@ -736,7 +738,13 @@ export function CelestialMarkers({
       const screenX = ((vec.current.x + 1) * width) / 2;
       const screenY = ((-vec.current.y + 1) * height) / 2;
 
-      posMap[obj.id] = { x: screenX, y: screenY, inView };
+      posMap[obj.id] = {
+        x: screenX,
+        y: screenY,
+        inView,
+        azimuthDeg: obj.azimuthDeg,
+        altitudeDeg: obj.altitudeDeg,
+      };
     });
 
     onUpdateScreenPos(posMap);

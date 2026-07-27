@@ -3,6 +3,11 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { DUR_REDUCED_MOTION_FADE, OPENING_SEQUENCE } from '@/lib/motion';
+import {
+  computeGravityBias,
+  findGravityTarget,
+  type GravityTarget,
+} from '@/lib/explore-interaction';
 
 /**
  * Ground-view camera: drag to look, wheel to zoom (FOV), with momentum —
@@ -41,6 +46,8 @@ export interface CameraFocusTarget {
 
 export type FocusReleaseReason = 'user-break' | 'arrived';
 
+export type { GravityTarget };
+
 interface CameraControllerProps {
   /** Minimum vertical pitch angle in radians (e.g. -5° below horizon) */
   minPitch?: number;
@@ -54,6 +61,10 @@ interface CameraControllerProps {
   focusTarget?: CameraFocusTarget | null;
   /** The focus ended: the user broke the lock, or a flyTo arrived. */
   onFocusRelease?: (reason: FocusReleaseReason) => void;
+  /** Selectable target screen positions for 40px/60ms cursor gravity (§11). */
+  gravityTargets?: GravityTarget[];
+  /** Pointer position in client coordinates for cursor gravity. */
+  pointerPos?: { x: number; y: number } | null;
 }
 
 /** Camera yaw (YXZ order, radians) that looks toward an azimuth, nearest-turn from `fromYaw`. */
@@ -71,6 +82,8 @@ export function CameraController({
   maxFov = 90,
   focusTarget = null,
   onFocusRelease,
+  gravityTargets = [],
+  pointerPos = null,
 }: CameraControllerProps): React.ReactElement | null {
   const { camera, gl } = useThree();
 
@@ -253,6 +266,25 @@ export function CameraController({
       );
       velocityYaw.current *= 0.92;
       velocityPitch.current *= 0.92;
+
+      // §11 Cursor gravity: pointer magnetically biased toward selectable objects within 40px with a 60ms ease
+      const nearestTarget = findGravityTarget(pointerPos, gravityTargets, 40);
+      if (nearestTarget) {
+        const biasYaw = nearestYawForAzimuth(nearestTarget.azimuthDeg, targetYaw.current);
+        const biasPitch = Math.max(
+          minPitch,
+          Math.min(maxPitch, (nearestTarget.altitudeDeg * Math.PI) / 180),
+        );
+        const biased = computeGravityBias(
+          targetYaw.current,
+          targetPitch.current,
+          biasYaw,
+          biasPitch,
+          0.35,
+        );
+        targetYaw.current = biased.yaw;
+        targetPitch.current = biased.pitch;
+      }
     }
 
     currentYaw.current += (targetYaw.current - currentYaw.current) * damping;

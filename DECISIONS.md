@@ -622,3 +622,15 @@ Backend-only extension of the Sky Anchor's planet-marker pipeline (Task A/Task F
   - **Mercury**: Sentence describing innermost orbit & thermal extremes; color `#A8B4BC` (`--color-orbital`, cool metallic grey).
 - **No Fabricated Data (MAG values removed):** Checked planet measurements string format — removed all static hardcoded magnitude values (`MAG: -4.2`, `-2.4`, etc.) from Jupiter, Venus, Mars, Saturn, and Mercury markers. Only live-computed data (`ALT: ...° · AZ: ...°`) is displayed on planet panels. (ISS magnitude remains live from N2YO visual pass telemetry).
 - **Design Token Choice (No invented hex codes):** Checked `DESIGN_SPEC.md` — no explicit per-planet hex values exist (same gap as Jupiter's brass-300 reuse). Reused existing design tokens from `index.css` (`--color-brass-300`, `--color-sky-200`, `--color-neo`, `--color-orbital`) matching each planet's optical character without creating un-tokenized hex drift or colliding with the Sun's `--color-solar`.
+
+## 2026-07-27 — Cursor Gravity (§11 0:12) & Three-Depth Hold ("Peeling the Onion") Implementation
+
+**Why:** `DESIGN_SPEC.md` §11 specifies Cursor Gravity (40px magnetic pointer attraction with 60ms ease) and Three-Depth Hold ("Peeling the Onion": tap for sentence, hold for measurements, hold longer for full technical data).
+
+- **Cursor Gravity (40px magnetic radius, 60ms ease):** Implemented in `CameraController.tsx` / `CelestialMarkers.tsx`. Tracks 2D screen positions of selectable objects. When the pointer moves within 40px of a selectable celestial marker, a smooth exponential 60ms lerp ($\alpha \approx 1 - e^{-\Delta t / 0.06}$) applies a subtle camera focal bias toward the object and activates raycast magnetic target snapping. During the opening sequence at 0:12 (`OPENING_SEQUENCE.issRevealAt`), gravity specifically biases toward the ISS.
+- **Three-Depth Hold Duration Thresholds (Chosen Defaults):** `DESIGN_SPEC.md` §11 specifies "hold" and "hold longer" without specifying exact millisecond numbers. Selected **500ms** (Depth 2: Measurements) and **1000ms** (Depth 3: Deep Link) as the hold-duration thresholds (logged as chosen engineering defaults, same precedent as `CameraController` damping/friction constants).
+- **Progressive Disclosure UI & Accessibility:**
+  - **Depth 1 (Tap / Short Click)**: Renders Header + Sentence (serif font).
+  - **Depth 2 (Hold 500ms / Tap step 2)**: Progressively reveals Measurements (mono font).
+  - **Depth 3 (Hold 1000ms / Tap step 3)**: Progressively reveals Deep Link (`linkText` $\rightarrow$ `linkHref`).
+  - Added explicit interactive depth step buttons (`[1] [2] [3]`) to ensure WCAG AA accessibility for screen readers and keyboard users.

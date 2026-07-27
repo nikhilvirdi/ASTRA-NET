@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { useAppStore } from '@/store';
 import { getEffectiveLocation, fetchBrief, type DailyBrief } from '@/lib/api';
 import { StarField } from '@/components/explore/StarField';
 import { SkyDome } from '@/components/explore/SkyDome';
-import { CameraController, type CameraFocusTarget } from '@/components/explore/CameraController';
+import {
+  CameraController,
+  type CameraFocusTarget,
+  type GravityTarget,
+} from '@/components/explore/CameraController';
 import {
   CelestialMarkers,
   type CelestialObject,
@@ -19,6 +23,7 @@ import { CardinalMarks } from '@/components/explore/CardinalMarks';
 import { DiegeticTextMirror } from '@/components/explore/DiegeticTextMirror';
 import { OpeningSequence, hasSeenOpeningSequence } from '@/components/explore/OpeningSequence';
 import { useSpaceWeather } from '@/hooks/useSpaceWeather';
+import { DEPTH_HOLD_THRESHOLDS_MS, type PanelDepth } from '@/lib/explore-interaction';
 
 /** §11: "Persistent nav auto-hides after 3 seconds of camera motion." */
 const NAV_AUTO_HIDE_MS = 3000;
@@ -31,7 +36,35 @@ export function ExplorePage(): React.ReactElement {
   const [sceneTime, setSceneTime] = useState(new Date());
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [selectedObject, setSelectedObject] = useState<CelestialObject | null>(null);
+  const [selectedDepth, setSelectedDepth] = useState<PanelDepth>(1);
   const [screenPosMap, setScreenPosMap] = useState<Record<string, ScreenPos>>({});
+  const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
+
+  const holdTimerDepth2 = useRef<number | null>(null);
+  const holdTimerDepth3 = useRef<number | null>(null);
+
+  const stopDepthHold = useRef(() => {
+    if (holdTimerDepth2.current !== null) {
+      window.clearTimeout(holdTimerDepth2.current);
+      holdTimerDepth2.current = null;
+    }
+    if (holdTimerDepth3.current !== null) {
+      window.clearTimeout(holdTimerDepth3.current);
+      holdTimerDepth3.current = null;
+    }
+  }).current;
+
+  const startDepthHold = useRef(() => {
+    stopDepthHold();
+    // 500ms hold threshold -> Depth 2 (Measurements)
+    holdTimerDepth2.current = window.setTimeout(() => {
+      setSelectedDepth((d) => Math.max(d, 2) as PanelDepth);
+    }, DEPTH_HOLD_THRESHOLDS_MS.depth2);
+    // 1000ms hold threshold -> Depth 3 (Link deeper)
+    holdTimerDepth3.current = window.setTimeout(() => {
+      setSelectedDepth(3);
+    }, DEPTH_HOLD_THRESHOLDS_MS.depth3);
+  }).current;
 
   // §11 camera rig (0:20/0:40): 'lock' rides on the ISS until user input
   // breaks it; 'flyTo' is the semantic-zoom drill-in (cluster/shell click).
@@ -63,14 +96,22 @@ export function ExplorePage(): React.ReactElement {
   useEffect(() => {
     return () => {
       if (navHideTimer.current !== null) window.clearTimeout(navHideTimer.current);
+      stopDepthHold();
       setNavVisible(true);
     };
-  }, [setNavVisible]);
+  }, [setNavVisible, stopDepthHold]);
 
   // §11 0:20 — clicking the ISS starts the cinematic rise-and-lock; clicking
   // anything else (or closing) releases it. Selection itself is unchanged.
+  // §11 Three-depth hold: tap opens at Depth 1; holding down advances to Depth 2 & 3.
   const handleSelect = (obj: CelestialObject | null): void => {
     setSelectedObject(obj);
+    setSelectedDepth(1);
+    if (obj) {
+      startDepthHold();
+    } else {
+      stopDepthHold();
+    }
     if (obj?.type === 'iss') {
       setFocusTarget({
         id: 'iss',
@@ -109,14 +150,15 @@ export function ExplorePage(): React.ReactElement {
 
   // Closing the panel (✕ sets selection null directly) also releases an ISS lock.
   useEffect(() => {
-    if (selectedObject?.id !== 'iss' && focusRef.current?.id === 'iss') {
+    if (selectedObject === null && focusRef.current?.id === 'iss') {
       setFocusTarget(null);
     }
   }, [selectedObject]);
 
   // §11 nav auto-hide: any camera motion (drag or zoom) starts a 3s clock.
   const onCameraMotion = (): void => {
-    if (navHideTimer.current === null && useAppStore.getState().navVisible) {
+    if (useAppStore.getState().navVisible) {
+      if (navHideTimer.current !== null) window.clearTimeout(navHideTimer.current);
       navHideTimer.current = window.setTimeout(() => {
         navHideTimer.current = null;
         setNavVisible(false);
@@ -125,6 +167,7 @@ export function ExplorePage(): React.ReactElement {
   };
 
   const onContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    setPointerPos({ x: e.clientX, y: e.clientY });
     // Dragging (buttons pressed) is camera motion.
     if (e.buttons !== 0) onCameraMotion();
     // §11: pointer at the top edge brings the nav back.
@@ -132,6 +175,23 @@ export function ExplorePage(): React.ReactElement {
       setNavVisible(true);
     }
   };
+
+  // Compute 2D screen positions of all selectable targets for 40px/60ms cursor gravity
+  const gravityTargets = useMemo<GravityTarget[]>(() => {
+    const targets: GravityTarget[] = [];
+    for (const [id, pos] of Object.entries(screenPosMap)) {
+      if (pos && pos.inView && pos.azimuthDeg !== undefined && pos.altitudeDeg !== undefined) {
+        targets.push({
+          id,
+          azimuthDeg: pos.azimuthDeg,
+          altitudeDeg: pos.altitudeDeg,
+          screenX: pos.x,
+          screenY: pos.y,
+        });
+      }
+    }
+    return targets;
+  }, [screenPosMap]);
 
   const loc = getEffectiveLocation();
   const latStr = `${Math.abs(loc.lat).toFixed(2)}°${loc.lat >= 0 ? 'N' : 'S'}`;
@@ -174,7 +234,12 @@ export function ExplorePage(): React.ReactElement {
           fov: 60,
         }}
       >
-        <CameraController focusTarget={focusTarget} onFocusRelease={() => setFocusTarget(null)} />
+        <CameraController
+          focusTarget={focusTarget}
+          onFocusRelease={() => setFocusTarget(null)}
+          gravityTargets={gravityTargets}
+          pointerPos={pointerPos}
+        />
         <StarField observerLat={loc.lat} observerLon={loc.lon} currentTime={sceneTime} />
         <SkyDome />
         <CelestialMarkers
@@ -203,7 +268,7 @@ export function ExplorePage(): React.ReactElement {
         <OpeningSequence overlayText={overlayText} onDone={() => setOpeningActive(false)} />
       )}
 
-      {/* DESIGN_SPEC.md §11 - Tethered Info Panel */}
+      {/* DESIGN_SPEC.md §11 - Tethered Info Panel (Three Depths: sentence → measurements → link) */}
       {selectedObject && selectedPos && selectedPos.inView && (
         <>
           {/* 1px Brass Tether Line */}
@@ -220,42 +285,96 @@ export function ExplorePage(): React.ReactElement {
             <circle cx={selectedPos.x} cy={selectedPos.y} r="4" fill="#C9B187" />
           </svg>
 
-          {/* Info Panel Container (max 380px wide, backdrop blur, fixed order) */}
+          {/* Info Panel Container (max 380px wide, backdrop blur, progressive order) */}
           <div
             style={{ left: `${panelX}px`, top: `${panelY}px` }}
             className="absolute z-30 max-w-[380px] w-[calc(100vw-40px)] backdrop-blur-md bg-sky-950/90 border border-brass-300/40 p-5 rounded-none shadow-2xl transition-all duration-300"
+            onPointerDown={startDepthHold}
+            onPointerUp={stopDepthHold}
+            onPointerLeave={stopDepthHold}
           >
             <div className="flex items-center justify-between border-b border-sky-600/40 pb-2 mb-3">
               <span className="type-micro text-brass-300 uppercase tracking-wider font-mono">
                 {selectedObject.name} · CELESTIAL OBJECT
               </span>
-              <button
-                type="button"
-                onClick={() => setSelectedObject(null)}
-                className="text-sky-400 hover:text-sky-100 text-sm font-mono leading-none px-1"
-                aria-label="Close celestial object details"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Three-Depth Step Indicators [1] [2] [3] for direct accessibility */}
+                <div className="flex items-center gap-1 font-mono type-micro text-sky-400">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDepth(1)}
+                    title="Depth 1: One-sentence story"
+                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                      selectedDepth >= 1
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
+                        : 'border-sky-800 text-sky-600'
+                    }`}
+                  >
+                    1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDepth(2)}
+                    title="Depth 2: Live measurements"
+                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                      selectedDepth >= 2
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
+                        : 'border-sky-800 text-sky-600'
+                    }`}
+                  >
+                    2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDepth(3)}
+                    title="Depth 3: Deep data link"
+                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                      selectedDepth >= 3
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
+                        : 'border-sky-800 text-sky-600'
+                    }`}
+                  >
+                    3
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedObject(null)}
+                  className="text-sky-400 hover:text-sky-100 text-sm font-mono leading-none px-1 cursor-pointer"
+                  aria-label="Close celestial object details"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            {/* Content Order: 1. Plain sentence (serif) */}
+            {/* Depth 1: Plain sentence (serif) */}
             <p className="font-serif text-body text-sky-100 mb-3 leading-relaxed">
               {selectedObject.sentence}
             </p>
 
-            {/* Content Order: 2. Measurements (mono) */}
-            <p className="font-mono text-caption text-brass-300 mb-4 bg-sky-900/60 p-2 border-l-2 border-brass-300">
-              {selectedObject.measurements}
-            </p>
+            {/* Depth 2 (Hold 500ms / Depth >= 2): Measurements (mono) */}
+            {selectedDepth >= 2 && (
+              <p className="font-mono text-caption text-brass-300 mb-4 bg-sky-900/60 p-2 border-l-2 border-brass-300 transition-all duration-300">
+                {selectedObject.measurements}
+              </p>
+            )}
 
-            {/* Content Order: 3. Link deeper */}
-            <a
-              href={selectedObject.linkHref}
-              className="type-micro text-ember-400 hover:text-ember-400/80 inline-flex items-center gap-1 uppercase tracking-wider font-mono transition-colors"
-            >
-              {selectedObject.linkText} →
-            </a>
+            {/* Depth 3 (Hold 1000ms / Depth >= 3): Link deeper */}
+            {selectedDepth >= 3 ? (
+              <a
+                href={selectedObject.linkHref}
+                className="type-micro text-ember-400 hover:text-ember-400/80 inline-flex items-center gap-1 uppercase tracking-wider font-mono transition-colors"
+              >
+                {selectedObject.linkText} →
+              </a>
+            ) : (
+              <div className="type-micro text-sky-400 font-mono text-[10px] tracking-wider opacity-75 pt-1">
+                {selectedDepth === 1
+                  ? 'HOLD TO REVEAL MEASUREMENTS [STEP 1/3]'
+                  : 'HOLD LONGER FOR FULL DATA [STEP 2/3]'}
+              </div>
+            )}
           </div>
         </>
       )}
