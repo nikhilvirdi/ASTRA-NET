@@ -2,7 +2,7 @@
 
 Running log of what's done, what's blocked, what's next. Updated by whoever (human or agent) finishes a task — immediately, not in a batch. This is the proof-of-momentum file and the way parallel agents know current state without re-reading everything.
 
-**Current Phase:** `Phase 8 — The Explorable Universe (3D)`
+**Current Phase:** `Phase 9 — Best-Spot-Tonight Finder`
 
 ---
 
@@ -619,4 +619,13 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ⚠️ Four spec gaps hit, all logged in `DECISIONS.md` rather than improvised: no distance metric in §11; no candidate-generation strategy anywhere; DESIGN_SPEC.md §12's mockup shows a place name and a drive time with **no geocoder or routing service in ARCHITECTURE.md** (labels are honest bearing/distance strings, `travelMinutes` is `null` — neither was faked); and §11's aurora term needed interpreting as a per-night mode, since read per-site it would rank aurora-visible spots _below_ invisible ones.
 - ✅ Verified live end-to-end against the real Open-Meteo API and the real Bortle grid (not stubs) before the gates: 33 sites, `basis: clarity-darkness-travel`, top spot "E 25 km" at Bortle 1 / 19% cloud, score 0.491. The bottom-ranked site scoring exactly 0 was checked rather than assumed — Bortle 3, travel 0.333, so the zero is 100% cloud cover, which is §11's "any zero kills the site" behaving correctly and showing _why_ in the breakdown.
 - ✅ Gates green (real runs): `tsc --build --force` exit 0; `eslint apps/api/src packages/shared/src --max-warnings=0` exit 0; `prettier --check` clean on all touched files; `vitest run --coverage` (apps/api) exit 0 — **42 files, 471 tests** (up from 394), `All files` 96.14% stmts / 92.41% branch, `src/best-spot` **100% across all four metrics**; `packages/shared` 15 files / 169 tests at 100%.
-- ⛔ Phase 9 NOT closed — its Definition of Done ("for a real location, the finder recommends the nearest genuinely good spot with a transparent score breakdown") is a user-facing gate. Backend only, by explicit task scope: **no `apps/web` file touched**. Still outstanding: MapLibre map, light-pollution map layer, ranked-list + three-bar breakdown UI, event filter, and the directions link. Field names and the Zod schema are fixed here so the frontend half needs no backend renegotiation — same precedent as the planets and Moon dispatches.
+
+## 2026-07-27 (Phase 9 — Best-Spot-Tonight Finder, frontend half, by Antigravity)
+
+- ✅ Done: `BestSpotPage.tsx` (`/best-spot`) — full frontend implementation of Phase 9 consuming `GET /api/best-spot`.
+- ✅ Done: MapLibre GL Map component (`MapLibreSpotMap.tsx`) centered on observer location, rendering per-site Bortle luminance field in brass tones (`#C9B187`, `#9A8258`, `#6B5A3C`, `#3E4A4A`, `#111818`) with ranked site pins (`1..n`). Included resilient SVG/Canvas fallback for headless test environments (Vitest/JSDOM).
+- ✅ Done: Three-bar score breakdown (`ScoreBreakdown.tsx`) matching `DESIGN_SPEC.md` §12's 8-block segment grammar (`▮▮▮▮▮▮▮▯ 12% CLOUD`, `▮▮▮▮▮▮▯▯ BORTLE 3`, `▮▮▮▮▯▯▯▯ 25 km`).
+- ✅ Done: Event filter selection (`[ALL]` `[AURORA]` `[METEOR]` `[ISS]`) triggering live API refetch with `&event=...`.
+- ✅ Done: Compass + Distance formatting (`"NE 25 km"`) with zero fabricated place names or drive times (`travelMinutes` `null` by design).
+- ✅ Done: External directions link (`https://www.google.com/maps/dir/?api=1&destination=lat,lon`) for raw lat/lon navigation.
+- ✅ Done: Honest degradation header banner when cloud data is unavailable (`RANKING RUNNING ON DARKNESS & TRAVEL ONLY`).
