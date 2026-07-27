@@ -748,3 +748,19 @@ Two things this corrected versus the first diagnosis. The loss is **16** signifi
 Also added `expect(auroraCard!.confidence).not.toBeNull()` — needed for types once `confidence` (`number | null`) feeds `toBeCloseTo`, and independently meaningful, since an active CME is the precondition that makes the row persistable at all.
 
 **Gates (real runs):** `vitest run --coverage` (apps/api) exit 0, 38 files / 394 tests; `brief.test.ts` run **8 consecutive times standing alone, 8/8 green** — against a pre-fix base rate of ~1 failure per 3 runs, so p ≈ 0.04 of that happening by chance, and the measured 500x tolerance margin is the real evidence. `tsc --build --force` exit 0; `eslint apps/api/src --max-warnings=0` exit 0; `prettier --check` clean.
+
+## 2026-07-27 — Phase 8 → Phase 9 transition, with three items explicitly accepted as open (human decision)
+
+**Decision (the human's, not the agent's):** move to Phase 9 now, without waiting for tonight's real-satellite-rendering visual verification. `WORKPLAN.md`'s Current Phase marker is updated to `Phase 9`.
+
+This is a **deliberate exception** to two of this repo's own rules — `WORKPLAN.md` Global Operating Rule 1 ("Order is law… do not start a phase until the previous phase's Definition of Done is fully met") and `CLAUDE.md`'s "Don't mark a phase done because 'most of it works' — the Definition of Done gate is binary." Logging it rather than quietly re-interpreting the gate, so that the next agent to read the marker does not mistake Phase 8 for verified-complete.
+
+**Phase 8's stated Definition of Done:** _"A user drops from orbit into their real night sky, clicks the ISS and gets its story, and sees a live aurora ring — all at a stable framerate."_ The code for every clause exists and its math/logic is tested; what is unverified is the **on-screen** half.
+
+**Carried forward as accepted open items — not dropped, not silently closed:**
+
+1. **Real-satellite-rendering visual verification.** The full on-screen rendering of the real (non-simulated) satellite population has never been confirmed in a real browser. `/api/satellites` needs a running backend (docker-compose Postgres + `NASA_API_KEY` + `N2YO_API_KEY`), which no agent sandbox has had. The propagation math itself _is_ independently verified (matched Python `skyfield` to ~0.0002°/0.0008° alt/az on two real CelesTrak `visual`-group satellites), and `/explore` was confirmed to load cleanly headless — so the risk is integration/visual, not algorithmic. **Owner: the human, in a real browser with the backend up.**
+2. **The §11 0:20 orbit-drop cinematic.** Currently implemented as a _ground-view_ cinematic lock (1.6s expo.inOut yaw/pitch/FOV tween onto the ISS, then per-frame follow). The literal "rise from ground to orbit, Earth resolves" flight needs an orbit-scale camera view that does not exist in the scene yet. Already documented as a deferral on 2026-07-27; restated here so it survives the phase boundary. **Owner: a deliberate design call — build the orbit view, or amend §11 to match the ground-view reading. Not a bug to be fixed in passing.**
+3. **The diegetic-font / DevTools check.** `DiegeticText` renders via troika-three-text against a self-hosted `MartianMono-Regular.ttf` (troika parses font files itself and cannot use the DOM's Google-Fonts pipeline). That the TTF actually loads and glyphs render in-scene — rather than silently falling back — has only been reasoned about, never confirmed in DevTools against a running scene. **Owner: the human, same browser session as item 1.**
+
+**What this does not change:** the three items above remain _open work_, and Phase 8 is recorded as **closed-with-exceptions**, not **done**. Anything Phase 9 builds must not assume they were resolved. Phase 9's own Definition of Done is unaffected and is still a binary gate.

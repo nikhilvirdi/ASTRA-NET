@@ -3,7 +3,9 @@
 **This file is the single source of truth for the build.**
 Humans and agents follow this order. Do not skip ahead. Do not start a phase until the previous phase's _Definition of Done_ is fully met.
 
-> **Current Phase:** `Phase 8` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
+> **Current Phase:** `Phase 9` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
+>
+> **Phase 8 was closed by explicit human decision on 2026-07-27 with three items accepted as open, not completed** — real-browser verification of the real (non-simulated) satellite population, the §11 0:20 orbit-drop cinematic, and the diegetic-font/DevTools check. This is a deliberate, logged exception to Rule 1 ("Order is law") and the binary Definition-of-Done gate, not a precedent. See `DECISIONS.md` (2026-07-27, Phase 8 → 9 transition) for the full list and who owns each.
 
 ---
 
