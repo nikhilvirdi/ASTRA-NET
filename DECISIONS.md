@@ -699,3 +699,19 @@ All files          |     100 |      100 |     100 |     100 |
 Also re-ran `apps/api` (379/379) and `apps/web` (44/44) full suites after the `sun-position.ts` refactor — both pass unchanged, confirming the additive refactor didn't disturb any existing consumer.
 
 **Scope boundary, matched to the planets-dispatch precedent:** backend/`packages/shared` only — no `apps/web` file touched. `git status` confirms the only changes are `FORMULAS.md`, `sun-position.ts`, `index.ts`, and the two new `moon-position.*` files. Frontend consumption (Sky Anchor moon marker, phase icon, rise/set display) is an explicit separate follow-up, same framing as the Venus/Mars/Saturn/Mercury backend-first split.
+
+## 2026-07-27 — `apps/api` coverage threshold is global, not per-file; `brief.test.ts` float8 round-trip flake logged
+
+Two corrections to the record while closing the Phase 8 gap-audit item on `n2yo`/`nasa` client branch coverage.
+
+**1. `apps/api/vitest.config.ts`'s `thresholds` block is global, not per-file.** PROGRESS.md's Phase 3 entry (line 124) records `apps/api`'s local `test:coverage` as _failing_ its 80% branch threshold "on several Phase-1 clients." That framing has since drifted: the thresholds apply to the aggregate `All files` row, so with the suite grown to 38 files the gate has actually been exiting 0 for a while — verified directly by running `npx vitest run --coverage` on a `git stash`ed tree (exit 0, `All files` branch 91.73%). What was true is that `n2yo.client.ts` (73.91%) and `nasa.client.ts` (41.66%) sat below 80% branch _individually_. Both are now at 100% and 98.38% respectively. No threshold was weakened and no file was excluded; the fix was tests only.
+
+**2. `nasa.client.ts:136-138` left uncovered, deliberately.** That is `fetchNasaDonki`'s outer `try/catch` — unreachable in practice, because both `fetchWithRetry` calls already have their own `.catch` handlers attached inside the `Promise.all`, so no real fetch/timeout/HTTP/parse failure can escape to it. Reaching it requires injecting a throw into `console.error` or a poisoned proxy payload, neither of which tests any real behavior. Same reasoning already applied to `fast-tier.ts`/`slow-tier.ts`'s outer `.catch` log lines in Phase 3.
+
+**3. Pre-existing flake found (NOT fixed — separate concern, flagged for the human):** `apps/api/src/routes/brief.test.ts:306`, `expect(stored[0]?.confidence).toBe(body.spaceWeather.data?.aurora?.confidence)`, fails intermittently:
+
+```
+AssertionError: expected 0.0385884633329388 to be 0.038588463332938805
+```
+
+The received value is the Postgres round-trip, the expected value is the in-process double. `Prediction.confidence` is a Prisma `Float` (PG `double precision`); the value comes back rounded to 15 significant digits, so exact `.toBe()` equality holds only when the computed confidence happens to need ≤15 digits. Confirmed pre-existing and independent of this task: it reproduces running `brief.test.ts` **alone** on a `git stash`ed tree (1 failure in 3 consecutive runs, same value each time). The fix is a precision-tolerant assertion (`toBeCloseTo`) rather than exact equality on a DB-round-tripped float, but that belongs to whoever owns the predictions-persistence tests, not to a coverage task — logging rather than silently editing an unrelated test.
