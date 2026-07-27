@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { twilightStateForSunAltitude } from '@astranet/shared';
 import { fetchBrief, getEffectiveLocation, type DailyBrief } from '@/lib/api';
+import { computeSurfaceColor, computeOnSurfaceColor } from '@/lib/twilight-surface';
 import { HorizonBand } from '@/components/brief/HorizonBand';
 import { LivePulse } from '@/components/common/LivePulse';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
@@ -56,6 +57,14 @@ export function BriefPage(): React.ReactElement {
       : twilightState.phase === 'night'
         ? 'NIGHT'
         : `${twilightState.phase.toUpperCase()} TWILIGHT`;
+
+  // Reactively wire --surface and --on-surface CSS custom properties to twilightState.value
+  useEffect(() => {
+    const surfaceColor = computeSurfaceColor(twilightState.value);
+    const onSurfaceColor = computeOnSurfaceColor(twilightState.value);
+    document.documentElement.style.setProperty('--surface', surfaceColor);
+    document.documentElement.style.setProperty('--on-surface', onSurfaceColor);
+  }, [twilightState.value]);
 
   if (error) {
     return (

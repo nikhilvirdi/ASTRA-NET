@@ -179,9 +179,8 @@
     --sky-900: #111818;
     --sky-950: #0a0e0e;
 
-    /* Semantic surface slots — statically wired to night until twilight fn. */
-    /* The twilight hook (Phase 7 follow-on, after packages/shared fn lands) */
-    /* will override these at runtime via solar-altitude interpolation.      */
+    /* Semantic surface slots — default to night, dynamically overridden   */
+    /* at runtime by twilight surface interpolation (BriefPage / explore). */
     --surface: var(--sky-900);
     --surface-secondary: var(--sky-800);
     --surface-tertiary: var(--sky-600);
