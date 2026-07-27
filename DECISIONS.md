@@ -639,6 +639,15 @@ Backend-only extension of the Sky Anchor's planet-marker pipeline (Task A/Task F
 
 **Numbering discrepancy, flagged rather than silently resolved:** the approval named this "§11 — Moon," but §11 is already **Best-Spot Score** — existing, frozen, and cited throughout `best-spot.ts`/`best-spot.test.ts`. Renumbering an already-shipped, already-cited frozen section to make room would mean updating every existing citation for a numbering collision, not a substantive disagreement. Added Moon as **§12** (the next real available number) instead and left §11 untouched. Flagging here per this file's own header rule ("if something appears wrong, flag it... do not silently change it") rather than guessing which the human actually meant.
 
+## 2026-07-27 — Moon Wiring into Daily Brief (Sky Anchor) & 3D Explore Scene (Celestial Markers)
+
+**Why:** Wired the pure-math `@astranet/shared` Moon engine (FORMULAS.md §12) into `SkyAnchorCard` (Daily Brief) and `CelestialMarkers.tsx` (Explore 3D scene).
+
+- **`SkyAnchorCard` updated (`apps/api/src/brief/sky-anchor-card.ts` & `apps/web/src/lib/api.ts`):** Added non-nullable `moon` field (`altitudeDeg`, `azimuthDeg`, `phaseName`, `illuminatedFraction`, `phaseAngleDeg`, `nextRiseUtc`, `nextSetUtc`) to `SkyAnchorCard` and `SkyAnchorCardData`.
+- **Daily Brief UI (`BriefPage.tsx`):** Rendered Moon phase & illumination % (`WAXING GIBBOUS (74%)`), Next Moonrise, and Next Moonset in `SkyAnchorCard` as specified in `DESIGN_SPEC.md` §10.
+- **3D Explore Scene (`CelestialMarkers.tsx`):** Added interactive `'moon'` marker using `isAboveHorizon(moon.altitudeDeg)` refraction-aware culling and tethered info panel.
+- **Distinct Color Token:** Assigned `#EEF1F1` (`--color-sky-100`, luminous pale cool moonlight), ensuring no color collision with Sun (`#D9A05B` / `--color-solar`), Venus (`#D6DCDC` / `--color-sky-200`), Mars (`#B08968` / `--color-neo`), Jupiter/Saturn (`#C9B187` / `--color-brass-300`), or Mercury/ISS (`#A8B4BC` / `--color-orbital`).
+
 **Formula verified against an independent ephemeris before writing anything into the frozen doc, not before.** Recalled Meeus ch. 47's standard truncated ("low precision") lunar series from memory, then cross-checked it against JPL DE421 via Python `skyfield` — a different codebase from this project's own math — at three test dates, same practice as the satellite propagator's skyfield cross-check:
 
 | Instant (UTC)    | Δ ecliptic longitude | Δ ecliptic latitude | Δ distance |

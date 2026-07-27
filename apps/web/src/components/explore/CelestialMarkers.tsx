@@ -33,7 +33,7 @@ import { DiegeticText } from './DiegeticText';
 export interface CelestialObject {
   id: string;
   name: string;
-  type: 'iss' | 'jupiter' | 'venus' | 'mars' | 'saturn' | 'mercury' | 'sun' | 'satellite';
+  type: 'iss' | 'jupiter' | 'venus' | 'mars' | 'saturn' | 'mercury' | 'moon' | 'sun' | 'satellite';
   azimuthDeg: number;
   altitudeDeg: number;
   color: string;
@@ -587,7 +587,25 @@ export function CelestialMarkers({
       });
     }
 
-    // 3. Sun Marker — real azimuth (shared §4 engine, exposed on
+    // 7. Moon Marker — real altitude, no floor.
+    if (brief.skyAnchor?.data?.moon && isAboveHorizon(brief.skyAnchor.data.moon.altitudeDeg)) {
+      const moon = brief.skyAnchor.data.moon;
+      const pct = (moon.illuminatedFraction * 100).toFixed(0);
+      list.push({
+        id: 'moon',
+        name: 'MOON',
+        type: 'moon',
+        azimuthDeg: moon.azimuthDeg,
+        altitudeDeg: moon.altitudeDeg,
+        color: '#EEF1F1', // --color-sky-100 (luminous pale moonlight, distinct from all other bodies)
+        sentence: `Earth’s natural satellite in ${moon.phaseName} phase (${pct}% illuminated).`,
+        measurements: `ALT: ${moon.altitudeDeg.toFixed(1)}° · AZ: ${moon.azimuthDeg.toFixed(1)}° · PHASE: ${moon.phaseName.toUpperCase()}`,
+        linkText: 'Explore Sky Anchor Data',
+        linkHref: '/',
+      });
+    }
+
+    // 8. Sun Marker — real azimuth (shared §4 engine, exposed on
     // `skyAnchor.data.sunAzimuthDeg`); the due-South placeholder this used to
     // carry is retired now that the backend field exists (see DECISIONS.md).
     if (brief.skyAnchor?.data && isAboveHorizon(brief.skyAnchor.data.sunAltitudeDeg)) {

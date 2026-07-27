@@ -2,6 +2,16 @@ import { useAppStore, type UserLocation } from '@/store';
 
 // ─── Types matching API /api/brief payload ───────────────────────────────────
 
+export interface MoonCardData {
+  altitudeDeg: number;
+  azimuthDeg: number;
+  phaseName: string;
+  illuminatedFraction: number;
+  phaseAngleDeg: number;
+  nextRiseUtc: string | null;
+  nextSetUtc: string | null;
+}
+
 export interface SkyAnchorCardData {
   sunAltitudeDeg: number;
   sunAzimuthDeg: number;
@@ -13,6 +23,7 @@ export interface SkyAnchorCardData {
   mars: { azimuthDeg: number; altitudeDeg: number } | null;
   saturn: { azimuthDeg: number; altitudeDeg: number } | null;
   mercury: { azimuthDeg: number; altitudeDeg: number } | null;
+  moon?: MoonCardData | null;
 }
 
 export interface IssPositionField {

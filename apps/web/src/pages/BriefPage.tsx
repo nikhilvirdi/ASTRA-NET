@@ -7,6 +7,13 @@ import { LivePulse } from '@/components/common/LivePulse';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
 
+function formatTimeShort(isoUtcString: string | null | undefined): string {
+  if (!isoUtcString) return 'NONE IN WINDOW';
+  const d = new Date(isoUtcString);
+  if (isNaN(d.getTime())) return 'NONE IN WINDOW';
+  return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+}
+
 export function BriefPage(): React.ReactElement {
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -174,6 +181,34 @@ export function BriefPage(): React.ReactElement {
                     ? 'Dark enough for ISS & Aurora observations.'
                     : 'Civil twilight — sky retains residual scatter.'}
               </p>
+            </div>
+
+            {/* DESIGN_SPEC.md §10 — Moon phase and rise/set */}
+            <div>
+              <span className="type-caption text-sky-400 block mb-1">MOON PHASE</span>
+              <span className="type-title text-sky-100 font-mono uppercase">
+                {loading || !brief?.skyAnchor.data?.moon
+                  ? '—'
+                  : `${brief.skyAnchor.data.moon.phaseName} (${(brief.skyAnchor.data.moon.illuminatedFraction * 100).toFixed(0)}%)`}
+              </span>
+            </div>
+
+            <div>
+              <span className="type-caption text-sky-400 block mb-1">NEXT MOONRISE</span>
+              <span className="type-title text-brass-300 font-mono">
+                {loading || !brief?.skyAnchor.data?.moon
+                  ? '—'
+                  : formatTimeShort(brief.skyAnchor.data.moon.nextRiseUtc)}
+              </span>
+            </div>
+
+            <div>
+              <span className="type-caption text-sky-400 block mb-1">NEXT MOONSET</span>
+              <span className="type-title text-brass-300 font-mono">
+                {loading || !brief?.skyAnchor.data?.moon
+                  ? '—'
+                  : formatTimeShort(brief.skyAnchor.data.moon.nextSetUtc)}
+              </span>
             </div>
           </div>
         </article>

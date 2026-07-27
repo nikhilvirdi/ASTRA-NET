@@ -22,8 +22,12 @@ import {
   isDarkEnoughForFaintStars,
   isDarkEnoughForIssOrAurora,
   julianDay,
+  moonHorizontalPosition,
+  moonIllumination,
+  nextMoonRiseSet,
   sunHorizontalPosition,
   type HorizontalPosition,
+  type MoonPhaseName,
 } from '@astranet/shared';
 import type { HorizonsRaDecData, HorizonsRaDecEntry } from '../clients/jpl-horizons/index.js';
 import type { SourceState } from '../poller/store.js';
@@ -37,6 +41,16 @@ export interface PlanetEphemerides {
   mars: SourceState<HorizonsRaDecData>;
   saturn: SourceState<HorizonsRaDecData>;
   mercury: SourceState<HorizonsRaDecData>;
+}
+
+export interface MoonCardData {
+  altitudeDeg: number;
+  azimuthDeg: number;
+  phaseName: MoonPhaseName;
+  illuminatedFraction: number;
+  phaseAngleDeg: number;
+  nextRiseUtc: string | null;
+  nextSetUtc: string | null;
 }
 
 export interface SkyAnchorCard {
@@ -65,6 +79,8 @@ export interface SkyAnchorCard {
   mars: HorizontalPosition | null;
   saturn: HorizontalPosition | null;
   mercury: HorizontalPosition | null;
+  /** FORMULAS.md §12 — Moon's position, illumination %, phase name, and rise/set times. Pure math, non-nullable. */
+  moon: MoonCardData;
 }
 
 /**
@@ -125,6 +141,10 @@ export function buildSkyAnchorCard(
   const resolve = (ephemeris: SourceState<HorizonsRaDecData>): HorizontalPosition | null =>
     resolvePlanetPosition(ephemeris, observerLatDeg, observerLonDeg, now, jd);
 
+  const moonHoriz = moonHorizontalPosition(now, observerLatDeg, observerLonDeg);
+  const moonIllum = moonIllumination(jd);
+  const moonRiseSet = nextMoonRiseSet(observerLatDeg, observerLonDeg, now);
+
   return {
     sunAltitudeDeg: sunAltDeg,
     sunAzimuthDeg: sun.azimuthDeg,
@@ -136,5 +156,14 @@ export function buildSkyAnchorCard(
     mars: resolve(planetEphemerides.mars),
     saturn: resolve(planetEphemerides.saturn),
     mercury: resolve(planetEphemerides.mercury),
+    moon: {
+      altitudeDeg: moonHoriz.altitudeDeg,
+      azimuthDeg: moonHoriz.azimuthDeg,
+      phaseName: moonIllum.phaseName,
+      illuminatedFraction: moonIllum.illuminatedFraction,
+      phaseAngleDeg: moonIllum.phaseAngleDeg,
+      nextRiseUtc: moonRiseSet.riseUtc ? moonRiseSet.riseUtc.toISOString() : null,
+      nextSetUtc: moonRiseSet.setUtc ? moonRiseSet.setUtc.toISOString() : null,
+    },
   };
 }
