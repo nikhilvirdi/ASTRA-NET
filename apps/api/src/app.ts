@@ -14,6 +14,7 @@ import { registerAuthRoutes, type AuthRouteDeps } from './routes/auth.js';
 import { registerLocationsRoutes } from './routes/locations.js';
 import { registerSkyLogRoutes } from './routes/sky-log.js';
 import { registerSatellitesRoute } from './routes/satellites.js';
+import { registerBestSpotRoute, type BestSpotRouteDeps } from './routes/best-spot.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -23,6 +24,8 @@ export interface CreateAppDeps {
   googleOAuth?: AuthRouteDeps['googleOAuth'];
   exchangeGoogleAuthCode?: AuthRouteDeps['exchangeGoogleAuthCode'];
   verifyGoogleIdToken?: AuthRouteDeps['verifyGoogleIdToken'];
+  fetchOpenMeteoBatch?: BestSpotRouteDeps['fetchOpenMeteoBatch'];
+  bortleAt?: BestSpotRouteDeps['bortleAt'];
 }
 
 export function createApp(deps: CreateAppDeps): Express {
@@ -31,6 +34,10 @@ export function createApp(deps: CreateAppDeps): Express {
   registerHealthRoute(app);
   registerStreamRoute(app);
   registerSatellitesRoute(app);
+  registerBestSpotRoute(app, {
+    fetchOpenMeteoBatch: deps.fetchOpenMeteoBatch,
+    bortleAt: deps.bortleAt,
+  });
   registerBriefRoute(app, deps);
   registerAuthRoutes(app, {
     prisma: deps.prisma,

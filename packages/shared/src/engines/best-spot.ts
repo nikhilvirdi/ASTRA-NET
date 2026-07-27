@@ -26,10 +26,13 @@ export function bestSpotScore(cloudFraction: number, bortle: number, distanceKm:
  * FORMULAS.md §11 — aurora-night variant: score * aurora_factor.
  *
  * `auroraFactorNormalized` must already be normalized to [0,1] by the
- * caller. FORMULAS.md §11 says this factor comes "from §7 `strength`,
- * normalized to [0,1]" but gives no normalization formula for the
- * unbounded `strength` value — see DECISIONS.md. This function only
- * implements the (fully specified) multiplication itself.
+ * caller — use `auroraStrengthToFactor` (aurora.ts), which implements
+ * §11's `aurora_factor = clamp(strength_deg / 20, 0, 1)`. This function
+ * only implements the multiplication itself.
+ *
+ * §11 is explicit that this must **not** be applied when aurora isn't
+ * visible: a clamped-to-0 factor would zero out an otherwise-good site.
+ * Callers decide relevance; this function does not guess.
  */
 export function bestSpotScoreAurora(score: number, auroraFactorNormalized: number): number {
   return score * auroraFactorNormalized;
