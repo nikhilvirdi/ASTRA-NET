@@ -302,8 +302,20 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
 
     const stored = await realPrisma.prediction.findMany({ where: { userId } });
     expect(stored).toHaveLength(1);
-    expect(stored[0]?.predictedKp).toBe(body.spaceWeather.data?.aurora?.kpPredicted);
-    expect(stored[0]?.confidence).toBe(body.spaceWeather.data?.aurora?.confidence);
+    // `predictedKp`/`confidence` are Prisma `Float` (PG `double precision`). Postgres emits
+    // float8 as decimal text at `extra_float_digits` significant digits (1 → 16 on this
+    // server), so a double needing all 17 does not survive the round-trip bit-for-bit and
+    // exact `.toBe()` equality flakes. Measured against the real DB over 800 random doubles:
+    // ~27% fail exact equality, max absolute error 5.6e-17 for confidence (range [0,1]) and
+    // 8.9e-16 for predictedKp (range [0,9]) — i.e. ~2 ULP, purely representational.
+    // Precision 12 (tolerance 5e-13) clears that by >500x while still being far tighter than
+    // any semantically meaningful difference in a 0-1 score or a 0-9 Kp index.
+    const auroraCard = body.spaceWeather.data?.aurora;
+    expect(auroraCard).toBeDefined();
+    // An active CME is what makes this row persistable at all, so confidence must be present.
+    expect(auroraCard!.confidence).not.toBeNull();
+    expect(stored[0]?.predictedKp).toBeCloseTo(auroraCard!.kpPredicted, 12);
+    expect(stored[0]?.confidence).toBeCloseTo(auroraCard!.confidence!, 12);
     expect(stored[0]?.scored).toBe(false);
     expect(stored[0]?.actualKp).toBeNull();
     const context = stored[0]?.context as {

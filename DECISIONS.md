@@ -708,10 +708,43 @@ Two corrections to the record while closing the Phase 8 gap-audit item on `n2yo`
 
 **2. `nasa.client.ts:136-138` left uncovered, deliberately.** That is `fetchNasaDonki`'s outer `try/catch` — unreachable in practice, because both `fetchWithRetry` calls already have their own `.catch` handlers attached inside the `Promise.all`, so no real fetch/timeout/HTTP/parse failure can escape to it. Reaching it requires injecting a throw into `console.error` or a poisoned proxy payload, neither of which tests any real behavior. Same reasoning already applied to `fast-tier.ts`/`slow-tier.ts`'s outer `.catch` log lines in Phase 3.
 
-**3. Pre-existing flake found (NOT fixed — separate concern, flagged for the human):** `apps/api/src/routes/brief.test.ts:306`, `expect(stored[0]?.confidence).toBe(body.spaceWeather.data?.aurora?.confidence)`, fails intermittently:
+**3. Pre-existing flake found** (was flagged here as out of scope for the coverage task; **fixed in the follow-up below**): `apps/api/src/routes/brief.test.ts:306`, `expect(stored[0]?.confidence).toBe(body.spaceWeather.data?.aurora?.confidence)`, fails intermittently:
 
 ```
 AssertionError: expected 0.0385884633329388 to be 0.038588463332938805
 ```
 
 The received value is the Postgres round-trip, the expected value is the in-process double. `Prediction.confidence` is a Prisma `Float` (PG `double precision`); the value comes back rounded to 15 significant digits, so exact `.toBe()` equality holds only when the computed confidence happens to need ≤15 digits. Confirmed pre-existing and independent of this task: it reproduces running `brief.test.ts` **alone** on a `git stash`ed tree (1 failure in 3 consecutive runs, same value each time). The fix is a precision-tolerant assertion (`toBeCloseTo`) rather than exact equality on a DB-round-tripped float, but that belongs to whoever owns the predictions-persistence tests, not to a coverage task — logging rather than silently editing an unrelated test.
+
+## 2026-07-27 — `brief.test.ts` prediction-persistence floats asserted with `toBeCloseTo(…, 12)`, precision chosen from measurement
+
+Follow-up that fixes item 3 of the entry above. The two `.toBe()` assertions on `Prediction.predictedKp`/`confidence` compared a Postgres-round-tripped `Float` against the in-process double, which is not an equality that holds in general.
+
+**The tolerance was measured against the real database, not guessed.** A throwaway probe wrote 800 random doubles through Prisma into the actual docker-compose Postgres and read them back — 400 in `confidence`'s range [0, 1] and 400 in `predictedKp`'s range [0, 9], plus the exact value from the observed failure:
+
+```
+server extra_float_digits = 1
+server version = PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)
+
+--- confidence (n=401)
+  exact round-trips: 297/401 (74.1%)
+  max ABSOLUTE error: 5.5511e-17
+  max RELATIVE error: 4.3829e-16
+  worst case sent: 0.18375882257757015
+  worst case got : 0.1837588225775701
+
+--- predictedKp (n=400)
+  exact round-trips: 282/400 (70.5%)
+  max ABSOLUTE error: 8.8818e-16
+  max RELATIVE error: 4.0681e-16
+  worst case sent: 4.1504847811033905
+  worst case got : 4.15048478110339
+```
+
+Two things this corrected versus the first diagnosis. The loss is **16** significant digits, not 15 — PG 16 defaults `extra_float_digits` to 1, so `float8out` emits `%.17g`-minus-one rather than the shortest round-trip form. And roughly **27% of arbitrary doubles fail exact equality**, far more often than the observed ~1-in-3 _test_ failure rate implies; the test only trips when that run's particular computed confidence lands on a 17-digit value.
+
+**Chosen: `toBeCloseTo(…, 12)` for both fields** — tolerance 5e-13. That is >500x the worst measured error (8.9e-16) rather than fitted to it, since the error is fundamentally relative (~2 ULP) and the strictest passing precisions (15 for confidence, 14 for predictedKp) leave only 5-9x margin. It stays many orders of magnitude tighter than any semantically meaningful difference in a 0-1 confidence score or a 0-9 Kp index, so a genuine regression — wrong field, unit error, a rounding step applied on one side — is still caught. `accuracy.test.ts`'s `actualKp` assertions were checked and deliberately left on `.toBe()`: they compare against small exact integers (4, 5, 6, 7), which round-trip bit-for-bit.
+
+Also added `expect(auroraCard!.confidence).not.toBeNull()` — needed for types once `confidence` (`number | null`) feeds `toBeCloseTo`, and independently meaningful, since an active CME is the precondition that makes the row persistable at all.
+
+**Gates (real runs):** `vitest run --coverage` (apps/api) exit 0, 38 files / 394 tests; `brief.test.ts` run **8 consecutive times standing alone, 8/8 green** — against a pre-fix base rate of ~1 failure per 3 runs, so p ≈ 0.04 of that happening by chance, and the measured 500x tolerance margin is the real evidence. `tsc --build --force` exit 0; `eslint apps/api/src --max-warnings=0` exit 0; `prettier --check` clean.
