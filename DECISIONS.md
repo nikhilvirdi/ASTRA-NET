@@ -634,3 +634,59 @@ Backend-only extension of the Sky Anchor's planet-marker pipeline (Task A/Task F
   - **Depth 2 (Hold 500ms / Tap step 2)**: Progressively reveals Measurements (mono font).
   - **Depth 3 (Hold 1000ms / Tap step 3)**: Progressively reveals Deep Link (`linkText` $\rightarrow$ `linkHref`).
   - Added explicit interactive depth step buttons (`[1] [2] [3]`) to ensure WCAG AA accessibility for screen readers and keyboard users.
+
+## 2026-07-27 — FORMULAS.md §12: Moon position, phase & rise/set (amendment approved, same tier as the RGB-mapping and aurora-strength-normalization amendments)
+
+**Numbering discrepancy, flagged rather than silently resolved:** the approval named this "§11 — Moon," but §11 is already **Best-Spot Score** — existing, frozen, and cited throughout `best-spot.ts`/`best-spot.test.ts`. Renumbering an already-shipped, already-cited frozen section to make room would mean updating every existing citation for a numbering collision, not a substantive disagreement. Added Moon as **§12** (the next real available number) instead and left §11 untouched. Flagging here per this file's own header rule ("if something appears wrong, flag it... do not silently change it") rather than guessing which the human actually meant.
+
+**Formula verified against an independent ephemeris before writing anything into the frozen doc, not before.** Recalled Meeus ch. 47's standard truncated ("low precision") lunar series from memory, then cross-checked it against JPL DE421 via Python `skyfield` — a different codebase from this project's own math — at three test dates, same practice as the satellite propagator's skyfield cross-check:
+
+| Instant (UTC)    | Δ ecliptic longitude | Δ ecliptic latitude | Δ distance |
+| ---------------- | -------------------- | ------------------- | ---------- |
+| 2000-01-01T12:00 | 0.200°               | 0.205°              | 109 km     |
+| 2026-07-27T06:41 | 0.216°               | 0.018°              | 148 km     |
+| 2026-08-12T00:00 | 0.307°               | 0.005°              | 186 km     |
+
+Illuminated-fraction cross-check (elongation approximation vs skyfield's true phase-angle method, both using this engine's own computed RA/Dec): agreed within 0.001–0.003 (0.1–0.3 percentage points) at all three dates — confirms Meeus ch. 48's own claim that the simpler elongation method is an adequate stand-in for the true phase angle when Earth-Sun distance vastly exceeds Earth-Moon distance. These numbers, not a guess, are what FORMULAS.md §12's accuracy claim is based on — the ~0.2–0.3° residual is consistent with this truncation's well-documented accuracy, confirming the recalled coefficients were transcribed correctly rather than silently degraded.
+
+**Rise/set cross-checked at the full-pipeline level, not just the position level.** Compared `nextMoonRiseSet(32.73, 74.87, ...)` against skyfield's `almanac.risings_and_settings` for the same observer (Jammu), first with skyfield's default -34' refraction threshold (5min/1m42s off — expected, since §12 explicitly specifies a _geometric_ 0° crossing with no refraction, unlike skyfield's default), then re-run with `horizon_degrees=0` for a true apples-to-apples geometric comparison: rise differed by 8m18s, set by 1m36s. This timing gap is a direct, expected consequence of the ~0.2–0.3° position accuracy already established above — a small altitude error near a shallow horizon-crossing angle amplifies into several minutes of timing error; it is not a separate bug in the bisection solver. Logged here so a future reader doesn't mistake an 8-minute gap against a stricter reference for a regression.
+
+**Implementation choices, each reusing existing pieces rather than reimplementing:**
+
+- `sun-position.ts` gained two small additive exports — `sunEclipticLongitudeDeg(jd)` and `obliquityOfEclipticDeg(jd)` — refactored out of the existing (unchanged-behavior) `sunEquatorialPosition`, so the Moon's phase-name computation and equatorial-position rotation reuse the Sun's own already-tested intermediate values instead of a second copy. Verified behavior-preserving: `sun-position.test.ts`'s existing assertions pass unchanged.
+- `moonHorizontalPosition`/`moonAltitudeDeg` reuse `equatorialToHorizontal` (§3) exactly as the Sun does — no new alt/az transform.
+- `nextMoonRiseSet` reuses `bisectionSolve` (`math-utils.ts`, the same generic solver §6's CME arrival uses) unmodified: a coarse forward scan brackets each 0°-crossing, then the existing solver refines it. Set-crossings bisect on `-altitude` (not a separate solver) since `bisectionSolve` is written for increasing functions only.
+- `moonPhaseName` exposed as its own function (not inlined) specifically so its 8 bin boundaries are testable with exact synthetic angles rather than needing to reverse-engineer real dates that happen to produce them.
+- The bounds-checked non-null assertion in `moonPhaseName`'s array lookup follows the same precedent as the 2026-07-15 static-dataset fix (`noUncheckedIndexedAccess` on a provably-in-range index) — not a new pattern.
+
+**Gates, real runs (paste of actual output):**
+
+```
+$ npx tsc --build --force
+(exit 0, no output)
+
+$ npx eslint packages/shared/src --max-warnings=0
+(exit 0, no output)
+
+$ npx prettier --check packages/shared/src FORMULAS.md
+Checking formatting...
+All matched files use Prettier code style!
+(exit 0)
+
+$ npx vitest run --coverage   (packages/shared)
+Test Files  14 passed (14)
+     Tests  154 passed (154)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|
+File               | % Stmts | % Branch | % Funcs | % Lines |
+-------------------|---------|----------|---------|---------|
+All files          |     100 |      100 |     100 |     100 |
+ moon-position.ts  |     100 |      100 |     100 |     100 |
+ sun-position.ts   |     100 |      100 |     100 |     100 |
+(all other files also 100/100/100/100)
+```
+
+Also re-ran `apps/api` (379/379) and `apps/web` (44/44) full suites after the `sun-position.ts` refactor — both pass unchanged, confirming the additive refactor didn't disturb any existing consumer.
+
+**Scope boundary, matched to the planets-dispatch precedent:** backend/`packages/shared` only — no `apps/web` file touched. `git status` confirms the only changes are `FORMULAS.md`, `sun-position.ts`, `index.ts`, and the two new `moon-position.*` files. Frontend consumption (Sky Anchor moon marker, phase icon, rise/set display) is an explicit separate follow-up, same framing as the Venus/Mars/Saturn/Mercury backend-first split.

@@ -327,10 +327,121 @@ recommend the maximum.
 
 ---
 
+## 12. Moon Position, Phase & Rise/Set
+
+Meeus low-precision lunar position (Jean Meeus, _Astronomical Algorithms_
+ch. 47): mean orbital elements at full precision, periodic corrections
+truncated to the largest-amplitude terms only — the standard "low
+precision" truncation of Meeus's full ~60-term series, same low-precision
+tier as §4's Sun. Spot-checked against JPL DE421 (via an independent
+ephemeris, not this codebase's own math) at three test dates: ecliptic
+longitude agreed within 0.31°, latitude within 0.21°, distance within
+190 km — consistent with this truncation's well-documented accuracy, not a
+coefficient transcription error. This is a "tonight's sky" illustrative
+position, not an observatory-grade ephemeris.
+
+Time argument (Julian centuries since J2000.0):
+
+```
+T = (JD - 2451545.0) / 36525
+```
+
+Mean elements (degrees):
+
+```
+L' = 218.3164477 + 481267.88123421*T - 0.0015786*T^2 + T^3/538841 - T^4/65194000   # Moon's mean longitude
+D  = 297.8501921 + 445267.1114034*T  - 0.0018819*T^2 + T^3/545868  - T^4/113065000  # mean elongation from the Sun
+M  = 357.5291092 + 35999.0502909*T   - 0.0001536*T^2 + T^3/24490000                 # Sun's mean anomaly
+M' = 134.9633964 + 477198.8675055*T  + 0.0087414*T^2 + T^3/69699   - T^4/14712000   # Moon's mean anomaly
+F  = 93.2720950  + 483202.0175233*T  - 0.0036539*T^2 - T^3/3526000 + T^4/863310000  # Moon's argument of latitude
+```
+
+Ecliptic longitude correction, degrees (largest-amplitude periodic terms only):
+
+```
+dL = 6.289*sin(M') - 1.274*sin(M'-2D) + 0.658*sin(2D) - 0.186*sin(M)
+     - 0.059*sin(2M'-2D) - 0.057*sin(M'-2D+M) + 0.053*sin(M'+2D)
+     + 0.046*sin(2D-M) + 0.041*sin(M'-M) - 0.035*sin(D) - 0.031*sin(M'+M)
+     - 0.015*sin(2F-2D) + 0.011*sin(M'-4D)
+
+lambda_moon = L' + dL          # apparent ecliptic longitude, degrees
+```
+
+Ecliptic latitude, degrees:
+
+```
+beta_moon = 5.128*sin(F) + 0.281*sin(M'+F) - 0.278*sin(F-M') - 0.173*sin(2D-F)
+            + 0.055*sin(2D-M'+F) + 0.046*sin(2D-M'-F) + 0.033*sin(2D+F) + 0.017*sin(2M'+F)
+```
+
+Distance, km:
+
+```
+Delta_km = 385001 - 20905*cos(M') - 3699*cos(2D-M') - 2956*cos(2D) - 570*cos(2M')
+           + 246*cos(2M'-2D) - 205*cos(M-2D) - 171*cos(M'+2D) - 152*cos(M'+M-2D)
+```
+
+Equatorial position — rotate `(lambda_moon, beta_moon)` by the obliquity of
+the ecliptic `eps` (§4's `23.439 - 0.00000036*d`). Unlike the Sun (whose
+ecliptic latitude is exactly 0 by definition), the Moon's latitude is
+non-zero, so the general rotation applies:
+
+```
+alpha_moon = atan2( sin(lambda_moon)*cos(eps) - tan(beta_moon)*sin(eps), cos(lambda_moon) )
+delta_moon = asin( sin(beta_moon)*cos(eps) + cos(beta_moon)*sin(eps)*sin(lambda_moon) )
+```
+
+Run `(alpha_moon, delta_moon)` through §3 (`equatorialToHorizontal`) exactly
+like the Sun and stars, for altitude/azimuth at any observer/time.
+
+**Illuminated fraction** (Meeus ch. 48's simpler elongation-angle method —
+valid since the Earth-Sun distance vastly exceeds the Earth-Moon distance,
+so the true phase angle and the geocentric elongation are close enough that
+this simplification costs well under 0.5% illumination, confirmed in the
+spot-check above):
+
+```
+cos(psi) = sin(delta_sun)*sin(delta_moon) + cos(delta_sun)*cos(delta_moon)*cos(alpha_moon - alpha_sun)
+
+illuminated_fraction = (1 - cos(psi)) / 2      # [0, 1]
+```
+
+**Phase name.** Illuminated fraction alone can't distinguish waxing from
+waning at the same percentage (e.g. 50% is both First Quarter and Last
+Quarter) — the _signed_ position in the cycle is needed:
+
+```
+phase_angle_deg = (lambda_moon - lambda_sun) mod 360   # 0=new, 90=first quarter, 180=full, 270=last quarter
+```
+
+Eight equal 45°-wide bins, each centered on its defining angle (0/45/.../315),
+lower bound inclusive / upper bound exclusive, wrapping at 0/360 — matches
+common usage where "New Moon"/"Full Moon" name a multi-day window around
+the exact instant, not just that instant:
+
+```
+[337.5, 360) or [0, 22.5)  -> "new"
+[22.5, 67.5)               -> "waxingCrescent"
+[67.5, 112.5)              -> "firstQuarter"
+[112.5, 157.5)             -> "waxingGibbous"
+[157.5, 202.5)             -> "full"
+[202.5, 247.5)             -> "waningGibbous"
+[247.5, 292.5)             -> "lastQuarter"
+[292.5, 337.5)             -> "waningCrescent"
+```
+
+**Rise/set.** Find the next time the Moon's altitude (via `equatorialToHorizontal`
+above) crosses 0°, by the same bisection method as §6 (monotonic locally
+around each crossing) — geometric horizon crossing, no atmospheric-refraction
+correction, consistent with §3's plain geometric altitude used everywhere
+else in this doc.
+
+---
+
 ## Implementation Notes (binding)
 
 - **Inject `now`.** No engine reads the system clock directly — the current time is always a parameter, so tests are deterministic.
 - **Units at boundaries.** Convert degrees↔radians explicitly at function edges; keep internals in radians.
 - **Clamp where stated.** Brightness [0,1], Kp [0,9], factors (0,1]. Never emit out-of-range values.
 - **Monotonic solves use bisection** (§6), not Newton — no derivative fragility, guaranteed convergence on a bracketed monotonic function.
-- **Edge cases are required tests** (Phase 2): negative parallax, Kp = 0 and 9, v0 ≤ w vs v0 > w, cloud_fraction = 0 and 1, observer at/near the geomagnetic pole, arrival window crossing tests.
+- **Edge cases are required tests** (Phase 2): negative parallax, Kp = 0 and 9, v0 ≤ w vs v0 > w, cloud_fraction = 0 and 1, observer at/near the geomagnetic pole, arrival window crossing tests. §12 additionally: each of the 8 phase-name bin boundaries (inclusive/exclusive edges), the 0/360° phase-angle wraparound, illuminated fraction at/near 0 and 1, and a rise/set search window too short to find a crossing (must report "not found," not throw or loop forever).

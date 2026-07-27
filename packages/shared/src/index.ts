@@ -9,6 +9,7 @@ export * from './vector.js';
 export * from './engines/star-position.js';
 export * from './engines/sky-dome.js';
 export * from './engines/sun-position.js';
+export * from './engines/moon-position.js';
 export * from './engines/twilight.js';
 export * from './engines/satellite-pass.js';
 export * from './engines/cme-arrival.js';
