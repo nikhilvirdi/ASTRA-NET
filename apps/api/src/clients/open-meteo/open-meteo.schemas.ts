@@ -16,4 +16,13 @@ export const OpenMeteoResponseSchema = z.object({
   hourly: OpenMeteoHourlySchema,
 });
 
+/**
+ * Multi-coordinate requests (comma-separated `latitude`/`longitude`) make
+ * Open-Meteo return a JSON *array* of the same per-location object, one
+ * entry per requested pair, in request order — verified live against the
+ * real API, not assumed from the docs.
+ */
+export const OpenMeteoBatchResponseSchema = z.array(OpenMeteoResponseSchema);
+
 export type OpenMeteoResponse = z.infer<typeof OpenMeteoResponseSchema>;
+export type OpenMeteoBatchResponse = z.infer<typeof OpenMeteoBatchResponseSchema>;
