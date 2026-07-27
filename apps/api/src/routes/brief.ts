@@ -34,9 +34,16 @@ const ISS_NORAD_ID = 25544;
 const VISUAL_PASSES_DAYS = 2;
 const VISUAL_PASSES_MIN_VISIBILITY_SECONDS = 300;
 
+/**
+ * `lat`/`lon` are optional so an authenticated caller can fall back to
+ * their saved default location — ARCHITECTURE.md §8: "Logged-out =
+ * generic location; logged-in = saved location". Explicit coordinates
+ * always win, so an authenticated user can still look at another sky.
+ * An anonymous caller with neither still gets the same 400 as before.
+ */
 const BriefQuerySchema = z.object({
-  lat: z.coerce.number().min(-90).max(90),
-  lon: z.coerce.number().min(-180).max(180),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lon: z.coerce.number().min(-180).max(180).optional(),
 });
 
 export interface BriefRouteDeps {
@@ -63,11 +70,44 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
         .json({ error: 'lat and lon query params are required and must be valid coordinates' });
       return;
     }
-    const { lat, lon } = parsed.data;
     const now = new Date();
     const pollerState = getAllSourceStates();
 
     const userId = await tryAuthenticate(req, { jwtAccessSecret: deps.jwtAccessSecret });
+
+    // Both coordinates or neither: a lone `lat` is a malformed request,
+    // not an invitation to fill the other half in from the saved location
+    // (which would silently discard the coordinate the caller did send).
+    let lat = parsed.data.lat;
+    let lon = parsed.data.lon;
+    if ((lat === undefined) !== (lon === undefined)) {
+      res
+        .status(400)
+        .json({ error: 'lat and lon query params are required and must be valid coordinates' });
+      return;
+    }
+    if (lat === undefined || lon === undefined) {
+      const saved =
+        userId === null
+          ? null
+          : await deps.prisma.location
+              .findFirst({
+                where: { userId, isDefault: true },
+                select: { latitude: true, longitude: true },
+              })
+              .catch((error: unknown) => {
+                logUnexpectedBriefError('default-location lookup', error);
+                return null;
+              });
+      if (saved === null) {
+        res
+          .status(400)
+          .json({ error: 'lat and lon query params are required and must be valid coordinates' });
+        return;
+      }
+      lat = saved.latitude;
+      lon = saved.longitude;
+    }
 
     // f_hist is global, not per-request (DECISIONS.md), but only worth a
     // DB round-trip when there's any chance of an active CME — a poller

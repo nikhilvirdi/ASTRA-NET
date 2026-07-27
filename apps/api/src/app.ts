@@ -15,6 +15,9 @@ import { registerLocationsRoutes } from './routes/locations.js';
 import { registerSkyLogRoutes } from './routes/sky-log.js';
 import { registerSatellitesRoute } from './routes/satellites.js';
 import { registerBestSpotRoute, type BestSpotRouteDeps } from './routes/best-spot.js';
+import { registerLogRoute } from './routes/log.js';
+import { registerSettingsRoutes } from './routes/settings.js';
+import { registerAccuracyRoute } from './routes/accuracy.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -48,6 +51,9 @@ export function createApp(deps: CreateAppDeps): Express {
   });
   registerLocationsRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
   registerSkyLogRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
+  registerLogRoute(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
+  registerSettingsRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
+  registerAccuracyRoute(app, { prisma: deps.prisma });
 
   return app;
 }

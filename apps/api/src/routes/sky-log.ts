@@ -22,6 +22,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { type Prisma, type PrismaClient, type SkyLogEntry } from '@prisma/client';
 import { z } from 'zod';
 import { requireAuth } from '../auth/require-auth.js';
+import { SKY_LOG_EVENT_TYPES } from '../util/event-types.js';
 
 export interface SkyLogRouteDeps {
   prisma: PrismaClient;
@@ -32,8 +33,12 @@ export interface SkyLogRouteDeps {
  * Closed set matching `SCHEMA.md`'s own examples ("ISS pass, aurora
  * night, meteor shower, NEO approach…") plus `other` for anything a
  * user wants to log manually that doesn't fit those categories.
+ *
+ * Shared with Phase 10's alert preferences via `util/event-types.ts` —
+ * the alertable subset is the same four real events, so both features
+ * name them identically rather than maintaining parallel vocabularies.
  */
-const EventTypeSchema = z.enum(['iss_pass', 'aurora', 'meteor_shower', 'neo_approach', 'other']);
+const EventTypeSchema = z.enum(SKY_LOG_EVENT_TYPES);
 
 const DEFAULT_LIST_LIMIT = 100;
 const MAX_LIST_LIMIT = 500;

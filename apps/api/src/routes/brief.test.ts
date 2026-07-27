@@ -415,3 +415,266 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     expect(body.spaceWeather.data?.aurora?.factors?.history).not.toBeCloseTo(0.5, 2);
   });
 });
+
+describe('GET /api/brief — saved-location fallback (real Postgres)', () => {
+  const LOCATION_TEST_SUFFIX = '@brief-location-test.invalid';
+
+  function loadLocationTestDbUrl(): string {
+    if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
+      try {
+        process.loadEnvFile(fileURLToPath(new URL('../../../../.env', import.meta.url)));
+      } catch {
+        // No .env — the explicit check below produces the real error.
+      }
+    }
+    const url = process.env.DATABASE_URL;
+    if (url === undefined || url === '') {
+      throw new Error('DATABASE_URL is not set — start the docker compose Postgres first.');
+    }
+    return url;
+  }
+
+  const locationPrisma = createPrismaClient(loadLocationTestDbUrl());
+
+  function locationTestApp(): ReturnType<typeof createApp> {
+    return createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma: locationPrisma,
+      jwtAccessSecret: JWT_ACCESS_SECRET,
+      fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+    });
+  }
+
+  async function cleanupLocationUsers(): Promise<void> {
+    await locationPrisma.user.deleteMany({ where: { email: { endsWith: LOCATION_TEST_SUFFIX } } });
+  }
+
+  async function createUserWithLocation(
+    prefix: string,
+    location: { latitude: number; longitude: number } | null,
+  ) {
+    const user = await locationPrisma.user.create({
+      data: { email: `${prefix}${LOCATION_TEST_SUFFIX}` },
+    });
+    if (location !== null) {
+      await locationPrisma.location.create({
+        data: { userId: user.id, label: 'Home', ...location, isDefault: true },
+      });
+    }
+    const accessToken = await signAccessToken(user.id, JWT_ACCESS_SECRET, new Date());
+    return { userId: user.id, accessToken };
+  }
+
+  beforeEach(async () => {
+    resetStore();
+    await cleanupLocationUsers();
+  });
+  afterAll(async () => {
+    await cleanupLocationUsers();
+    await locationPrisma.$disconnect();
+  });
+
+  it('still 400s for an anonymous request with no coordinates', async () => {
+    const res = await request(locationTestApp()).get('/api/brief');
+    expect(res.status).toBe(400);
+  });
+
+  it('uses the authenticated user default location when lat/lon are omitted', async () => {
+    const { accessToken } = await createUserWithLocation('saved', {
+      latitude: 12.34,
+      longitude: 56.78,
+    });
+
+    const res = await request(locationTestApp())
+      .get('/api/brief')
+      .set('Authorization', `Bearer ${accessToken}`);
+    const body = res.body as DailyBrief;
+
+    expect(res.status).toBe(200);
+    expect(body.observer.latDeg).toBeCloseTo(12.34, 10);
+    expect(body.observer.lonDeg).toBeCloseTo(56.78, 10);
+  });
+
+  it('lets explicit coordinates win over the saved location', async () => {
+    const { accessToken } = await createUserWithLocation('override', {
+      latitude: 12.34,
+      longitude: 56.78,
+    });
+
+    const res = await request(locationTestApp())
+      .get('/api/brief?lat=65&lon=-20')
+      .set('Authorization', `Bearer ${accessToken}`);
+    const body = res.body as DailyBrief;
+
+    expect(body.observer.latDeg).toBeCloseTo(65, 10);
+    expect(body.observer.lonDeg).toBeCloseTo(-20, 10);
+  });
+
+  it('400s for an authenticated user who has saved no location', async () => {
+    const { accessToken } = await createUserWithLocation('nolocation', null);
+
+    const res = await request(locationTestApp())
+      .get('/api/brief')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('400s on a half-specified position rather than filling in the other half', async () => {
+    const { accessToken } = await createUserWithLocation('halfway', {
+      latitude: 12.34,
+      longitude: 56.78,
+    });
+
+    const res = await request(locationTestApp())
+      .get('/api/brief?lat=65')
+      .set('Authorization', `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * The three "a DB call failed, degrade rather than blank the Brief" paths.
+ *
+ * All three route through `logUnexpectedBriefError`, which had never been
+ * executed by any test — it was the sole reason `routes/brief.ts` sat at
+ * 50% function coverage before this session, and it stayed there until now.
+ * Each path is asserted on behaviour (the Brief still serves, or 400s
+ * honestly), not merely on the log call.
+ */
+describe('GET /api/brief — degradation when a DB call fails', () => {
+  const failingSecret = JWT_ACCESS_SECRET;
+
+  function appWithPrisma(prismaLike: unknown): ReturnType<typeof createApp> {
+    return createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma: prismaLike as Parameters<typeof createApp>[0]['prisma'],
+      jwtAccessSecret: failingSecret,
+      fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+    });
+  }
+
+  /** Poller state with an active, still-incoming CME — what triggers both prediction paths. */
+  function setActiveCme(now: Date): void {
+    setSourceState(
+      'solarWind',
+      {
+        kpCurrent: { timeTag: now.toISOString(), kpIndex: 3, estimatedKp: 3.33, kpCode: '3P' },
+        rtswPlasma: {
+          timeTag: now.toISOString(),
+          source: 'DSCOVR',
+          protonSpeed: 420,
+          protonDensity: 5,
+          protonTemperature: 100000,
+          overallQuality: 0,
+        },
+        fetchedAt: now.toISOString(),
+      },
+      now.toISOString(),
+      true,
+    );
+    setSourceState(
+      'spaceWeatherForecast',
+      {
+        kpObserved: null,
+        kpForecast: [{ timeTag: now.toISOString(), kp: 5, status: 'predicted', noaaScale: null }],
+        solarWind: null,
+        fetchedAt: now.toISOString(),
+      },
+      now.toISOString(),
+      true,
+    );
+    setSourceState(
+      'donki',
+      {
+        cmes: [
+          {
+            activityId: 'degrade-test-cme',
+            startTime: new Date(now.getTime() - 3_600_000).toISOString(),
+            note: null,
+            link: null,
+            analyses: [
+              {
+                isMostAccurate: true,
+                time21_5: null,
+                latitude: null,
+                longitude: null,
+                halfAngle: null,
+                speed: 800,
+                type: 'C',
+              },
+            ],
+          },
+        ],
+        flares: null,
+        fetchedAt: now.toISOString(),
+      },
+      now.toISOString(),
+      true,
+    );
+  }
+
+  beforeEach(() => {
+    resetStore();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('400s honestly when the saved-location lookup throws', async () => {
+    const token = await signAccessToken('user-loc-fail', JWT_ACCESS_SECRET, new Date());
+    const app = appWithPrisma({
+      location: { findFirst: () => Promise.reject(new Error('connection lost')) },
+    });
+
+    const res = await request(app).get('/api/brief').set('Authorization', `Bearer ${token}`);
+
+    // Degrades to "no saved location" rather than 500ing the whole Brief.
+    expect(res.status).toBe(400);
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('still serves the Brief on the neutral prior when the history lookup throws', async () => {
+    const now = new Date();
+    setActiveCme(now);
+    const token = await signAccessToken('user-hist-fail', JWT_ACCESS_SECRET, new Date());
+    const app = appWithPrisma({
+      prediction: {
+        count: () => Promise.reject(new Error('connection lost')),
+        create: () => Promise.resolve({}),
+      },
+    });
+
+    const res = await request(app)
+      .get('/api/brief?lat=65&lon=-20')
+      .set('Authorization', `Bearer ${token}`);
+    const body = res.body as DailyBrief;
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe('ok');
+    // f_hist falls back to the neutral Beta prior, so confidence still resolves.
+    expect(body.spaceWeather.data?.aurora?.confidence).not.toBeNull();
+    expect(body.spaceWeather.data?.aurora?.factors?.history).toBeCloseTo(historyFactor(0, 0), 12);
+  });
+
+  it('still serves the Brief when persisting the prediction throws', async () => {
+    const now = new Date();
+    setActiveCme(now);
+    const token = await signAccessToken('user-persist-fail', JWT_ACCESS_SECRET, new Date());
+    const app = appWithPrisma({
+      prediction: {
+        count: () => Promise.resolve(0),
+        create: () => Promise.reject(new Error('unique constraint')),
+      },
+    });
+
+    const res = await request(app)
+      .get('/api/brief?lat=65&lon=-20')
+      .set('Authorization', `Bearer ${token}`);
+    const body = res.body as DailyBrief;
+
+    // Persistence is a side effect; failing it must never cost the user their Brief.
+    expect(res.status).toBe(200);
+    expect(body.status).toBe('ok');
+    expect(body.spaceWeather.data?.aurora?.hasActiveCme).toBe(true);
+  });
+});
