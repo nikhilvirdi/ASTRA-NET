@@ -5,6 +5,7 @@ export function version(): string {
 export * from './constants.js';
 export * from './math-utils.js';
 export * from './vector.js';
+export * from './geo.js';
 
 export * from './engines/star-position.js';
 export * from './engines/sky-dome.js';
