@@ -57,6 +57,20 @@ async function fetchWithRetry(
 }
 
 /**
+ * Open-Meteo emits *naive* ISO timestamps ("2026-07-27T00:00") with no
+ * zone designator even when the request sets `timezone=UTC` - verified
+ * against the live API. `new Date()` parses those as **local** time, so on
+ * any non-UTC machine every hour silently shifts by the host's offset and
+ * "the cloud cover at 22:00 UTC" quietly becomes a different hour. Pin them
+ * to UTC here, at the boundary, so no consumer can inherit that bug.
+ */
+function toUtcIso(time: string): string {
+  const alreadyZoned = /(?:Z|[+-]\d{2}:?\d{2})$/.test(time);
+  const parsed = new Date(alreadyZoned ? time : `${time}Z`);
+  return Number.isNaN(parsed.getTime()) ? time : parsed.toISOString();
+}
+
+/**
  * Fetch local cloud cover and visibility.
  */
 export async function fetchOpenMeteo(
@@ -92,7 +106,7 @@ export async function fetchOpenMeteo(
       if (cloudCoverPercent === undefined || visibilityMeters === undefined) {
         return acc;
       }
-      acc.push({ time: t, cloudCoverPercent, visibilityMeters });
+      acc.push({ time: toUtcIso(t), cloudCoverPercent, visibilityMeters });
       return acc;
     }, []);
 

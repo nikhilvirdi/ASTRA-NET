@@ -40,6 +40,19 @@ describe('fetchOpenMeteo', () => {
     expect(data.fetchedAt).toBe(NOW.toISOString());
   });
 
+  it('pins naive Open-Meteo timestamps to UTC rather than the host timezone', async () => {
+    // The API returns "2026-07-14T00:00" with no zone even for timezone=UTC;
+    // `new Date()` would read that as local time and shift every hour.
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(fixture), { status: 200 })),
+    );
+
+    const data = await fetchOpenMeteo({ latitude: 40.71, longitude: -74.01 }, NOW);
+
+    expect(data.hourly![0]!.time).toBe('2026-07-14T00:00:00.000Z');
+    expect(data.hourly![2]!.time).toBe('2026-07-14T02:00:00.000Z');
+  });
+
   it('returns null hourly on network error', async () => {
     global.fetch = vi.fn(() => Promise.resolve(new Response('Error', { status: 503 })));
 
