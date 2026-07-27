@@ -33,7 +33,7 @@ import { DiegeticText } from './DiegeticText';
 export interface CelestialObject {
   id: string;
   name: string;
-  type: 'iss' | 'jupiter' | 'sun' | 'satellite';
+  type: 'iss' | 'jupiter' | 'venus' | 'mars' | 'saturn' | 'mercury' | 'sun' | 'satellite';
   azimuthDeg: number;
   altitudeDeg: number;
   color: string;
@@ -507,7 +507,79 @@ export function CelestialMarkers({
         color: '#C9B187', // --color-brass-300
         sentence:
           "The solar system's largest planet, glowing brightly in tonight's celestial field.",
-        measurements: `ALT: ${jup.altitudeDeg.toFixed(1)}° · AZ: ${jup.azimuthDeg.toFixed(1)}° · MAG: -2.4`,
+        measurements: `ALT: ${jup.altitudeDeg.toFixed(1)}° · AZ: ${jup.azimuthDeg.toFixed(1)}°`,
+        linkText: 'Explore Sky Anchor Data',
+        linkHref: '/',
+      });
+    }
+
+    // 3. Venus Marker — real altitude, no floor.
+    if (brief.skyAnchor?.data?.venus && isAboveHorizon(brief.skyAnchor.data.venus.altitudeDeg)) {
+      const ven = brief.skyAnchor.data.venus;
+      list.push({
+        id: 'venus',
+        name: 'VENUS',
+        type: 'venus',
+        azimuthDeg: ven.azimuthDeg,
+        altitudeDeg: ven.altitudeDeg,
+        color: '#D6DCDC', // --color-sky-200 (brilliant silver-white, distinct from Sun's --color-solar)
+        sentence: 'The brightest planet in Earth’s sky, shrouded in dense heat-trapping clouds.',
+        measurements: `ALT: ${ven.altitudeDeg.toFixed(1)}° · AZ: ${ven.azimuthDeg.toFixed(1)}°`,
+        linkText: 'Explore Sky Anchor Data',
+        linkHref: '/',
+      });
+    }
+
+    // 4. Mars Marker — real altitude, no floor.
+    if (brief.skyAnchor?.data?.mars && isAboveHorizon(brief.skyAnchor.data.mars.altitudeDeg)) {
+      const mar = brief.skyAnchor.data.mars;
+      list.push({
+        id: 'mars',
+        name: 'MARS',
+        type: 'mars',
+        azimuthDeg: mar.azimuthDeg,
+        altitudeDeg: mar.altitudeDeg,
+        color: '#B08968', // --color-neo (dusty rust rock)
+        sentence: 'The Red Planet, an iron-rich desert world with thin atmosphere and polar caps.',
+        measurements: `ALT: ${mar.altitudeDeg.toFixed(1)}° · AZ: ${mar.azimuthDeg.toFixed(1)}°`,
+        linkText: 'Explore Sky Anchor Data',
+        linkHref: '/',
+      });
+    }
+
+    // 5. Saturn Marker — real altitude, no floor.
+    if (brief.skyAnchor?.data?.saturn && isAboveHorizon(brief.skyAnchor.data.saturn.altitudeDeg)) {
+      const sat = brief.skyAnchor.data.saturn;
+      list.push({
+        id: 'saturn',
+        name: 'SATURN',
+        type: 'saturn',
+        azimuthDeg: sat.azimuthDeg,
+        altitudeDeg: sat.altitudeDeg,
+        color: '#C9B187', // --color-brass-300 (pale brass ringed giant)
+        sentence:
+          'The ringed jewel of the solar system, surrounded by ice particles and dozens of moons.',
+        measurements: `ALT: ${sat.altitudeDeg.toFixed(1)}° · AZ: ${sat.azimuthDeg.toFixed(1)}°`,
+        linkText: 'Explore Sky Anchor Data',
+        linkHref: '/',
+      });
+    }
+
+    // 6. Mercury Marker — real altitude, no floor.
+    if (
+      brief.skyAnchor?.data?.mercury &&
+      isAboveHorizon(brief.skyAnchor.data.mercury.altitudeDeg)
+    ) {
+      const mer = brief.skyAnchor.data.mercury;
+      list.push({
+        id: 'mercury',
+        name: 'MERCURY',
+        type: 'mercury',
+        azimuthDeg: mer.azimuthDeg,
+        altitudeDeg: mer.altitudeDeg,
+        color: '#A8B4BC', // --color-orbital (cool metallic grey)
+        sentence: 'The innermost planet, orbiting rapidly through extreme solar temperatures.',
+        measurements: `ALT: ${mer.altitudeDeg.toFixed(1)}° · AZ: ${mer.azimuthDeg.toFixed(1)}°`,
         linkText: 'Explore Sky Anchor Data',
         linkHref: '/',
       });

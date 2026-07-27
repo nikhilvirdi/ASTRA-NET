@@ -9,6 +9,10 @@ export interface SkyAnchorCardData {
   isDarkEnoughForIssOrAurora: boolean;
   isDarkEnoughForFaintStars: boolean;
   jupiter: { azimuthDeg: number; altitudeDeg: number } | null;
+  venus: { azimuthDeg: number; altitudeDeg: number } | null;
+  mars: { azimuthDeg: number; altitudeDeg: number } | null;
+  saturn: { azimuthDeg: number; altitudeDeg: number } | null;
+  mercury: { azimuthDeg: number; altitudeDeg: number } | null;
 }
 
 export interface IssPositionField {
