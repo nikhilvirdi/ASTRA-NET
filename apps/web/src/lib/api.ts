@@ -315,3 +315,200 @@ export async function fetchBestSpot(
   }
   return (await res.json()) as BestSpotPayload;
 }
+
+// ─── Phase 10 API Contracts (Sky Log, Settings, Locations, Accuracy, Delete Account) ───
+
+export interface SkyLogEntryData {
+  id: string;
+  userId: string;
+  eventType: string;
+  timestamp: string;
+  notes: string | null;
+  source: 'manual' | 'auto';
+  details: {
+    kp?: number;
+    cloudCoverPercent?: number;
+    moonPhase?: string;
+  } | null;
+  createdAt: string;
+}
+
+export interface UserAlertsData {
+  iss_pass: boolean;
+  aurora: boolean;
+  meteor_shower: boolean;
+  neo_approach: boolean;
+}
+
+export interface DefaultLocationData {
+  id: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface SettingsPayloadData {
+  alerts: UserAlertsData;
+  defaultLocation: DefaultLocationData | null;
+  alertsDeliverable: boolean;
+}
+
+export interface SavedLocationData {
+  id: string;
+  userId: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface AccuracyPointData {
+  targetTime: string;
+  predictedKp: number;
+  actualKp: number;
+  hit: boolean;
+}
+
+export interface AccuracyHitRateData {
+  hits: number;
+  trials: number;
+  rate: number;
+  rawRate: number | null;
+  prior: {
+    hits: number;
+    trials: number;
+  };
+}
+
+export interface AccuracyPayloadData {
+  generatedAt: string;
+  series: AccuracyPointData[];
+  hitRate: AccuracyHitRateData;
+  empty: boolean;
+}
+
+/** Fetches personal sky log entries from GET /api/sky-log */
+export async function fetchSkyLog(limit = 100): Promise<SkyLogEntryData[]> {
+  const res = await fetch(`/api/sky-log?limit=${limit}`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    throw new Error(`Failed to fetch sky log: ${res.status}`);
+  }
+  return (await res.json()) as SkyLogEntryData[];
+}
+
+/** Creates a new manual sky log entry via POST /api/sky-log */
+export async function createSkyLogEntry(data: {
+  eventType: string;
+  timestamp: string;
+  notes?: string;
+  details?: Record<string, unknown>;
+}): Promise<SkyLogEntryData> {
+  const res = await fetch('/api/sky-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to create log entry: ${res.status}`);
+  return (await res.json()) as SkyLogEntryData;
+}
+
+/** Deletes a sky log entry via DELETE /api/sky-log/:id */
+export async function deleteSkyLogEntry(id: string): Promise<void> {
+  const res = await fetch(`/api/sky-log/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`Failed to delete log entry: ${res.status}`);
+}
+
+/** Fetches user settings from GET /api/settings */
+export async function fetchSettings(): Promise<SettingsPayloadData> {
+  const res = await fetch('/api/settings', { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    throw new Error(`Failed to fetch settings: ${res.status}`);
+  }
+  return (await res.json()) as SettingsPayloadData;
+}
+
+/** Updates alert toggles via PUT /api/settings/alerts */
+export async function updateAlertSettings(
+  alerts: Partial<UserAlertsData>,
+): Promise<UserAlertsData> {
+  const res = await fetch('/api/settings/alerts', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ alerts }),
+  });
+  if (!res.ok) throw new Error(`Failed to update alerts: ${res.status}`);
+  const payload = (await res.json()) as { alerts: UserAlertsData };
+  return payload.alerts;
+}
+
+/** Fetches saved locations from GET /api/locations */
+export async function fetchLocations(): Promise<SavedLocationData[]> {
+  const res = await fetch('/api/locations', { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('UNAUTHORIZED');
+    throw new Error(`Failed to fetch locations: ${res.status}`);
+  }
+  return (await res.json()) as SavedLocationData[];
+}
+
+/** Creates a saved location via POST /api/locations */
+export async function createSavedLocation(data: {
+  label: string;
+  latitude: number;
+  longitude: number;
+  isDefault?: boolean;
+}): Promise<SavedLocationData> {
+  const res = await fetch('/api/locations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to create location: ${res.status}`);
+  return (await res.json()) as SavedLocationData;
+}
+
+/** Sets a location as the default override via PUT /api/locations/:id */
+export async function setDefaultLocation(id: string): Promise<SavedLocationData> {
+  const res = await fetch(`/api/locations/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ isDefault: true }),
+  });
+  if (!res.ok) throw new Error(`Failed to set default location: ${res.status}`);
+  return (await res.json()) as SavedLocationData;
+}
+
+/** Deletes a saved location via DELETE /api/locations/:id */
+export async function deleteSavedLocation(id: string): Promise<void> {
+  const res = await fetch(`/api/locations/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`Failed to delete location: ${res.status}`);
+}
+
+/** Permanently deletes user account & all associated data via DELETE /api/auth/account */
+export async function deleteAccount(): Promise<void> {
+  const res = await fetch('/api/auth/account', {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`Failed to delete account: ${res.status}`);
+}
+
+/** Fetches public accuracy & track record data from GET /api/accuracy */
+export async function fetchAccuracy(): Promise<AccuracyPayloadData> {
+  const res = await fetch('/api/accuracy');
+  if (!res.ok) throw new Error(`Failed to fetch accuracy payload: ${res.status}`);
+  return (await res.json()) as AccuracyPayloadData;
+}
