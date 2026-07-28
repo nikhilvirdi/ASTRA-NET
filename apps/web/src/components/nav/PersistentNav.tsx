@@ -81,14 +81,14 @@ export function PersistentNav(): React.ReactElement | null {
         isExplore ? 'bg-sky-950/80 backdrop-blur-atmosphere' : 'bg-transparent hairline',
       ].join(' ')}
     >
-      {/* Wordmark */}
+      {/* Wordmark Logo */}
       <NavLink
         to="/"
         aria-label="ASTRANET — go to Daily Brief"
-        className="type-micro text-brass-300 hover:text-brass-300/80 transition-colors"
+        className="flex items-center transition-opacity hover:opacity-80"
         style={{ transitionDuration: 'var(--dur-micro)' }}
       >
-        ASTRANET
+        <img src="/logo.png" alt="ASTRANET" className="h-7 w-auto object-contain" />
       </NavLink>
 
       {/* Primary nav links */}
