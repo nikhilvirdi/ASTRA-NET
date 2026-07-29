@@ -868,3 +868,82 @@ Implementation notes worth keeping:
 **The known exception is now recorded in §17 itself rather than only here:** the Horizon Band's compass ticks and marker labels (brass, micro) and the footer CTA (muted, body) remain on bare surface and stay below 4.5:1 across part of the ramp — worst 1.49:1 and 1.52:1 respectively. Backing them would either occlude the Band, which is the signature element, or add a second plate to the footer; §17 explicitly declines to make that composition call for now. `og-svg.test.ts` pins both worst-case figures so the gap stays visible and cannot be mistaken for solved.
 
 Also corrected while here: `og-svg.ts`'s `inkPaletteFor` docstring still described the pre-plate residual gap as covering "the mono eyebrow and fact row". Those elements no longer sit on the surface, so the comment named the wrong consumers; it now points at `PLATE_PALETTE` for the arithmetic instead.
+
+## 2026-07-29 — Phase 12 resilience + rate-limit verification: three findings, none fixed
+
+Phase 12's own rule is hardening and measuring, not building, so everything below is **logged rather than fixed**. Two of the three are genuine defects; the third is a documentation error that would misinform the next capacity decision.
+
+### 1. The degradation contract does not hold for space weather — the card reports `ok` during a total SWPC outage
+
+Found by injecting failure at the **transport boundary** (`fetch`) and driving the real clients, the real poller tick, the real store and the real Express route — `routes/outage.test.ts`. Every prior resilience test injects at a seam one layer up, and this defect lives precisely in the gap between those seams.
+
+`build-brief.ts` gates the card on store-entry nullness:
+
+```ts
+const spaceWeatherHasAnySource =
+  pollerState.solarWind.data !== null || pollerState.spaceWeatherForecast.data !== null;
+```
+
+But **the poller never writes `data: null` for SWPC.** `fast-tier.ts`'s `writeSolarWindResult` on total failure with no prior value writes the failed result _as an object_ — `{ kpCurrent: null, rtswPlasma: null, fetchedAt }` — marked `healthy: false`. The slow tier does the same. So the gate can never open, and a complete SWPC outage yields `spaceWeather.status: 'ok'`.
+
+ARCHITECTURE.md §5 states "Per-source health flags from the poller drive which cards degrade". **The `healthy` flag is not consulted at the card level at all** — only `data !== null` is.
+
+**Why the existing test suite did not catch it:** `build-brief.test.ts`'s "SWPC entirely down blanks only the space-weather card" sets `state.solarWind = empty()` (`data: null`) — a state the real poller cannot produce for this source. The test proves the contract for an unreachable input.
+
+**User-visible impact, traced to the frontend.** The card body is honest (`solarLine.headline` is literally `"space weather unavailable"`, all values null, nested `healthy: false`, `aurora: null`), so no fabricated data is shown. The _status_ is what lies, and three UI affordances key off it:
+
+- `BriefPage.tsx:326` — `<LivePulse active={brief?.spaceWeather.status === 'ok'} />` renders the **live pulse as active** for a source that is entirely down. DESIGN_SPEC.md §4.3 restricts ember to live state; §7.2 defines the Live Pulse as exactly that signal.
+- `BriefPage.tsx:319` / `:328` — the `opacity-50` dimming and the "unavailable" notice are both suppressed.
+- `HorizonBand.tsx:180` — the "AURORA · FORECAST UNAVAILABLE" note is suppressed.
+
+So the screen shows a live indicator next to a card reading "space weather unavailable". That is the "reads as though space weather was simply quiet" failure `routes/share.ts` already warns about, on the main page.
+
+**Isolation itself is intact** — no other card is affected, and the Brief still renders — so this is a status-signalling defect, not a cascade. Every other source degrades correctly under all five injected modes (5xx, 503, 4xx, malformed, abort).
+
+Pinned in `outage.test.ts` as two `KNOWN GAP:` tests asserting the _current_ behaviour, so a fix will fail them loudly and deliberately rather than silently.
+
+### 2. N2YO's real limit for the endpoint that scales with users is 100/hr, not 1000/hr
+
+`API_SOURCES.md` records "**Rate limit:** **1000 transactions/hour**" as a single global figure. N2YO's published documentation states "The REST API v1 is free but it is transaction limited **by type**", with per-endpoint limits:
+
+| Endpoint         | Limit/hr |
+| ---------------- | -------- |
+| tle              | 1000     |
+| positions        | 1000     |
+| **visualpasses** | **100**  |
+| radiopasses      | 100      |
+| above            | 100      |
+
+Verified against n2yo.com/api twice. Two consequences compound:
+
+**(a) The wrong endpoint was budgeted.** The polled endpoint is `positions` (limit 1000). The endpoint carrying real user load is `visualpasses` — limit **100/hr** — and it was never in the budget at all.
+
+**(b) `visualpasses` is not polled and not cached, so it scales with users.** `API_SOURCES.md` opens by asserting "Polling is **central** — one poller hits each source and fans results to all users... Upstream load is constant regardless of user count, which is what keeps every limit below comfortably satisfied." That premise is **false for `visualpasses`**: it is observer-specific (it needs lat/lon), so it cannot be centrally polled. `composeBriefForObserver` calls it live on **every** `GET /api/brief` and **every** `POST /api/share`, through no cache.
+
+Measured upstream usage per hour (counted empirically by stubbing `fetch` and running both real tiers, not derived by reading code):
+
+| Source       | Endpoint                       | Calls/hr             | Real limit              | Verdict        |
+| ------------ | ------------------------------ | -------------------- | ----------------------- | -------------- |
+| N2YO         | positions (fast tier)          | 80                   | 1000/hr                 | 8% — fine      |
+| **N2YO**     | **visualpasses (per request)** | **1 per Brief view** | **100/hr**              | ⚠️ **binding** |
+| SWPC         | 5 endpoints (both tiers)       | 178                  | keyless, none published | fine           |
+| NASA         | DONKI ×2 + NeoWs               | 18                   | ~1000/hr                | 1.8% — fine    |
+| JPL Horizons | Sun + 5 planets                | 36                   | none published          | fine           |
+| CelesTrak    | gp.php                         | 6                    | none published          | fine           |
+| Open-Meteo   | 1 batch per Best-Spot request  | per request          | 600/min, 5k/hr, 10k/day | fine           |
+
+**The ceiling is roughly 100 Brief page-loads per hour — about 1.7 per minute.** Not 1000. Aggravating factors:
+
+- `/` **and** `/explore` both call `fetchBrief` on mount, so one user visiting both spends 2 of the 100. `BriefPage`'s effect also refires on location change.
+- `POST /api/share` spends one more, and still has no rate limiting (deferred from Phase 11).
+- **Retry amplification:** `fetchWithRetry` is 3 attempts with 500ms/1000ms backoff on 5xx and network errors (4xx correctly does not retry — verified in `outage.test.ts`). A flaky N2YO therefore consumes the 100/hr budget in as few as ~33 real page views.
+
+The obvious mitigation is already half-built and unused: `cache/store.ts` is a Postgres-backed TTL cache, swept on a timer, whose own header says "Nothing user-facing consumes this directly yet". Visual passes are a good fit — they change slowly and are coarse in observer position. Wiring it is **new work, so not done here**; it belongs in a phase that owns the caching/rate-limit policy rather than being improvised during a hardening pass.
+
+`API_SOURCES.md` has been corrected on this point (the 1000/hr figure and the rate-budget table), because leaving a known-wrong limit in the reference doc would misinform the next capacity decision. That is a factual correction to a non-locked doc, called out here rather than made silently.
+
+### 3. Not a defect, recorded for completeness: `fetchWithRetry` is duplicated six times
+
+`celestrak`, `jpl-horizons`, `n2yo`, `nasa`, `open-meteo` and `swpc` each carry their own copy. Compared line by line they are behaviourally identical — 10s timeout, 3 attempts, 500ms initial backoff doubling, 4xx not retried — with one deliberate difference: CelesTrak's takes a `parseResponse` parameter because its TLE endpoint returns plain text. So this is **not** an inconsistent-resilience finding; every source genuinely behaves the same under failure, which the outage suite confirms across all five modes.
+
+It is still six copies of the same retry policy, so any future change to timeout or backoff has six places to miss. Consolidating into a shared module is the durable fix and is left for a phase that is allowed to add code.
