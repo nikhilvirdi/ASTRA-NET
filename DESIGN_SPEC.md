@@ -498,6 +498,14 @@ Single-viewport composition, no scroll on desktop:
 
 **OG image** is server-rendered at 1200×630 using the same composition and the _actual twilight colors for that location and time_. A shared link at midnight looks visibly different from one shared at dusk. Shared cards become small, honest advertisements for the product's core idea.
 
+**Instrument plate.** The eyebrow strip and the mono measurement row sit on a solid `sky-900` plate (`sky-800` is an acceptable alternative); text on the plate is `sky-100` ink with `brass-300` labels. The headline and the Horizon Band stay on the bare surface, as designed — the twilight color is the point of the card and must remain the dominant field.
+
+This exists for a measured reason, not a stylistic one. §4.1's ramp is continuous from a near-white day surface to a near-black night one, so it necessarily passes through mid-greys. Against those, the best worst-case contrast any two-token ink strategy can reach is `sqrt(contrast(lightToken, darkToken))` — the value at the crossover where both candidates are equal. For the `brass-300`/`brass-700` pair that ceiling is **1.79:1**, and for `sky-400`/`sky-600` it is **1.76:1**, against the `4.5² = 20.25` pair contrast a 4.5:1 guarantee would require. No threshold, no selection rule, and no narrowing of the ramp can lift small text to Part VI's floor while it sits directly on the surface; only removing it from the surface can. On a `sky-900` plate the same tokens give `brass-300` **8.67:1** and `sky-100` **15.83:1**.
+
+The plate is **unconditional** — it does not appear only at the twilights that need it. A plate that came and went with solar altitude would make the card's identity flicker with time of day and read as a rendering fault.
+
+**Known exception, not yet resolved:** the Horizon Band's compass ticks and marker labels (`micro`, `brass`) and the footer CTA (`body`, muted) remain on the bare surface and therefore remain below the 4.5:1 floor across part of the ramp. Backing them would either occlude the Band — the signature element — or add a second plate to the footer. That is a composition decision this section does not yet make.
+
 ---
 
 ## Part V — Responsive Strategy
