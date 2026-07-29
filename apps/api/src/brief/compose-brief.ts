@@ -23,6 +23,7 @@ import {
   fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses,
   type N2yoVisualPassesData,
 } from '../clients/n2yo/index.js';
+import { fetchVisualPassesCached } from './visual-passes-cache.js';
 
 /** Same real-world ISS NORAD ID already used by the fast-tier poller (DECISIONS.md, 2026-07-16). */
 const ISS_NORAD_ID = 25544;
@@ -71,7 +72,15 @@ export async function composeBriefForObserver(
 
   let visualPasses: N2yoVisualPassesData | null;
   try {
-    visualPasses = await fetchVisualPasses(
+    // Through the TTL cache, not straight to N2YO. This is the one upstream
+    // call that scales with users rather than with the poller, and its
+    // endpoint is limited to 100/hr — see `visual-passes-cache.ts`.
+    visualPasses = await fetchVisualPassesCached(
+      {
+        prisma: deps.prisma,
+        n2yoApiKey: deps.n2yoApiKey,
+        fetchN2yoVisualPasses: fetchVisualPasses,
+      },
       {
         satId: ISS_NORAD_ID,
         observerLat: latDeg,
@@ -80,7 +89,6 @@ export async function composeBriefForObserver(
         days: VISUAL_PASSES_DAYS,
         minVisibility: VISUAL_PASSES_MIN_VISIBILITY_SECONDS,
       },
-      deps.n2yoApiKey,
       now,
     );
   } catch {

@@ -117,6 +117,11 @@ async function cleanup(): Promise<void> {
     createdIds.length = 0;
   }
   await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
+  // `POST /api/share` composes a Brief, and visual passes are now served
+  // from the Cache table on a TTL. Every test here shares one observer
+  // position, so without this a successful pass list written by an earlier
+  // test is still live when a later test stubs N2YO as down.
+  await prisma.cache.deleteMany({ where: { key: { startsWith: 'n2yo:visualpasses:' } } });
 }
 
 beforeEach(async () => {
