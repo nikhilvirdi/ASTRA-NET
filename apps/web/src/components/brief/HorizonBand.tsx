@@ -2,7 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { DailyBrief } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
-import { COMPASS_POINTS, compassPointLeftPercent } from '@/lib/horizon-band';
+import {
+  COMPASS_POINTS,
+  belongsOnBand,
+  compassPointLeftPercent,
+  formatAltitude,
+  markerBandPosition,
+} from '@/lib/horizon-band';
 
 interface HorizonBandProps {
   brief: DailyBrief | null;
@@ -38,18 +44,26 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
   const markers = useMemo<MarkerItem[]>(() => {
     const list: MarkerItem[] = [];
 
-    // 1. Sun Position
-    const sunAlt = brief?.skyAnchor?.data?.sunAltitudeDeg ?? -90;
-    list.push({
-      id: 'sun',
-      label: 'SUN',
-      sublabel: `Alt ${sunAlt.toFixed(1)}°`,
-      type: 'sun',
-      azimuthDeg: 180, // Azimuth not provided by skyAnchor for Sun, fixed to South for visualization (see DECISIONS.md)
-      altitudeDeg: sunAlt,
-      colorClass: 'bg-solar',
-      available: true,
-    });
+    // 1. Sun — omitted entirely when below the horizon. The band answers
+    // "where do I look?", and a Sun 14deg down is not an answer to that.
+    // It used to be pushed unconditionally and then clamped to the horizon
+    // rule by getCoords, which drew it as though it were rising.
+    const sunAnchor = brief?.skyAnchor?.data ?? null;
+    if (sunAnchor && belongsOnBand(sunAnchor.sunAltitudeDeg)) {
+      list.push({
+        id: 'sun',
+        label: 'SUN',
+        sublabel: formatAltitude(sunAnchor.sunAltitudeDeg),
+        type: 'sun',
+        // Real azimuth. This was hardcoded to 180 (due south) with a comment
+        // saying skyAnchor did not provide it — it does, and has since the
+        // Sun engine started returning sunAzimuthDeg alongside the altitude.
+        azimuthDeg: sunAnchor.sunAzimuthDeg,
+        altitudeDeg: sunAnchor.sunAltitudeDeg,
+        colorClass: 'bg-solar',
+        available: true,
+      });
+    }
 
     // 2. ISS Position — interpolated along the next visible pass's own
     // timeline (start → max → end); no marker outside the pass window. The
@@ -59,7 +73,7 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
     const pass = brief?.iss?.status === 'ok' ? (brief.iss.data?.nextPass ?? null) : null;
     if (pass) {
       const pos = interpolatePassPosition(pass, effectiveTime.getTime() / 1000);
-      if (pos) {
+      if (pos && belongsOnBand(pos.altitudeDeg)) {
         list.push({
           id: 'iss',
           label: 'ISS',
@@ -73,21 +87,24 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
       }
     }
 
-    // 3. Jupiter (Representative bright planet marker)
-    if (brief?.skyAnchor?.data?.jupiter) {
-      const jupiterAlt = brief.skyAnchor.data.jupiter.altitudeDeg;
-      if (jupiterAlt > -10) {
-        list.push({
-          id: 'jupiter',
-          label: 'JUPITER',
-          sublabel: `Alt ${Math.max(0, jupiterAlt).toFixed(0)}°`,
-          type: 'jupiter',
-          azimuthDeg: brief.skyAnchor.data.jupiter.azimuthDeg,
-          altitudeDeg: Math.max(2, jupiterAlt),
-          colorClass: 'bg-brass-300',
-          available: true,
-        });
-      }
+    // 3. Jupiter (Representative bright planet marker). Three fabrications
+    // removed here: it was admitted down to -10deg, its sublabel reported
+    // `Math.max(0, alt)` so a Jupiter at -5deg read "Alt 0°", and it was
+    // drawn at `Math.max(2, alt)` — a position it was not in. Same defect
+    // class as the altitude floor stripped from the Explore scene in
+    // c2acb7f, and now culled by the same isAboveHorizon.
+    const jupiter = brief?.skyAnchor?.data?.jupiter ?? null;
+    if (jupiter && belongsOnBand(jupiter.altitudeDeg)) {
+      list.push({
+        id: 'jupiter',
+        label: 'JUPITER',
+        sublabel: formatAltitude(jupiter.altitudeDeg),
+        type: 'jupiter',
+        azimuthDeg: jupiter.azimuthDeg,
+        altitudeDeg: jupiter.altitudeDeg,
+        colorClass: 'bg-brass-300',
+        available: true,
+      });
     }
 
     return list;
@@ -105,14 +122,12 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
     unavailableNotes.push('NEO · DATA UNAVAILABLE');
   }
 
-  // Convert (Azimuth, Altitude) to SVG percent coordinates
-  // Horizontal: Azimuth 0° to 360° -> 0% to 100%
-  // Vertical: Altitude 0° (horizon) to 90° (zenith) -> 100% (bottom) to 0% (top)
+  // Azimuth/altitude to band percentages. Markers are culled above by
+  // belongsOnBand, so the clamp inside only absorbs the sub-degree
+  // refraction sliver rather than relocating a below-horizon body.
   const getCoords = (az: number, alt: number) => {
-    const x = (az / 360) * 100;
-    const clampedAlt = Math.max(0, Math.min(90, alt));
-    const y = 100 - (clampedAlt / 90) * 100;
-    return { x: `${x.toFixed(2)}%`, y: `${y.toFixed(2)}%` };
+    const { leftPercent, topPercent } = markerBandPosition(az, alt);
+    return { x: `${leftPercent.toFixed(2)}%`, y: `${topPercent.toFixed(2)}%` };
   };
 
   return (
