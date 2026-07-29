@@ -19,20 +19,13 @@
 import type { Express, Request, Response } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { buildBrief } from '../brief/build-brief.js';
-import { getAllSourceStates } from '../poller/store.js';
-import { tryAuthenticate } from '../auth/require-auth.js';
-import { getGlobalPredictionHistory, NEUTRAL_PREDICTION_HISTORY } from '../predictions/history.js';
 import {
-  fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses,
-  type N2yoVisualPassesData,
-} from '../clients/n2yo/index.js';
-
-/** Same real-world ISS NORAD ID already used by the fast-tier poller (DECISIONS.md, 2026-07-16). */
-const ISS_NORAD_ID = 25544;
-/** Matches the fixture-established convention in n2yo.client.test.ts for this endpoint. */
-const VISUAL_PASSES_DAYS = 2;
-const VISUAL_PASSES_MIN_VISIBILITY_SECONDS = 300;
+  composeBriefForObserver,
+  logUnexpectedBriefError,
+  type ComposeBriefDeps,
+} from '../brief/compose-brief.js';
+import { tryAuthenticate } from '../auth/require-auth.js';
+import type { fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses } from '../clients/n2yo/index.js';
 
 /**
  * `lat`/`lon` are optional so an authenticated caller can fall back to
@@ -46,22 +39,14 @@ const BriefQuerySchema = z.object({
   lon: z.coerce.number().min(-180).max(180).optional(),
 });
 
-export interface BriefRouteDeps {
+export interface BriefRouteDeps extends ComposeBriefDeps {
   n2yoApiKey: string;
   prisma: PrismaClient;
   jwtAccessSecret: string;
   fetchN2yoVisualPasses?: typeof defaultFetchN2yoVisualPasses;
 }
 
-function logUnexpectedBriefError(label: string, error: unknown): void {
-  console.error(
-    `[brief] ${label} failed unexpectedly: ${error instanceof Error ? error.name : 'unknown error'}`,
-  );
-}
-
 export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
-  const fetchVisualPasses = deps.fetchN2yoVisualPasses ?? defaultFetchN2yoVisualPasses;
-
   app.get('/api/brief', async (req: Request, res: Response): Promise<void> => {
     const parsed = BriefQuerySchema.safeParse(req.query);
     if (!parsed.success) {
@@ -71,8 +56,6 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
       return;
     }
     const now = new Date();
-    const pollerState = getAllSourceStates();
-
     const userId = await tryAuthenticate(req, { jwtAccessSecret: deps.jwtAccessSecret });
 
     // Both coordinates or neither: a lone `lat` is a malformed request,
@@ -109,46 +92,7 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
       lon = saved.longitude;
     }
 
-    // f_hist is global, not per-request (DECISIONS.md), but only worth a
-    // DB round-trip when there's any chance of an active CME — a poller
-    // state with zero CME records at all can never produce one (the
-    // real selection in build-brief.ts's space-weather-card.ts can only
-    // narrow this set further), so this is a safe, cheap fast path, not
-    // a re-derivation of that selection policy.
-    const mayHaveActiveCme = (pollerState.donki.data?.cmes?.length ?? 0) > 0;
-    let history = NEUTRAL_PREDICTION_HISTORY;
-    if (mayHaveActiveCme) {
-      try {
-        history = await getGlobalPredictionHistory(deps.prisma);
-      } catch (error) {
-        // A history-lookup failure degrades to the neutral prior, same as
-        // "no accuracy-loop data yet" — it never blanks the whole Brief.
-        logUnexpectedBriefError('prediction history lookup', error);
-      }
-    }
-
-    let visualPasses: N2yoVisualPassesData | null;
-    try {
-      visualPasses = await fetchVisualPasses(
-        {
-          satId: ISS_NORAD_ID,
-          observerLat: lat,
-          observerLng: lon,
-          observerAlt: 0,
-          days: VISUAL_PASSES_DAYS,
-          minVisibility: VISUAL_PASSES_MIN_VISIBILITY_SECONDS,
-        },
-        deps.n2yoApiKey,
-        now,
-      );
-    } catch {
-      // fetchN2yoVisualPasses is documented to never throw, but this guard
-      // ensures a next-pass failure can never take down the rest of the
-      // Brief — same "one source down blanks only its own card" contract.
-      visualPasses = null;
-    }
-
-    const brief = buildBrief(pollerState, lat, lon, now, visualPasses, history);
+    const brief = await composeBriefForObserver(deps, lat, lon, now);
 
     const aurora = brief.spaceWeather.data?.aurora;
     if (
