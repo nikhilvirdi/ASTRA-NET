@@ -55,3 +55,84 @@ export function twilightStateForSunAltitude(sunAltDeg: number): TwilightState {
   }
   return { phase: 'night', value: 3 };
 }
+
+/**
+ * The four surface stops of DESIGN_SPEC.md §4.1's "Sky" ramp, each pinned
+ * to the `TwilightState.value` at which its phase *begins*. §4.1 names
+ * exactly four surface tokens and §2 names exactly four boundaries, and
+ * they line up one-to-one on the integers — no stop is interpolated into
+ * existence here:
+ *
+ *   value 0 (sun alt >= 0deg)  sky-100  "Day surface. Cool paper, not cream."
+ *   value 1 (sun alt = -6deg)  sky-600  "Nautical twilight surface."
+ *   value 2 (sun alt = -12deg) sky-800  "Astronomical twilight surface."
+ *   value 3 (sun alt = -18deg) sky-900  "Night surface. The deepest base."
+ *
+ * Civil twilight has no surface token of its own in §4.1, and none is
+ * invented: it is the 0->1 segment, i.e. the interpolation between the day
+ * and nautical surfaces. That is consistent with §2 describing civil as a
+ * transition ("Warming. Contrast softens.") rather than a resting state,
+ * and with §2's "transitions are continuous, not stepped". See
+ * DECISIONS.md for the one part of §2's civil description this ramp
+ * cannot express (there is no warm surface token in the locked palette).
+ *
+ * `sky-950` is deliberately absent: §4.1 restricts it to the 3D scene void
+ * and states "the 2D interface never uses pure black."
+ */
+const SURFACE_RAMP: readonly {
+  readonly value: number;
+  readonly rgb: readonly [number, number, number];
+}[] = [
+  { value: 0, rgb: [0xee, 0xf1, 0xf1] },
+  { value: 1, rgb: [0x3e, 0x4a, 0x4a] },
+  { value: 2, rgb: [0x1c, 0x24, 0x24] },
+  { value: 3, rgb: [0x11, 0x18, 0x18] },
+];
+
+function toHexPair(channel: number): string {
+  return Math.round(channel).toString(16).padStart(2, '0').toUpperCase();
+}
+
+/**
+ * DESIGN_SPEC.md §2/§4.1 — the interface surface color for a continuous
+ * twilight `value` from `twilightStateForSunAltitude`. Channel-wise linear
+ * interpolation in sRGB between the two bracketing stops, matching what a
+ * CSS color transition between the same two tokens would do (no doc pins
+ * an interpolation space; see DECISIONS.md).
+ *
+ * `value` is clamped to the ramp's [0, 3] domain, so a caller that passes
+ * an out-of-range number gets the day or night surface rather than an
+ * extrapolated color outside the locked palette. NaN yields the night
+ * surface — the safe end for a screen that may be in use outdoors.
+ *
+ * Returns an uppercase `#RRGGBB` string, the same notation §4.1 uses.
+ */
+export function surfaceColorForTwilight(value: number): string {
+  if (Number.isNaN(value)) {
+    return '#111818';
+  }
+  const clamped = Math.min(3, Math.max(0, value));
+  const lowerIndex = Math.min(SURFACE_RAMP.length - 2, Math.floor(clamped));
+  const lower = SURFACE_RAMP[lowerIndex];
+  const upper = SURFACE_RAMP[lowerIndex + 1];
+  if (lower === undefined || upper === undefined) {
+    return '#111818';
+  }
+
+  const t = clamped - lower.value;
+  const channels = lower.rgb.map((channel, i) => {
+    const target = upper.rgb[i] ?? channel;
+    return channel + (target - channel) * t;
+  });
+
+  return `#${channels.map(toHexPair).join('')}`;
+}
+
+/**
+ * Convenience composition of the two functions above — the form every
+ * rendering caller actually wants, so the `value` never has to be
+ * threaded through by hand. Same clamping and same palette.
+ */
+export function surfaceColorForSunAltitude(sunAltDeg: number): string {
+  return surfaceColorForTwilight(twilightStateForSunAltitude(sunAltDeg).value);
+}
