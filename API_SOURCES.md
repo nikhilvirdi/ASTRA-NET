@@ -5,7 +5,7 @@ Reference for every external API and dataset. All are free. For each: what it po
 **Binding rules:**
 
 - Every response is validated with **Zod** at the boundary before use (Phase 1). Never trust upstream shape.
-- Polling is **central where it can be** — one poller hits each source and fans results to all users via the in-memory store + SSE, so that portion of upstream load is constant regardless of user count. **This does not hold universally:** any endpoint that takes the observer's coordinates cannot be centrally polled, and today N2YO `visualpasses` is called live per request. Check the Rate-Budget Summary before assuming a source is user-independent.
+- Polling is **central where it can be** — one poller hits each source and fans results to all users via the in-memory store + SSE, so that portion of upstream load is constant regardless of user count. **This does not hold universally:** any endpoint taking the observer's coordinates has nothing to poll for. N2YO `visualpasses` is the one such endpoint, and it is served from the `Cache` table instead, which bounds its cost per observer position rather than per request. Check the Rate-Budget Summary before assuming a source is user-independent — and put any new per-observer endpoint behind the cache.
 - Every client implements timeout + retry-with-backoff and returns its documented fallback on failure — it must never throw up the stack.
 - Log all `429`s; if any source ever approaches its limit, raise its poll interval, don't add keys.
 
@@ -17,19 +17,27 @@ Most polling is central and shared, so that usage is **(one call per source per 
 
 Call counts below were measured by stubbing `fetch` and running both real poller tiers (Phase 12 verification, 2026-07-29), not estimated.
 
-| Source                  | Real limit                          | Our usage                                 | Headroom       |
-| ----------------------- | ----------------------------------- | ----------------------------------------- | -------------- |
-| N2YO `positions`        | 1000/hr (per endpoint)              | fast tier, **80/hr**                      | 12x under      |
-| **N2YO `visualpasses`** | **100/hr (per endpoint)**           | **1 per Brief view / share — not polled** | ⚠️ **binding** |
-| NASA (DONKI ×2 + NeoWs) | ~1000 req/hr (data.gov key)         | slow tier, **18/hr**                      | 55x under      |
-| NOAA SWPC (5 endpoints) | keyless, none published (be polite) | both tiers, **178/hr**                    | fine           |
-| Open-Meteo              | 600/min · 5000/hr · 10k/day         | 1 batch per Best-Spot query               | fine           |
-| CelesTrak               | keyless, cache-encouraged           | slow tier, **6/hr**                       | fine           |
-| JPL Horizons            | keyless, none published             | slow tier, **36/hr** (Sun + 5 planets)    | fine           |
+| Source                  | Real limit                          | Our usage                                | Headroom  |
+| ----------------------- | ----------------------------------- | ---------------------------------------- | --------- |
+| N2YO `positions`        | 1000/hr (per endpoint)              | fast tier, **80/hr**                     | 12x under |
+| N2YO `visualpasses`     | **100/hr (per endpoint)**           | **12/hr per observer position** (cached) | see below |
+| NASA (DONKI ×2 + NeoWs) | ~1000 req/hr (data.gov key)         | slow tier, **18/hr**                     | 55x under |
+| NOAA SWPC (5 endpoints) | keyless, none published (be polite) | both tiers, **178/hr**                   | fine      |
+| Open-Meteo              | 600/min · 5000/hr · 10k/day         | 1 batch per Best-Spot query              | fine      |
+| CelesTrak               | keyless, cache-encouraged           | slow tier, **6/hr**                      | fine      |
+| JPL Horizons            | keyless, none published             | slow tier, **36/hr** (Sun + 5 planets)   | fine      |
 
 **N2YO limits are per endpoint, not a single pool** — its docs state the API "is transaction limited by type" (`tle` 1000, `positions` 1000, `visualpasses` 100, `radiopasses` 100, `above` 100). An earlier version of this table recorded a single global 1000/hr and budgeted only the polled `positions` endpoint, which understated the real constraint by ~10x.
 
-`visualpasses` is observer-specific, so it **cannot** be centrally polled. It is called live and uncached on every `GET /api/brief` and every `POST /api/share`, which caps the app at roughly **100 Brief page-loads per hour (~1.7/min)** — and `/` and `/explore` each spend one. Retries make it worse: a 5xx or network failure costs up to 3 attempts, so a flaky N2YO can exhaust the budget in ~33 real page views. See `DECISIONS.md` (2026-07-29) for the full analysis and the deferred mitigation.
+`visualpasses` is observer-specific, so it **cannot** be centrally polled — there is no single result to poll _for_. It was previously called live and uncached on every `GET /api/brief` and every `POST /api/share`, which capped the whole product at roughly **100 Brief page-loads per hour (~1.7/min)**.
+
+It now goes through the `Cache` table with a **5-minute TTL**, keyed on the exact observer position (`brief/visual-passes-cache.ts`). That changes what the budget is spent on:
+
+- **Cost is per observer position, not per page view** — at most `3600/300 = 12` calls/hour per distinct position, however many people request it.
+- Every logged-out visitor shares `DEFAULT_OBSERVER_LOCATION`, so **all anonymous traffic collapses onto one key**. Measured: 600 anonymous page views in an hour cost **12** upstream calls, not 600.
+- Budget supports about **8 distinct positions refreshing continuously** (8 × 12 = 96/hr against the 100/hr limit).
+
+**The remaining constraint is a total N2YO outage.** `fetchWithRetry` makes 3 attempts on 5xx and network errors, so a failing source costs 36/hr per key and only ~2 positions fit inside 100/hr. Failed responses are cached at the same TTL specifically to bound this — uncached it would be 3 calls per page view — but it is the tightest case left. The TTL is the lever if that ever bites. See `DECISIONS.md` (2026-07-29).
 
 ---
 
@@ -40,7 +48,7 @@ Call counts below were measured by stubbing `fetch` and running both real poller
 - **Powers:** live ISS position, visible-pass predictions (Explained Passes, overfly alerts).
 - **Endpoint:** `https://api.n2yo.com/rest/v1/satellite/...`
 - **Key:** required (free; register at n2yo.com, generate in profile). Store in `.env`.
-- **Rate limit:** **per endpoint, not a shared pool** — `tle` 1000/hr, `positions` 1000/hr, **`visualpasses` 100/hr**, `radiopasses` 100/hr, `above` 100/hr. The polled `positions` call is comfortable centrally (80/hr); **`visualpasses` is the constraint**, because it is per-observer, called per request, and uncached. See the Rate-Budget Summary above.
+- **Rate limit:** **per endpoint, not a shared pool** — `tle` 1000/hr, `positions` 1000/hr, **`visualpasses` 100/hr**, `radiopasses` 100/hr, `above` 100/hr. The polled `positions` call is comfortable centrally (80/hr). `visualpasses` is per-observer and cannot be polled, so it is served from the `Cache` table on a 5-minute TTL — 12/hr per distinct position rather than one per request. See the Rate-Budget Summary above.
 - **Fallback:** if down, ISS card shows "position unavailable"; fall back to client-side `satellite.js` propagation from the last known TLE (CelesTrak) so the 3D scene still moves. Pass predictions degrade to "unavailable."
 
 ### NOAA SWPC — solar wind & Kp (real-time)

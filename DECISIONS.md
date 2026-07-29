@@ -974,3 +974,29 @@ Only a content check satisfies all four, and it is what the ISS and NEO cards al
 Both defects shipped for the same structural reason: the logic lived where the test config could not reach it (`build-brief`'s gate was only exercised through an unreachable fixture; the UI logic was inside a `.tsx`, and vitest here collects only `src/**/*.test.ts`).
 
 **Still open, unrelated and out of scope:** the causal chain rendered directly beneath this section is hardcoded placeholder text — "FLARE 19 JUL", "CME ARRIVING 23 JUL ±6h", "AURORA POSSIBLE AT YOUR LATITUDE" — with no binding to `brief.spaceWeather.data`. That is Phase 7/10 frontend work, not a Phase 12 resilience concern.
+
+### 2026-07-29 addendum — finding 2 closed: visual passes now cached
+
+The N2YO `visualpasses` rate-limit finding is resolved. `brief/visual-passes-cache.ts` puts the call behind the `Cache` table on a 5-minute TTL, wired in `compose-brief.ts` so both call sites (`GET /api/brief`, `POST /api/share`) are covered by one change.
+
+**TTL: 5 minutes.** No locked doc pins one, so it was chosen against the two real constraints. Upstream: a single key costs at most `3600/300 = 12` calls/hour, leaving room for ~8 distinct observer positions inside the 100/hr this endpoint allows. Staleness: pass predictions derive from TLEs that N2YO and CelesTrak refresh once or twice a day, so five minutes of age sits far below the resolution of the source data. Crucially the _"next"_ pass is not what is cached — `iss-card.ts`'s `selectNextPass` re-filters the cached list against each request's own clock, so a cached payload cannot leave an already-started pass sitting at the top of the Brief.
+
+**Key: the exact observer position, not a rounded grid.** Quantising to a grid would raise the hit rate for scattered coordinates, but it would serve passes computed for a point the observer is not standing at while presenting them as theirs — the same class of thing this codebase has refused three times already this phase. It is also unnecessary, which is the more interesting half: `getEffectiveLocation()` returns either a saved location (stable across reloads and across `/` and `/explore`) or `DEFAULT_OBSERVER_LOCATION`, which **every logged-out visitor shares**. Real traffic already collapses onto a handful of keys, and the anonymous majority onto exactly one. Coordinates are formatted to 4 decimal places (~11 m) purely so `51.5` and `51.5000` cannot produce two rows for one position — normalising the representation, not approximating the position.
+
+**Failures are cached at the same TTL.** The instinct is to cache only successes, but an outage is precisely when the budget is most at risk: `fetchWithRetry` makes three attempts on 5xx and network errors, so an uncached failure path costs 3 upstream calls per page view and would exhaust 100/hr in ~33 views. Caching the failure bounds a total outage to 3 calls per TTL per key. The cost is that the ISS card stays unavailable for up to one TTL after N2YO recovers — acceptable, and in line with the poller's own 45s–10min cadences.
+
+**The cache cannot break the Brief.** A read or write that throws is logged and stepped over, leaving the live fetch as the answer; an optimisation that can take down the page it optimises is a liability. Verified against a Prisma pointed at an unreachable host: it fails fast with `PrismaClientInitializationError` and falls through, and the 17 brief-route tests still pass in 714 ms.
+
+**Re-measured budget** (same method as before — stub `fetch`, drive the real code):
+
+|                                  | before             | after                                            |
+| -------------------------------- | ------------------ | ------------------------------------------------ |
+| 600 anonymous page views in 1 hr | 600 calls          | **12 calls**                                     |
+| cost model                       | per page view      | **per observer position**                        |
+| ceiling                          | ~100 page-loads/hr | ~**8 positions** refreshing continuously (96/hr) |
+
+`API_SOURCES.md`'s table, its per-source entry and its "polling is central" binding rule are all updated to match.
+
+**What is now the tightest case, stated plainly:** a _total_ N2YO outage. Retries make each refresh cost 3 calls, so 36/hr per key, and only ~2 distinct positions fit inside 100/hr. That is far better than the ~33 page views it used to take, but it is the constraint that would bite first, and raising the TTL is the lever. Not tuned further now because the right value depends on real traffic nobody has yet.
+
+**Unchanged and still open:** `POST /api/share` remains an unauthenticated write with no rate limiting of its own. The cache bounds its _upstream_ cost, but not the number of rows an anonymous caller can create.
