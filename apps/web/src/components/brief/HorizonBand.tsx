@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { DailyBrief } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
+import { COMPASS_POINTS, compassPointLeftPercent } from '@/lib/horizon-band';
 
 interface HorizonBandProps {
   brief: DailyBrief | null;
@@ -18,18 +19,6 @@ interface MarkerItem {
   colorClass: string;
   available: boolean;
 }
-
-// Compass direction ticks (0° to 360°)
-const COMPASS_TICKS = [
-  { label: 'N', deg: 0 },
-  { label: 'NE', deg: 45 },
-  { label: 'E', deg: 90 },
-  { label: 'SE', deg: 135 },
-  { label: 'S', deg: 180 },
-  { label: 'SW', deg: 225 },
-  { label: 'W', deg: 270 },
-  { label: 'N', deg: 360 },
-];
 
 export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactElement {
   const navigate = useNavigate();
@@ -222,12 +211,20 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-sky-600 z-0" />
       </div>
 
-      {/* Compass Ticks Axis (N NE E SE S SW W N) */}
-      <div className="relative w-full h-5 flex justify-between px-1 border-t border-sky-800/40">
-        {COMPASS_TICKS.map((t, idx) => (
-          <div key={idx} className="flex flex-col items-center">
+      {/* Compass axis — each mark positioned from its real azimuth, not
+          spaced evenly by flexbox, so the marks line up with the markers
+          above them. */}
+      <div className="relative w-full h-5 border-t border-sky-800/40">
+        {COMPASS_POINTS.map((point) => (
+          <div
+            key={point.label}
+            className="absolute top-0 flex flex-col items-center -translate-x-1/2"
+            style={{ left: `${compassPointLeftPercent(point.deg).toFixed(2)}%` }}
+          >
             <div className="w-[1px] h-1.5 bg-brass-500/60" />
-            <span className="type-micro text-[10px] text-brass-500 tracking-wider">{t.label}</span>
+            <span className="type-micro text-[10px] text-brass-500 tracking-wider">
+              {point.label}
+            </span>
           </div>
         ))}
       </div>
