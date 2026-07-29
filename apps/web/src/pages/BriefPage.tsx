@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { twilightStateForSunAltitude } from '@astranet/shared';
 import { createShareSnapshot, fetchBrief, getEffectiveLocation, type DailyBrief } from '@/lib/api';
 import { HorizonBand } from '@/components/brief/HorizonBand';
+import { spaceWeatherUiState } from '@/lib/space-weather-status';
 import { LivePulse } from '@/components/common/LivePulse';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
@@ -62,6 +63,11 @@ export function BriefPage(): React.ReactElement {
       mounted = false;
     };
   }, [location.lat, location.lon]);
+
+  // Dimming, live pulse and status notice for the space-weather section.
+  // Derived in one place so the three cannot disagree — they did: the pulse
+  // was driven by `status === 'ok'` alone and lit through a total outage.
+  const spaceWeatherUi = spaceWeatherUiState(brief?.spaceWeather ?? null);
 
   // Date formatting for Eyebrow
   const todayDateStr = new Date()
@@ -316,18 +322,20 @@ export function BriefPage(): React.ReactElement {
 
         {/* ── Entry 3: Space Weather & Causal Chain ────────────────────────── */}
         <article
-          className={`py-8 flex flex-col gap-6 ${brief?.spaceWeather.status === 'unavailable' ? 'opacity-50' : ''}`}
+          className={`py-8 flex flex-col gap-6 ${spaceWeatherUi.dimmed ? 'opacity-50' : ''}`}
         >
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <span className="type-micro text-brass-500 uppercase">
                 SPACE WEATHER & CAUSAL CHAIN
               </span>
-              <LivePulse active={brief?.spaceWeather.status === 'ok'} />
+              {/* Lit only when a source is actually current — a preserved
+                  stale reading keeps the card readable but must not pulse. */}
+              <LivePulse active={spaceWeatherUi.livePulseActive} />
             </div>
-            {brief?.spaceWeather.status === 'unavailable' && (
+            {spaceWeatherUi.notice !== null && (
               <span className="type-micro text-ember-500 tracking-wider">
-                SOURCE UNAVAILABLE · LAST SEEN 12:00
+                {spaceWeatherUi.notice}
               </span>
             )}
           </div>
