@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { twilightStateForSunAltitude } from '@astranet/shared';
-import { fetchBrief, getEffectiveLocation, type DailyBrief } from '@/lib/api';
+import { createShareSnapshot, fetchBrief, getEffectiveLocation, type DailyBrief } from '@/lib/api';
 import { HorizonBand } from '@/components/brief/HorizonBand';
 import { LivePulse } from '@/components/common/LivePulse';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
@@ -15,11 +15,29 @@ function formatTimeShort(isoUtcString: string | null | undefined): string {
 }
 
 export function BriefPage(): React.ReactElement {
+  const navigate = useNavigate();
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<boolean>(false);
 
   const location = getEffectiveLocation();
+
+  const handleShare = () => {
+    if (sharing) return;
+    setSharing(true);
+    createShareSnapshot(location.lat, location.lon)
+      .then((res) => {
+        navigate(`/share/${res.id}`);
+      })
+      .catch((err) => {
+        console.error('[BriefPage] Share error:', err);
+        alert('Failed to generate Shareable Sky Card.');
+      })
+      .finally(() => {
+        setSharing(false);
+      });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -101,13 +119,23 @@ export function BriefPage(): React.ReactElement {
             <span>CIVIL TWILIGHT ENDS 19:48</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => alert(`Location: ${location.name} (${location.lat}, ${location.lon})`)}
-            className="type-micro text-brass-500 hover:text-sky-100 transition-colors uppercase cursor-pointer border-b border-brass-500/40 hover:border-sky-100"
-          >
-            CHANGE LOCATION
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={sharing}
+              className="type-micro text-brass-300 hover:text-sky-100 transition-colors uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 px-2 py-0.5 rounded"
+            >
+              {sharing ? 'CREATING CARD...' : 'SHARE SKY CARD'}
+            </button>
+            <button
+              type="button"
+              onClick={() => alert(`Location: ${location.name} (${location.lat}, ${location.lon})`)}
+              className="type-micro text-brass-500 hover:text-sky-100 transition-colors uppercase cursor-pointer border-b border-brass-500/40 hover:border-sky-100"
+            >
+              CHANGE LOCATION
+            </button>
+          </div>
         </div>
       </header>
 

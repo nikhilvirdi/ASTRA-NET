@@ -10,6 +10,7 @@ import { BestSpotPage } from '@/pages/BestSpotPage';
 import { LogPage } from '@/pages/LogPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AccuracyPage } from '@/pages/AccuracyPage';
+import { SharePage } from '@/pages/SharePage';
 import { LoginPage } from '@/pages/LoginPage';
 
 /**
@@ -27,6 +28,7 @@ import { LoginPage } from '@/pages/LoginPage';
  *   /login       public  Auth (mode=login|signup)
  *   /signup      →       Redirect to /login?mode=signup
  *   /accuracy    public  Track record
+ *   /share/:id   public  Shareable Sky Card
  */
 export function App(): React.ReactElement {
   const user = useAppStore((s) => s.user);
@@ -50,6 +52,7 @@ export function App(): React.ReactElement {
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/best-spot" element={<BestSpotPage />} />
         <Route path="/accuracy" element={<AccuracyPage />} />
+        <Route path="/share/:id" element={<SharePage />} />
 
         {/* Auth routes */}
         <Route path="/login" element={<LoginPage />} />

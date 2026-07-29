@@ -693,3 +693,18 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ✅ Gates (real runs): `tsc --build --force` exit 0; `tsc --noEmit` (web) exit 0; `eslint .` exit 0; `vitest run --coverage` **apps/api 58 files / 767 tests exit 0** (`src/share` 99.36% lines, 100% functions), **apps/web 7 files / 82 tests exit 0**.
 - ⚠️ `prettier --check` reports 13 `src/share/*` files on Windows working trees — a CRLF artifact of git's autocrlf, not a formatting fault. Verified every committed file in scope is prettier-clean by piping `git show HEAD:<file>` through prettier, and `git status` is clean.
 - ⚠️ The pre-existing `f_hist` flake (2 of 3 full runs **on main**) did not fire this round but is unfixed and now logged in NOTES.md with its cause, arithmetic and three candidate fixes.
+
+## 2026-07-29 (Phase 11 — Shareable Sky Card page, frontend half, by Antigravity)
+
+- ✅ Done: `apps/web/src/pages/SharePage.tsx` (`/share/:id`) — public Shareable Sky Card page implementing DESIGN_SPEC.md §17. Renders for unauthenticated/logged-out visitors with single-viewport desktop composition:
+  - Surface background dynamically lit by real solar altitude (`snapshot.sky.surfaceHex`).
+  - Eyebrow strip on solid `sky-900` instrument plate displaying observer label and formatted UTC captured date.
+  - Headline at `display-l` size.
+  - Simplified `HorizonBand` (markers & horizon rule only, no time-scrub control) reusing the existing `HorizonBand.tsx` component with `hideScrubber={true}` and `belongsOnBand` real culling logic.
+  - Three key measurements as a mono row on a solid `sky-900` instrument plate.
+  - Discreet `ASTRANET · ADAPTIVE SKY TELEMETRY` wordmark + single CTA ("SEE YOUR OWN SKY →" linking to `/`).
+  - Open Graph & Twitter Card `<head>` meta tags (`og:title`, `og:description`, `og:image`, `og:url`, `twitter:card`).
+- ✅ Done: `apps/web/src/pages/BriefPage.tsx` — added "SHARE SKY CARD" entry point button in the header eyebrow strip. Calls `createShareSnapshot` via `POST /api/share` and navigates directly to `/share/:id`.
+- ✅ Done: `apps/web/src/App.tsx` — registered public route `<Route path="/share/:id" element={<SharePage />} />`.
+- ✅ Done: `apps/web/src/lib/api.ts` — added TypeScript schemas and API fetchers (`fetchShareSnapshot`, `createShareSnapshot`).
+- ✅ Done: `apps/web/src/lib/share-helpers.ts` + `share-helpers.test.ts` — pure layout/formatting helpers with 100% test coverage under Vitest (4 new unit test suites passing).

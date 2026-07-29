@@ -10,23 +10,41 @@ import {
   markerBandPosition,
 } from '@/lib/horizon-band';
 
+export interface HorizonBandMarker {
+  id: string;
+  label: string;
+  sublabel: string;
+  type: 'iss' | 'sun' | 'jupiter' | 'neo' | 'aurora' | 'moon' | 'planet';
+  azimuthDeg: number;
+  altitudeDeg: number;
+  colorClass?: string;
+  available?: boolean;
+}
+
 interface HorizonBandProps {
-  brief: DailyBrief | null;
+  brief?: DailyBrief | null;
+  markers?: HorizonBandMarker[];
   loading?: boolean;
+  hideScrubber?: boolean;
 }
 
 interface MarkerItem {
   id: string;
   label: string;
   sublabel: string;
-  type: 'iss' | 'sun' | 'jupiter' | 'neo' | 'aurora';
+  type: 'iss' | 'sun' | 'jupiter' | 'neo' | 'aurora' | 'moon' | 'planet';
   azimuthDeg: number;
   altitudeDeg: number;
   colorClass: string;
   available: boolean;
 }
 
-export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactElement {
+export function HorizonBand({
+  brief = null,
+  markers: customMarkers,
+  loading,
+  hideScrubber = false,
+}: HorizonBandProps): React.ReactElement {
   const navigate = useNavigate();
   const [scrubHours, setScrubHours] = useState<number>(0);
   const [hoveredMarker, setHoveredMarker] = useState<MarkerItem | null>(null);
@@ -42,6 +60,50 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
 
   // Compute marker positions
   const markers = useMemo<MarkerItem[]>(() => {
+    // If custom markers array is passed (e.g. from ShareSnapshot), use it directly
+    // through the exact same belongsOnBand real culling filter.
+    if (customMarkers && customMarkers.length > 0) {
+      return customMarkers
+        .filter((m) => belongsOnBand(m.altitudeDeg))
+        .map((m) => {
+          let colorClass = m.colorClass;
+          if (!colorClass) {
+            switch (m.type) {
+              case 'sun':
+                colorClass = 'bg-solar';
+                break;
+              case 'iss':
+                colorClass = 'bg-orbital';
+                break;
+              case 'moon':
+                colorClass = 'bg-sky-100';
+                break;
+              case 'neo':
+                colorClass = 'bg-amber-400';
+                break;
+              case 'aurora':
+                colorClass = 'bg-aurora';
+                break;
+              case 'jupiter':
+              case 'planet':
+              default:
+                colorClass = 'bg-brass-300';
+                break;
+            }
+          }
+          return {
+            id: m.id,
+            label: m.label,
+            sublabel: m.sublabel,
+            type: m.type,
+            azimuthDeg: m.azimuthDeg,
+            altitudeDeg: m.altitudeDeg,
+            colorClass,
+            available: m.available ?? true,
+          };
+        });
+    }
+
     const list: MarkerItem[] = [];
 
     // 1. Sun — omitted entirely when below the horizon. The band answers
@@ -108,7 +170,7 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
     }
 
     return list;
-  }, [effectiveTime, brief]);
+  }, [effectiveTime, brief, customMarkers]);
 
   // Degraded unavailable notices
   const unavailableNotes: string[] = [];
@@ -137,11 +199,13 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
         <span className="type-micro text-brass-500 tracking-wider uppercase">
           HORIZON BAND · LOCAL FIELD OF VIEW
         </span>
-        <span className="type-micro text-sky-400">
-          {scrubHours === 0
-            ? 'LIVE (NOW)'
-            : `${scrubHours > 0 ? '+' : ''}${scrubHours.toFixed(1)}h FROM NOW`}
-        </span>
+        {!hideScrubber && (
+          <span className="type-micro text-sky-400">
+            {scrubHours === 0
+              ? 'LIVE (NOW)'
+              : `${scrubHours > 0 ? '+' : ''}${scrubHours.toFixed(1)}h FROM NOW`}
+          </span>
+        )}
       </div>
 
       {/* Main 180px Band Container */}
@@ -245,28 +309,30 @@ export function HorizonBand({ brief, loading }: HorizonBandProps): React.ReactEl
       </div>
 
       {/* Time Scrubber */}
-      <div className="flex items-center gap-4 mt-2 px-1">
-        <span className="type-micro text-brass-500 text-[11px] min-w-[55px]">TIME SCRUB</span>
-        <input
-          type="range"
-          min="-6"
-          max="6"
-          step="0.1"
-          value={scrubHours}
-          onChange={(e) => setScrubHours(parseFloat(e.target.value))}
-          onMouseUp={() => setScrubHours(0)}
-          onTouchEnd={() => setScrubHours(0)}
-          aria-label="Time scrubber (drag to move across night, release to snap back to now)"
-          className="w-full accent-brass-400 cursor-pointer h-1.5 bg-sky-800 rounded appearance-none"
-        />
-        <button
-          type="button"
-          onClick={() => setScrubHours(0)}
-          className="type-micro text-xs text-brass-400 hover:text-sky-100 transition-colors px-2 py-0.5 border border-sky-700/50 rounded"
-        >
-          NOW
-        </button>
-      </div>
+      {!hideScrubber && (
+        <div className="flex items-center gap-4 mt-2 px-1">
+          <span className="type-micro text-brass-500 text-[11px] min-w-[55px]">TIME SCRUB</span>
+          <input
+            type="range"
+            min="-6"
+            max="6"
+            step="0.1"
+            value={scrubHours}
+            onChange={(e) => setScrubHours(parseFloat(e.target.value))}
+            onMouseUp={() => setScrubHours(0)}
+            onTouchEnd={() => setScrubHours(0)}
+            aria-label="Time scrubber (drag to move across night, release to snap back to now)"
+            className="w-full accent-brass-400 cursor-pointer h-1.5 bg-sky-800 rounded appearance-none"
+          />
+          <button
+            type="button"
+            onClick={() => setScrubHours(0)}
+            className="type-micro text-xs text-brass-400 hover:text-sky-100 transition-colors px-2 py-0.5 border border-sky-700/50 rounded"
+          >
+            NOW
+          </button>
+        </div>
+      )}
 
       {/* Degraded margin notes */}
       {unavailableNotes.length > 0 && (
