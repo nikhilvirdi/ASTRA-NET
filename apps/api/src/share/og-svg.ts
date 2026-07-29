@@ -54,7 +54,49 @@ const EYEBROW_BASELINE = 90;
 const HEADLINE_FIRST_BASELINE = 196;
 const HORIZON_RULE_Y = 442;
 const HORIZON_MAX_RISE = 62;
-const HORIZON_MAX_DROP = 26;
+/**
+ * Below-horizon markers are compressed into a much shallower band than the
+ * rise above it. Their exact depth was never the message — dimming and
+ * position relative to the rule carry "below", and 90deg of depth was
+ * already squeezed into a few px — so the space is better spent keeping
+ * the glyphs clear of the label rows underneath.
+ *
+ * **Known residual, measured not guessed.** The rule-to-plate budget is
+ * 50px and has to hold three things: below-horizon glyphs, the compass
+ * ticks and their labels, and the below-horizon label row. For the deepest
+ * marker's glyph to clear the compass label band entirely this value would
+ * have to be under 5.75px, which is too shallow for a marker to read as
+ * below the rule at all. At 16 a Sun glyph clears the compass labels down
+ * to -32.3deg; past that, and only when its azimuth falls within ~5deg of
+ * a tick, the disc can touch a compass label. That bites on mid-winter
+ * night cards at mid latitudes (London reaches about -61.9deg). Resolving
+ * it properly means re-composing the band's vertical rhythm, which is a
+ * §17 decision rather than a bug fix, so it is recorded here and in
+ * NOTES.md instead of being half-solved.
+ */
+const HORIZON_MAX_DROP = 16;
+/** Compass tick labels, measured from the rule. */
+const COMPASS_LABEL_OFFSET = 26;
+/**
+ * Below-horizon marker labels sit on one fixed baseline beneath the compass
+ * row rather than tracking their marker at `y + 26`.
+ *
+ * `altitudeToY` compresses the whole below-horizon range into a few px, so a
+ * label that tracked its marker landed inside the compass row for every
+ * altitude from -1deg to -40deg — and the Sun during any twilight is at
+ * -0.x to -18deg, which made the collision the card's default state rather
+ * than an edge case. The compass is the band's coordinate system (§9), so
+ * the fix moves the transient thing, never the reference frame: suppressing
+ * a tick would delete the anchor exactly where the interesting object is.
+ *
+ * A shared baseline also aligns the labels into a row, which reads as
+ * deliberate structure rather than scattered text.
+ *
+ * Residual, rare: two below-horizon markers close in azimuth (Sun and Moon)
+ * would overlap each other on this row. Planets below the horizon are
+ * omitted entirely, so only those two can ever contend.
+ */
+const BELOW_HORIZON_LABEL_BASELINE = 486;
 const FACT_LABEL_BASELINE = 512;
 const FACT_VALUE_BASELINE = 556;
 const FOOTER_BASELINE = 594;
@@ -281,7 +323,7 @@ function renderMarker(marker: ShareMarker, palette: InkPalette): string {
   const x = azimuthToX(marker.azimuthDeg);
   const y = altitudeToY(marker.altitudeDeg);
   const below = marker.altitudeDeg < 0;
-  const labelY = below ? y + 26 : y - 18;
+  const labelY = below ? BELOW_HORIZON_LABEL_BASELINE : y - 18;
   return [
     `<g opacity="${below ? '0.5' : '1'}">`,
     markerShape(marker, x, y, palette),
@@ -363,7 +405,7 @@ export function composeShareCardSvg({ snapshot, fonts }: ComposeShareCardSvgPara
     const x = azimuthToX(tick.deg);
     return [
       `<line x1="${x.toFixed(1)}" y1="${HORIZON_RULE_Y}" x2="${x.toFixed(1)}" y2="${HORIZON_RULE_Y + 8}" stroke="${palette.brass}" stroke-width="1"/>`,
-      `<text x="${x.toFixed(1)}" y="${HORIZON_RULE_Y + 26}" text-anchor="middle" font-family="${MONO_FAMILY}" font-size="${SIZE_MICRO}" letter-spacing="${TRACKING_MICRO.toFixed(2)}" fill="${palette.brass}">${tick.label}</text>`,
+      `<text x="${x.toFixed(1)}" y="${HORIZON_RULE_Y + COMPASS_LABEL_OFFSET}" text-anchor="middle" font-family="${MONO_FAMILY}" font-size="${SIZE_MICRO}" letter-spacing="${TRACKING_MICRO.toFixed(2)}" fill="${palette.brass}">${tick.label}</text>`,
     ].join('');
   }).join('');
 

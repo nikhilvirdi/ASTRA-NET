@@ -498,3 +498,91 @@ describe('the instrument plate (DESIGN_SPEC.md §17)', () => {
     expect(worstMuted).toBeCloseTo(1.52, 1);
   });
 });
+
+describe('below-horizon marker labels (compass collision fix)', () => {
+  const MICRO = 15;
+  const ASCENDER = MICRO * 0.75;
+  const DESCENDER = MICRO * 0.25;
+  const COMPASS_LABEL_BASELINE = 468;
+  const BELOW_LABEL_BASELINE = 486;
+
+  /** Every <text> baseline in the document, with its x. */
+  function texts(svg: string): { x: number; y: number; body: string }[] {
+    return [...svg.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].map((m) => {
+      const attr = (n: string): number =>
+        Number(new RegExp(`${n}="([^"]*)"`).exec(m[1] ?? '')?.[1] ?? NaN);
+      return { x: attr('x'), y: attr('y'), body: m[2] ?? '' };
+    });
+  }
+
+  function withSun(altitudeDeg: number, azimuthDeg = 318.4): ShareSnapshot {
+    return makeShareSnapshot({
+      horizon: {
+        markers: [
+          {
+            id: 'sun',
+            label: 'SUN',
+            sublabel: `ALT ${altitudeDeg}°`,
+            type: 'sun',
+            azimuthDeg,
+            altitudeDeg,
+          },
+        ],
+      },
+    });
+  }
+
+  it('puts a below-horizon label on its own baseline, not tracking the marker', () => {
+    // The bug: labelY was markerY + 26, and altitudeToY compresses the whole
+    // below-horizon range into a few px, so the label landed in the compass
+    // row for every shallow depth — which is every twilight.
+    for (const alt of [-1, -4, -6, -14.2, -18, -40, -90]) {
+      const sun = texts(compose(withSun(alt))).find((t) => t.body === 'SUN');
+      expect(sun?.y).toBe(BELOW_LABEL_BASELINE);
+    }
+  });
+
+  it('never lets a below-horizon label touch the compass row, at any altitude', () => {
+    const compassBottom = COMPASS_LABEL_BASELINE + DESCENDER;
+    const belowTop = BELOW_LABEL_BASELINE - ASCENDER;
+    expect(belowTop).toBeGreaterThan(compassBottom);
+
+    for (const alt of [-0.1, -1, -6, -14.2, -32, -60, -90]) {
+      const svg = compose(withSun(alt));
+      const sun = texts(svg).find((t) => t.body === 'SUN')!;
+      const ticks = texts(svg).filter((t) => /^(N|NE|E|SE|S|SW|W|NW)$/.test(t.body));
+      for (const tick of ticks) {
+        // Same row would mean overlap wherever the x ranges meet.
+        expect(sun.y - ASCENDER).toBeGreaterThan(tick.y + DESCENDER);
+      }
+    }
+  });
+
+  it('regression: the NW tick and a twilight Sun no longer share a row', () => {
+    // The exact case from the rendered card — Sun at az 318.4 sits 10.1px
+    // from the NW tick at az 315, so only vertical separation can save it.
+    const svg = compose(withSun(-14.2, 318.4));
+    const sun = texts(svg).find((t) => t.body === 'SUN')!;
+    const nw = texts(svg).find((t) => t.body === 'NW')!;
+
+    expect(Math.abs(sun.x - nw.x)).toBeLessThan(15);
+    expect(sun.y).not.toBe(nw.y);
+    expect(sun.y - ASCENDER).toBeGreaterThan(nw.y + DESCENDER);
+  });
+
+  it('leaves above-horizon labels tracking their own marker', () => {
+    // Only the below-horizon case moves to a shared row; above the rule
+    // there is room, and a fixed row would detach the label from its marker.
+    const svg = compose();
+    const iss = texts(svg).find((t) => t.body === 'ISS')!;
+    const moon = texts(svg).find((t) => t.body === 'MOON')!;
+    expect(iss.y).not.toBe(BELOW_LABEL_BASELINE);
+    expect(moon.y).not.toBe(BELOW_LABEL_BASELINE);
+    // The ISS is much higher than the Moon, so its label must be higher too.
+    expect(iss.y).toBeLessThan(moon.y);
+  });
+
+  it('keeps the below-horizon label row clear of the fact plate', () => {
+    expect(BELOW_LABEL_BASELINE + DESCENDER).toBeLessThan(492);
+  });
+});
