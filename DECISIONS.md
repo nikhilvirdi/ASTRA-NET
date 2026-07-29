@@ -947,3 +947,30 @@ The obvious mitigation is already half-built and unused: `cache/store.ts` is a P
 `celestrak`, `jpl-horizons`, `n2yo`, `nasa`, `open-meteo` and `swpc` each carry their own copy. Compared line by line they are behaviourally identical — 10s timeout, 3 attempts, 500ms initial backoff doubling, 4xx not retried — with one deliberate difference: CelesTrak's takes a `parseResponse` parameter because its TLE endpoint returns plain text. So this is **not** an inconsistent-resilience finding; every source genuinely behaves the same under failure, which the outage suite confirms across all five modes.
 
 It is still six copies of the same retry policy, so any future change to timeout or backoff has six places to miss. Consolidating into a shared module is the durable fix and is left for a phase that is allowed to add code.
+
+### 2026-07-29 addendum — the space-weather degradation gap is fixed
+
+Finding 1 above is closed. Two notes on how, because the obvious fix would have introduced a different bug.
+
+**The gate is content-based, not `healthy`-based.** ARCHITECTURE.md §5 names the health flag as what "drives which cards degrade", and the instinct is to write `solarWind.healthy || spaceWeatherForecast.healthy`. That regresses a documented behaviour: API_SOURCES.md's SWPC fallback is "use last cached value with an aged freshness stamp; **if never fetched this session**, shows unavailable". A preserved reading is unhealthy but real, and the poller goes out of its way to keep it — gating on `healthy` would blank the card the moment SWPC wavered and throw that value away.
+
+The four reachable states make the requirement clear:
+
+| SWPC state        | store `data`                | `healthy` | card should be                  |
+| ----------------- | --------------------------- | --------- | ------------------------------- |
+| never fetched     | null                        | false     | unavailable                     |
+| fetched OK        | values                      | true      | ok, live                        |
+| failed, no prior  | **object with null fields** | false     | **unavailable** ← was `ok`      |
+| failed, had prior | prior values                | false     | **ok, not live** ← must survive |
+
+Only a content check satisfies all four, and it is what the ISS and NEO cards already do. `healthy` remains the _freshness_ signal (§6), travelling to the client on `solarLine.live/forecast` — which is precisely where the UI fix consumes it.
+
+**Audit result for "does this pattern exist elsewhere": no.** `build-brief.ts` had the only card gate deciding availability from store-entry nullness. `iss` and `neoImagery` both gate on card content. The poller's own `previous.data !== null` checks (fast-tier ×1, slow-tier ×5) ask a different question — "is there a prior value worth preserving" — and are correct as written.
+
+**Why it survived a full test suite.** `build-brief.test.ts` set `state.solarWind = empty()` (`data: null`), a state the poller only produces before the very first tick. The test proved the contract for an input the system cannot reach in production. Both reachable states are now covered.
+
+**The UI carried a second, independent defect.** The API response was honest throughout — headline "space weather unavailable", every value null, nested `healthy: false`. The screen was not: `BriefPage` derived the Live Pulse from `status === 'ok'` alone, and the status notice hardcoded `LAST SEEN 12:00` irrespective of reality. Fixing the API gate alone would have fixed the dimming and the notice by accident while leaving the pulse wrong for the stale case, which the API cannot express through `status` at all. So the UI now models three states rather than two — live / stale / unavailable — in `lib/space-weather-status.ts`, tested directly rather than through the payload.
+
+Both defects shipped for the same structural reason: the logic lived where the test config could not reach it (`build-brief`'s gate was only exercised through an unreachable fixture; the UI logic was inside a `.tsx`, and vitest here collects only `src/**/*.test.ts`).
+
+**Still open, unrelated and out of scope:** the causal chain rendered directly beneath this section is hardcoded placeholder text — "FLARE 19 JUL", "CME ARRIVING 23 JUL ±6h", "AURORA POSSIBLE AT YOUR LATITUDE" — with no binding to `brief.spaceWeather.data`. That is Phase 7/10 frontend work, not a Phase 12 resilience concern.
