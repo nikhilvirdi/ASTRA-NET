@@ -82,20 +82,41 @@ export function buildBrief(
       ? okCard(issCardData)
       : UNAVAILABLE_CARD;
 
-  const spaceWeatherHasAnySource =
-    pollerState.solarWind.data !== null || pollerState.spaceWeatherForecast.data !== null;
-  const spaceWeather: BriefCard<SpaceWeatherCard> = spaceWeatherHasAnySource
-    ? okCard(
-        buildSpaceWeatherCard(
-          pollerState.solarWind,
-          pollerState.spaceWeatherForecast,
-          pollerState.donki,
-          observerLatDeg,
-          observerLonDeg,
-          now,
-          predictionHistory,
-        ),
-      )
+  // Availability is decided on the card's own *content*, the same question
+  // the ISS and NEO cards above already ask — not on whether the store holds
+  // an entry.
+  //
+  // The previous `solarWind.data !== null || spaceWeatherForecast.data !== null`
+  // check could never fail: the poller's total-failure path writes a
+  // *non-null* object whose fields are null (`fast-tier.ts`'s
+  // `writeSolarWindResult`, and the slow tier's equivalent), so `data` is
+  // null only before the very first tick. A complete SWPC outage therefore
+  // reported `status: 'ok'` with an empty card for the whole outage.
+  //
+  // Deliberately not gated on `healthy` either, despite that being the flag
+  // ARCHITECTURE.md §5 names. SWPC's documented fallback (API_SOURCES.md) is
+  // "use last cached value with an aged freshness stamp; if never fetched
+  // this session, shows unavailable" — so a stale-but-real reading has to
+  // keep the card *available* while being reported as not live. Gating on
+  // `healthy` would blank the card the moment SWPC wavered and discard the
+  // value the poller deliberately preserved. `healthy` still travels to the
+  // client on `solarLine.live/forecast`, which is what drives the live
+  // indicator; it is a freshness signal (§6), not an availability one.
+  const spaceWeatherCard = buildSpaceWeatherCard(
+    pollerState.solarWind,
+    pollerState.spaceWeatherForecast,
+    pollerState.donki,
+    observerLatDeg,
+    observerLonDeg,
+    now,
+    predictionHistory,
+  );
+  const spaceWeatherHasReading =
+    spaceWeatherCard.solarLine.live.speedKmS !== null ||
+    spaceWeatherCard.solarLine.live.kp !== null ||
+    spaceWeatherCard.solarLine.forecast.kp !== null;
+  const spaceWeather: BriefCard<SpaceWeatherCard> = spaceWeatherHasReading
+    ? okCard(spaceWeatherCard)
     : UNAVAILABLE_CARD;
 
   const neoImageryData = buildNeoImageryCard(pollerState.neows, pollerState.gibs);

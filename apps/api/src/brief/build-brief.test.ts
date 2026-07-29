@@ -249,6 +249,53 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
     expect(brief.spaceWeather.data).toBeNull();
   });
 
+  it('partial-outage case: SWPC failed with no prior value — the state the poller really writes', () => {
+    // The test above uses `empty()` (`data: null`), which the poller only
+    // ever produces before the very first tick. On a real total failure with
+    // nothing cached, `fast-tier.ts`'s writeSolarWindResult writes a
+    // *non-null* object whose fields are null, and the slow tier does the
+    // same. The card gate used to ask `data !== null`, so it could never see
+    // this case and reported `ok` with an empty card for the whole outage.
+    const state = fullPollerState();
+    state.solarWind = {
+      data: { kpCurrent: null, rtswPlasma: null, fetchedAt: NOW.toISOString() },
+      fetchedAt: NOW.toISOString(),
+      healthy: false,
+    };
+    state.spaceWeatherForecast = {
+      data: { kpObserved: null, kpForecast: null, solarWind: null, fetchedAt: NOW.toISOString() },
+      fetchedAt: NOW.toISOString(),
+      healthy: false,
+    };
+
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
+
+    expect(brief.spaceWeather.status).toBe('unavailable');
+    expect(brief.spaceWeather.data).toBeNull();
+    // Still only its own card.
+    expect(brief.status).toBe('ok');
+    expect(brief.skyAnchor.status).toBe('ok');
+    expect(brief.iss.status).toBe('ok');
+  });
+
+  it('keeps the card available when SWPC is stale but still carries a reading', () => {
+    // API_SOURCES.md's SWPC fallback: "use last cached value with an aged
+    // freshness stamp". A preserved reading is unhealthy but real, so the
+    // card must stay available — which is why availability is decided on
+    // content rather than on the `healthy` flag.
+    const state = fullPollerState();
+    state.solarWind = { ...state.solarWind, healthy: false };
+    state.spaceWeatherForecast = { ...state.spaceWeatherForecast, healthy: false };
+
+    const brief = buildBrief(state, 45, -75, NOW, NO_VISUAL_PASSES, NEUTRAL_HISTORY);
+
+    expect(brief.spaceWeather.status).toBe('ok');
+    expect(brief.spaceWeather.data).not.toBeNull();
+    // ...and the staleness is still reported, so the client can show it.
+    expect(brief.spaceWeather.data?.solarLine.live.healthy).toBe(false);
+    expect(brief.spaceWeather.data?.solarLine.forecast.healthy).toBe(false);
+  });
+
   it('partial-outage case: ISS store down but next-pass fetched — ISS card still resolves', () => {
     const state = fullPollerState();
     state.iss = empty();

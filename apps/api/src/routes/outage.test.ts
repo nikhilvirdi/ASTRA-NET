@@ -60,6 +60,14 @@ import horizonsSun from '../clients/jpl-horizons/__fixtures__/jpl_horizons.json'
 import horizonsRaDec from '../clients/jpl-horizons/__fixtures__/jpl_horizons_jupiter_csv.json';
 import openMeteo from '../clients/open-meteo/__fixtures__/open_meteo.json';
 
+/**
+ * The retry backoff here is real, not faked, because it is part of what is
+ * being verified. A failing source costs ~1.5s per client call, and the
+ * N2YO cases pay it twice — once in the poller tick, once in the route's
+ * own live visual-passes call — which overruns vitest's 5s default.
+ */
+vi.setConfig({ testTimeout: 30_000 });
+
 const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
 const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
 const N2YO_KEY = 'TEST_KEY';
@@ -284,44 +292,36 @@ describe.each<FailureMode>(['http500', 'http503', 'http404', 'malformed', 'abort
       expect(res.body.status).toBe('ok');
     });
 
-    it('KNOWN GAP: SWPC down leaves the card "ok" instead of "unavailable"', async () => {
-      // Pins a real defect rather than asserting the contract — see
-      // DECISIONS.md 2026-07-29. `build-brief.ts` gates this card on
-      // `solarWind.data !== null`, but the fast tier's total-failure path
-      // writes a non-null object whose *fields* are null, so the gate can
-      // never open. The `healthy: false` flag ARCHITECTURE.md §5 says should
-      // drive degradation is not consulted at the card level.
-      //
-      // Isolation itself is intact — no other card is touched — which is why
-      // this is a status-signalling defect, not a cascade.
+    it('SWPC down with no prior reading blanks only the space-weather card', async () => {
+      // Regression: this reported `ok` with an empty card for the whole
+      // outage, because the gate asked whether the *store entry* was null
+      // and the poller's failure path writes a non-null object with null
+      // fields. It now asks whether the card has a reading.
       injectFailures({ swpc: mode });
       await pollBothTiers();
 
       const res = await getBrief();
       expect(res.status).toBe(200);
-      expect(res.body.spaceWeather.status).toBe('ok');
-      // The contents are honestly empty and the nested health flags are
-      // false, so the data layer is not lying — only the card's own status is.
-      const card = res.body.spaceWeather.data!;
-      expect(card.solarLine.headline).toBe('space weather unavailable');
-      expect(card.solarLine.live.healthy).toBe(false);
-      expect(card.solarLine.live.kp).toBeNull();
-      expect(card.aurora).toBeNull();
+      expect(res.body.spaceWeather.status).toBe('unavailable');
+      expect(res.body.spaceWeather.data).toBeNull();
 
+      // Isolation intact — nothing else degrades with it.
       expect(res.body.skyAnchor.status).toBe('ok');
       expect(res.body.iss.status).toBe('ok');
       expect(res.body.neoImagery.status).toBe('ok');
+      expect(res.body.status).toBe('ok');
     });
 
-    it('KNOWN GAP: the store marks SWPC unhealthy, so the signal exists but is unused', async () => {
-      // The information the card needs is present and correct one layer down.
+    it('the store still records SWPC as unhealthy but non-null', async () => {
+      // The store's own shape is unchanged — the fix was in how the card
+      // interrogates it, not in what the poller writes. Pinned so a future
+      // change to either side has to face the other.
       injectFailures({ swpc: mode });
       await pollBothTiers();
 
       const state = getAllSourceStates();
       expect(state.solarWind.healthy).toBe(false);
       expect(state.spaceWeatherForecast.healthy).toBe(false);
-      // ...but non-null, which is exactly why the card's null-check misses it.
       expect(state.solarWind.data).not.toBeNull();
     });
 
@@ -411,13 +411,8 @@ describe.each<FailureMode>(['http500', 'http503', 'http404', 'malformed', 'abort
       expect(res.body.skyAnchor.status).toBe('ok');
       expect(res.body.skyAnchor.data).not.toBeNull();
       expect(res.body.iss.status).toBe('unavailable');
+      expect(res.body.spaceWeather.status).toBe('unavailable');
       expect(typeof res.body.learningMoment).toBe('string');
-
-      // Space weather carries the same KNOWN GAP as the single-source case
-      // above: 'ok' with empty contents rather than 'unavailable'. Asserted
-      // here too so a fix has to update both sites deliberately.
-      expect(res.body.spaceWeather.status).toBe('ok');
-      expect(res.body.spaceWeather.data?.aurora ?? null).toBeNull();
     });
   },
 );
