@@ -179,9 +179,14 @@
     --sky-900: #111818;
     --sky-950: #0a0e0e;
 
-    /* Semantic surface slots — statically wired to night until twilight fn. */
-    /* The twilight hook (Phase 7 follow-on, after packages/shared fn lands) */
-    /* will override these at runtime via solar-altitude interpolation.      */
+    /* Semantic surface slots — deliberately static, not awaiting a function.
+       The shared engine this once waited on has landed (packages/shared's
+       surfaceColorForTwilight); the runtime wiring that consumed it was
+       reverted in 41c3d7a and has not been reinstated. So --surface is
+       night, always, and the server-rendered OG card is currently the only
+       twilight-accurate surface in the product — it computes its own color
+       independently and stores it per snapshot. Re-wiring this is live work,
+       not a missing dependency. See PROGRESS.md. */
     --surface: var(--sky-900);
     --surface-secondary: var(--sky-800);
     --surface-tertiary: var(--sky-600);
@@ -228,7 +233,9 @@
     font-family: 'Archivo', system-ui, sans-serif;
     /* §5.4: Tabular lining figures throughout */
     font-variant-numeric: tabular-nums lining-nums;
-    /* Smooth surface transitions when twilight function updates --surface */
+    /* Kept for the twilight re-wiring described above: --surface is static
+       today, so this transition never fires. It is retained rather than
+       deleted so the reinstated wiring animates rather than snapping. */
     transition: background-color var(--dur-transition) var(--ease-expo-out);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
