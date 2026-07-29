@@ -20,6 +20,7 @@ model User {
   locations     Location[]
   skyLogEntries SkyLogEntry[]
   predictions   Prediction[]
+  shareCards    ShareCard[]
 }
 
 model Session {
@@ -84,4 +85,24 @@ model Cache {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+/// Shareable Sky Card (WORKPLAN.md Phase 11) — one frozen, self-contained
+/// snapshot of a Brief moment, served publicly at `/share/:id`. `id` is a
+/// random URL-safe token rather than `@default(cuid())`: this row is
+/// world-readable by anyone holding the id and carries the observer's
+/// coordinates, so ids must not be enumerable. `userId` is nullable
+/// because an anonymous visitor can share too; when it is set, the
+/// cascade makes delete-my-data (ARCHITECTURE.md §7) remove the card.
+model ShareCard {
+  id         String   @id
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capturedAt DateTime
+  latitude   Float
+  longitude  Float
+  snapshot   Json
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
