@@ -18,6 +18,7 @@ import { registerBestSpotRoute, type BestSpotRouteDeps } from './routes/best-spo
 import { registerLogRoute } from './routes/log.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAccuracyRoute } from './routes/accuracy.js';
+import { registerShareRoutes, type ShareRouteDeps } from './routes/share.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -29,6 +30,8 @@ export interface CreateAppDeps {
   verifyGoogleIdToken?: AuthRouteDeps['verifyGoogleIdToken'];
   fetchOpenMeteoBatch?: BestSpotRouteDeps['fetchOpenMeteoBatch'];
   bortleAt?: BestSpotRouteDeps['bortleAt'];
+  publicApiOrigin?: ShareRouteDeps['publicApiOrigin'];
+  webOrigin?: ShareRouteDeps['webOrigin'];
 }
 
 export function createApp(deps: CreateAppDeps): Express {
@@ -54,6 +57,14 @@ export function createApp(deps: CreateAppDeps): Express {
   registerLogRoute(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
   registerSettingsRoutes(app, { prisma: deps.prisma, jwtAccessSecret: deps.jwtAccessSecret });
   registerAccuracyRoute(app, { prisma: deps.prisma });
+  registerShareRoutes(app, {
+    prisma: deps.prisma,
+    jwtAccessSecret: deps.jwtAccessSecret,
+    n2yoApiKey: deps.n2yoApiKey,
+    fetchN2yoVisualPasses: deps.fetchN2yoVisualPasses,
+    publicApiOrigin: deps.publicApiOrigin,
+    webOrigin: deps.webOrigin,
+  });
 
   return app;
 }

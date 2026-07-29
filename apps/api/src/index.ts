@@ -103,7 +103,17 @@ startSlowTierLoop({
 startCacheSweepLoop({ prisma, sweepExpiredCache });
 startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob });
 
-const app = createApp({ n2yoApiKey, prisma, jwtAccessSecret, googleOAuth });
+const app = createApp({
+  n2yoApiKey,
+  prisma,
+  jwtAccessSecret,
+  googleOAuth,
+  // Both optional (Phase 11): the share card's absolute `og:image` URL
+  // falls back to the request's own origin, and its human-facing link
+  // reuses the `WEB_ORIGIN` that Google OAuth already reads.
+  publicApiOrigin: process.env.PUBLIC_API_ORIGIN,
+  webOrigin: process.env.WEB_ORIGIN,
+});
 app.listen(port, () => {
   console.warn(`[api] listening on port ${port}`);
 });
