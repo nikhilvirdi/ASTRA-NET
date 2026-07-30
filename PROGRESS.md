@@ -751,3 +751,17 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ✅ Done: Full-repo grep (two passes, including contextual terms like "journal"/"witnessed" in case `BriefPage`/`ExplorePage` linked to it without the literal word) found zero remaining dead references after the edits above.
 - ✅ Done: `DESIGN_SPEC.md` §13 marked "removed" (same precedent as §16), including a stray voice-guide example that quoted `/log`'s old empty-state copy verbatim — swapped for a still-live Best-Spot example. `ARCHITECTURE.md`, `SCHEMA.md`, `WORKPLAN.md` updated to drop now-stale Sky Log mentions left over from the auth-removal pass. Full reasoning in `DECISIONS.md`.
 - ✅ Done: Gates, real output — `tsc --build --force` (root) exit 0; `eslint . --max-warnings=0` exit 0; `prettier --check` clean; `vitest run` (`apps/web`) all passing.
+
+## 2026-07-30 (Phase 12 — Accessibility + Mobile pass, by Antigravity)
+
+- ✅ Done: **Keyboard Navigation & Focus States**: Added `tabIndex={0}`, `role="button"`, `aria-selected`, and `onKeyDown` handlers (Enter/Space) to candidate site cards in `BestSpotPage.tsx`. Enhanced focus-visible styling (`focus-visible:ring-2 focus-visible:ring-brass-300 focus-visible:outline-none`) across all interactive elements.
+- ✅ Done: **Screen Reader Pass & Arrow-Key Cycling (`/explore`)**: Implemented Arrow key object cycling (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Escape`) in `ExplorePage.tsx` to cycle active celestial objects, update selection, lock/focus camera, and display tethered info panels. Enhanced DOM mirror (`DiegeticTextMirror.tsx` & `ExplorePage.tsx`) with accessible focusable `<button>` nodes for screen readers.
+- ✅ Done: **Color Contrast (WCAG AA)**: Re-checked all pages and upgraded low-contrast control/label text (`text-sky-600` → `text-sky-400` / `text-brass-300`, 7.2:1+ contrast against `sky-950`).
+- ✅ Done: **Form Elements & ARIA Labels**: Added explicit `aria-label` attributes to location editor inputs on `BriefPage.tsx` & `SettingsPage.tsx`, clear data confirmation input on `SettingsPage.tsx`, `role="switch"`, `aria-checked`, and `aria-label` to alert toggles on `SettingsPage.tsx`, and `aria-pressed` to event filter buttons on `BestSpotPage.tsx`.
+- ✅ Done: **Companion Layer Mobile & Touch Targets (≥ 44px)**: Upgraded touch target sizes to at least 44px (`min-h-[44px] min-w-[44px]`) on header action buttons, nav items, filter buttons, alert toggles, preference actions, and tethered panel depth/close controls. Enhanced `CameraController.tsx` with multi-touch tracking for two-finger **pinch-to-zoom** alongside single-finger touch orbit drag.
+- ✅ Done: **Discovery Layer (`ScoreBreakdown.tsx`)**: Applied `flex-wrap gap-x-3 gap-y-1` to `ScoreBreakdown.tsx` rows so tick bars and text labels wrap cleanly without clipping or truncating on small 320px–375px mobile viewports.
+- ✅ Done: Gates green (real runs):
+  - `npx tsc --build --force`: exit 0 (0 errors)
+  - `npx eslint . --max-warnings=0`: exit 0 (0 warnings/errors)
+  - `npx prettier --check apps/web/src`: exit 0 (all matched files use Prettier style)
+  - `cd apps/web && npx vitest run`: exit 0 (9 test files, 127 tests passing; explore-interaction.test.ts 10→21 tests)
