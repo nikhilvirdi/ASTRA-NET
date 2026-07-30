@@ -23,7 +23,11 @@ import { CardinalMarks } from '@/components/explore/CardinalMarks';
 import { DiegeticTextMirror } from '@/components/explore/DiegeticTextMirror';
 import { OpeningSequence, hasSeenOpeningSequence } from '@/components/explore/OpeningSequence';
 import { useSpaceWeather } from '@/hooks/useSpaceWeather';
-import { DEPTH_HOLD_THRESHOLDS_MS, type PanelDepth } from '@/lib/explore-interaction';
+import {
+  calculateCycleIndex,
+  DEPTH_HOLD_THRESHOLDS_MS,
+  type PanelDepth,
+} from '@/lib/explore-interaction';
 
 /** §11: "Persistent nav auto-hides after 3 seconds of camera motion." */
 const NAV_AUTO_HIDE_MS = 3000;
@@ -36,6 +40,7 @@ export function ExplorePage(): React.ReactElement {
   const [sceneTime, setSceneTime] = useState(new Date());
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [selectedObject, setSelectedObject] = useState<CelestialObject | null>(null);
+  const [activeObjects, setActiveObjects] = useState<CelestialObject[]>([]);
   const [selectedDepth, setSelectedDepth] = useState<PanelDepth>(1);
   const [screenPosMap, setScreenPosMap] = useState<Record<string, ScreenPos>>({});
   const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
@@ -124,6 +129,46 @@ export function ExplorePage(): React.ReactElement {
       setFocusTarget(null);
     }
   };
+
+  // Arrow-key object cycling per DESIGN_SPEC.md §11 / Phase 12 Requirement 2
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        handleSelect(null);
+        return;
+      }
+
+      if (
+        e.key === 'ArrowRight' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowUp'
+      ) {
+        if (activeObjects.length === 0) return;
+        e.preventDefault();
+
+        const currentIndex = selectedObject
+          ? activeObjects.findIndex((o) => o.id === selectedObject.id)
+          : -1;
+        const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 'next' : 'prev';
+        const nextIndex = calculateCycleIndex(currentIndex, activeObjects.length, dir);
+        const nextObj = activeObjects[nextIndex];
+        if (nextObj) {
+          handleSelect(nextObj);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeObjects, selectedObject]);
 
   // Semantic-zoom drill-in: cluster/shell click → cinematic zoom one level.
   const handleDrill = (target: DrillTarget): void => {
@@ -247,6 +292,7 @@ export function ExplorePage(): React.ReactElement {
           currentTime={sceneTime}
           selectedId={selectedObject?.id ?? null}
           onSelect={handleSelect}
+          onObjectsChange={(objs) => setActiveObjects(objs)}
           onUpdateScreenPos={(map) => setScreenPosMap(map)}
           onDrill={handleDrill}
         />
@@ -304,10 +350,10 @@ export function ExplorePage(): React.ReactElement {
                     type="button"
                     onClick={() => setSelectedDepth(1)}
                     title="Depth 1: One-sentence story"
-                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                    className={`min-w-[44px] min-h-[44px] px-2 py-1 border text-xs cursor-pointer transition-colors flex items-center justify-center ${
                       selectedDepth >= 1
-                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
-                        : 'border-sky-800 text-sky-600'
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10 font-bold'
+                        : 'border-sky-800 text-sky-400'
                     }`}
                   >
                     1
@@ -316,10 +362,10 @@ export function ExplorePage(): React.ReactElement {
                     type="button"
                     onClick={() => setSelectedDepth(2)}
                     title="Depth 2: Live measurements"
-                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                    className={`min-w-[44px] min-h-[44px] px-2 py-1 border text-xs cursor-pointer transition-colors flex items-center justify-center ${
                       selectedDepth >= 2
-                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
-                        : 'border-sky-800 text-sky-600'
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10 font-bold'
+                        : 'border-sky-800 text-sky-400'
                     }`}
                   >
                     2
@@ -328,10 +374,10 @@ export function ExplorePage(): React.ReactElement {
                     type="button"
                     onClick={() => setSelectedDepth(3)}
                     title="Depth 3: Deep data link"
-                    className={`px-1.5 py-0.5 border text-xs cursor-pointer transition-colors ${
+                    className={`min-w-[44px] min-h-[44px] px-2 py-1 border text-xs cursor-pointer transition-colors flex items-center justify-center ${
                       selectedDepth >= 3
-                        ? 'border-brass-300 text-brass-300 bg-brass-300/10'
-                        : 'border-sky-800 text-sky-600'
+                        ? 'border-brass-300 text-brass-300 bg-brass-300/10 font-bold'
+                        : 'border-sky-800 text-sky-400'
                     }`}
                   >
                     3
@@ -340,7 +386,7 @@ export function ExplorePage(): React.ReactElement {
                 <button
                   type="button"
                   onClick={() => setSelectedObject(null)}
-                  className="text-sky-400 hover:text-sky-100 text-sm font-mono leading-none px-1 cursor-pointer"
+                  className="text-sky-400 hover:text-sky-100 text-sm font-mono leading-none min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
                   aria-label="Close celestial object details"
                 >
                   ✕
@@ -364,7 +410,7 @@ export function ExplorePage(): React.ReactElement {
             {selectedDepth >= 3 ? (
               <a
                 href={selectedObject.linkHref}
-                className="type-micro text-ember-400 hover:text-ember-400/80 inline-flex items-center gap-1 uppercase tracking-wider font-mono transition-colors"
+                className="type-micro text-ember-400 hover:text-ember-400/80 min-h-[44px] inline-flex items-center gap-1 uppercase tracking-wider font-mono transition-colors"
               >
                 {selectedObject.linkText} →
               </a>
@@ -382,14 +428,27 @@ export function ExplorePage(): React.ReactElement {
       {/* Accessible Screen-Reader Mirror */}
       <div className="sr-only" aria-live="polite">
         <h2>Interactive Celestial Objects in Scene</h2>
+        <p>Use Left and Right Arrow keys or activate buttons below to cycle objects.</p>
         <ul>
-          {selectedObject && (
-            <li>
-              Selected: {selectedObject.name}. {selectedObject.sentence}{' '}
-              {selectedObject.measurements}
+          {activeObjects.map((obj) => (
+            <li key={obj.id}>
+              <button
+                type="button"
+                onClick={() => handleSelect(obj)}
+                aria-pressed={selectedObject?.id === obj.id}
+              >
+                {obj.name}: {obj.sentence}
+              </button>
             </li>
-          )}
+          ))}
         </ul>
+        {selectedObject && (
+          <div>
+            <h3>Selected: {selectedObject.name}</h3>
+            <p>{selectedObject.sentence}</p>
+            <p>{selectedObject.measurements}</p>
+          </div>
+        )}
       </div>
     </div>
   );

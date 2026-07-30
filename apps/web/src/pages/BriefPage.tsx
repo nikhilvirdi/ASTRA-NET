@@ -162,14 +162,14 @@ export function BriefPage(): React.ReactElement {
               type="button"
               onClick={handleShare}
               disabled={sharing}
-              className="type-micro text-brass-300 hover:text-sky-100 transition-colors uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 px-2 py-0.5 rounded"
+              className="type-micro text-brass-300 hover:text-sky-100 transition-colors uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 min-h-[44px] px-3 py-2 flex items-center justify-center rounded"
             >
               {sharing ? 'CREATING CARD...' : 'SHARE SKY CARD'}
             </button>
             <button
               type="button"
               onClick={() => (editingLocation ? setEditingLocation(false) : openLocationEditor())}
-              className="type-micro text-brass-500 hover:text-sky-100 transition-colors uppercase cursor-pointer border-b border-brass-500/40 hover:border-sky-100"
+              className="type-micro text-brass-500 hover:text-sky-100 transition-colors uppercase cursor-pointer border-b border-brass-500/40 hover:border-sky-100 min-h-[44px] px-3 py-2 flex items-center justify-center"
             >
               {editingLocation ? 'CANCEL' : 'CHANGE LOCATION'}
             </button>
@@ -183,33 +183,36 @@ export function BriefPage(): React.ReactElement {
           >
             <input
               type="text"
+              aria-label="Location label"
               value={labelInput}
               onChange={(e) => setLabelInput(e.target.value)}
               placeholder="Label"
-              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-3 py-2 font-mono text-xs w-28 min-h-[44px]"
               required
             />
             <input
               type="number"
               step="any"
+              aria-label="Latitude"
               value={latInput}
               onChange={(e) => setLatInput(e.target.value)}
               placeholder="Latitude"
-              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-3 py-2 font-mono text-xs w-28 min-h-[44px]"
               required
             />
             <input
               type="number"
               step="any"
+              aria-label="Longitude"
               value={lonInput}
               onChange={(e) => setLonInput(e.target.value)}
               placeholder="Longitude"
-              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-3 py-2 font-mono text-xs w-28 min-h-[44px]"
               required
             />
             <button
               type="submit"
-              className="text-brass-300 hover:text-sky-100 uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 px-2 py-1 rounded"
+              className="text-brass-300 hover:text-sky-100 uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 min-h-[44px] px-3 py-2 flex items-center justify-center rounded"
             >
               SAVE
             </button>

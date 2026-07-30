@@ -68,6 +68,7 @@ interface CelestialMarkersProps {
   onUpdateScreenPos?: (posMap: Record<string, ScreenPos>) => void;
   /** Cluster/shell click → cinematic zoom-in one level (semantic zoom). */
   onDrill?: (target: DrillTarget) => void;
+  onObjectsChange?: (objects: CelestialObject[]) => void;
 }
 
 const MARKER_RADIUS = 950;
@@ -456,6 +457,7 @@ export function CelestialMarkers({
   onSelect,
   onUpdateScreenPos,
   onDrill,
+  onObjectsChange,
 }: CelestialMarkersProps): React.ReactElement | null {
   const { camera, gl } = useThree();
 
@@ -732,6 +734,10 @@ export function CelestialMarkers({
       .map((r) => richById.get(r.object.id))
       .filter((o): o is CelestialObject => o !== undefined);
   }, [aggregation, richById]);
+
+  useEffect(() => {
+    onObjectsChange?.(liveIndividuals);
+  }, [liveIndividuals, onObjectsChange]);
 
   // Track and update screen coordinates + zoom level on frame renders
   const vec = useRef(new THREE.Vector3());

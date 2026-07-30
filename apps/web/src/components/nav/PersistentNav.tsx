@@ -116,7 +116,7 @@ function NavItem({ to, label }: { to: string; label: string }): React.ReactEleme
       to={to}
       className={({ isActive }) =>
         [
-          'type-micro no-underline',
+          'type-micro no-underline min-h-[44px] px-2 flex items-center justify-center',
           'transition-colors',
           isActive ? 'text-brass-300' : 'text-sky-400 hover:text-sky-100',
         ].join(' ')

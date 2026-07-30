@@ -78,3 +78,53 @@ export function computeGravityBias(
     pitch: currentPitch + (targetPitch - currentPitch) * easeFactor,
   };
 }
+
+export type CycleDirection = 'next' | 'prev';
+
+/**
+ * Calculates the next index when cycling through interactive objects.
+ * Returns -1 if totalCount is 0 or negative.
+ */
+export function calculateCycleIndex(
+  currentIndex: number,
+  totalCount: number,
+  direction: CycleDirection,
+): number {
+  if (totalCount <= 0) return -1;
+
+  if (currentIndex < 0 || currentIndex >= totalCount) {
+    return direction === 'next' ? 0 : totalCount - 1;
+  }
+
+  if (direction === 'next') {
+    return (currentIndex + 1) % totalCount;
+  }
+
+  return (currentIndex - 1 + totalCount) % totalCount;
+}
+
+/**
+ * Computes pinch-to-zoom FOV from touch distance ratio, clamped to [minFov, maxFov].
+ */
+export function computePinchZoomFov(
+  initialFov: number,
+  initialPinchDist: number,
+  currentPinchDist: number,
+  minFov = 30,
+  maxFov = 90,
+): number {
+  if (initialPinchDist <= 0 || currentPinchDist <= 0) return initialFov;
+  const scale = initialPinchDist / currentPinchDist;
+  const target = initialFov * scale;
+  return Math.max(minFov, Math.min(maxFov, target));
+}
+
+/**
+ * Calculates 2D Euclidean distance between two touch points.
+ */
+export function calculateTouchPinchDistance(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+): number {
+  return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+}

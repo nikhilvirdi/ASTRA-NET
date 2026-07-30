@@ -5,6 +5,8 @@ import gsap from 'gsap';
 import { DUR_REDUCED_MOTION_FADE, OPENING_SEQUENCE } from '@/lib/motion';
 import {
   computeGravityBias,
+  computePinchZoomFov,
+  calculateTouchPinchDistance,
   findGravityTarget,
   type GravityTarget,
 } from '@/lib/explore-interaction';
@@ -174,28 +176,64 @@ export function CameraController({
 
   useEffect(() => {
     const dom = gl.domElement;
+    const activePointers = new Map<number, { x: number; y: number }>();
+    let initialPinchDist: number | null = null;
+    let initialFov = targetFov.current;
+
+    const getPinchDistance = (): number | null => {
+      if (activePointers.size < 2) return null;
+      const pts = Array.from(activePointers.values());
+      return calculateTouchPinchDistance(pts[0]!, pts[1]!);
+    };
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
-      // §11 0:40 — user input breaks the lock.
       releaseFocus('user-break');
-      isDragging.current = true;
-      previousPointer.current = { x: e.clientX, y: e.clientY };
-      velocityYaw.current = 0;
-      velocityPitch.current = 0;
-      dom.setPointerCapture(e.pointerId);
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (activePointers.size === 1) {
+        isDragging.current = true;
+        previousPointer.current = { x: e.clientX, y: e.clientY };
+        velocityYaw.current = 0;
+        velocityPitch.current = 0;
+      } else if (activePointers.size === 2) {
+        isDragging.current = false;
+        initialPinchDist = getPinchDistance();
+        initialFov = targetFov.current;
+      }
+      try {
+        dom.setPointerCapture(e.pointerId);
+      } catch {
+        // Ignore pointer capture errors on some browsers
+      }
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (activePointers.has(e.pointerId)) {
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      if (activePointers.size >= 2 && initialPinchDist !== null) {
+        const currentPinchDist = getPinchDistance();
+        if (currentPinchDist !== null && initialPinchDist > 0) {
+          targetFov.current = computePinchZoomFov(
+            initialFov,
+            initialPinchDist,
+            currentPinchDist,
+            minFov,
+            maxFov,
+          );
+        }
+        return;
+      }
+
       if (!isDragging.current) return;
 
       const deltaX = e.clientX - previousPointer.current.x;
       const deltaY = e.clientY - previousPointer.current.y;
       previousPointer.current = { x: e.clientX, y: e.clientY };
 
-      // Sensitivity factor scaled by current FOV
       const sensitivity = 0.003 * (targetFov.current / 60);
-
       const dyaw = -deltaX * sensitivity;
       const dpitch = -deltaY * sensitivity;
 
@@ -207,8 +245,17 @@ export function CameraController({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
-      if (!isDragging.current) return;
-      isDragging.current = false;
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        initialPinchDist = null;
+      }
+      if (activePointers.size === 1) {
+        const remaining = Array.from(activePointers.values())[0]!;
+        previousPointer.current = { x: remaining.x, y: remaining.y };
+        isDragging.current = true;
+      } else if (activePointers.size === 0) {
+        isDragging.current = false;
+      }
       try {
         if (dom.hasPointerCapture(e.pointerId)) {
           dom.releasePointerCapture(e.pointerId);
@@ -220,7 +267,6 @@ export function CameraController({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // Wheel is camera motion the user takes — it breaks a lock too.
       releaseFocus('user-break');
       const zoomSpeed = 0.05;
       const delta = e.deltaY * zoomSpeed;

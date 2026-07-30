@@ -70,14 +70,15 @@ export function BestSpotPage(): React.ReactElement {
         </div>
 
         {/* Event Filter Selector */}
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
           <span className="text-sky-400 uppercase text-caption mr-1">EVENT FILTER:</span>
           {(['all', 'aurora', 'meteor', 'iss'] as BestSpotEventFilter[]).map((filter) => (
             <button
               key={filter}
               type="button"
+              aria-pressed={eventFilter === filter}
               onClick={() => setEventFilter(filter)}
-              className={`px-3 py-1.5 border uppercase cursor-pointer transition-all ${
+              className={`min-h-[44px] px-3.5 py-2 border uppercase cursor-pointer transition-all flex items-center justify-center ${
                 eventFilter === filter
                   ? 'border-brass-300 text-brass-300 bg-brass-300/10 font-bold'
                   : 'border-sky-800 text-sky-400 hover:border-sky-600 hover:text-sky-200'
@@ -143,8 +144,18 @@ export function BestSpotPage(): React.ReactElement {
               return (
                 <article
                   key={site.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={isSelected}
+                  aria-label={`Site ${site.rank}: ${site.label}, ${compassDist}`}
                   onClick={() => setSelectedSiteId(site.id)}
-                  className={`p-5 border transition-all cursor-pointer flex flex-col gap-3 ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedSiteId(site.id);
+                    }
+                  }}
+                  className={`p-5 border transition-all cursor-pointer flex flex-col gap-3 focus-visible:ring-2 focus-visible:ring-brass-300 focus-visible:outline-none ${
                     isSelected
                       ? 'border-brass-300 bg-sky-950 shadow-2xl ring-1 ring-brass-300/30'
                       : 'border-sky-800/50 bg-sky-950/40 hover:border-sky-600'

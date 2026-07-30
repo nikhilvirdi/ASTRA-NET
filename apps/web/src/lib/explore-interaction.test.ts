@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateCycleIndex,
+  calculateTouchPinchDistance,
   clampDepth,
   computeGravityBias,
+  computePinchZoomFov,
   DEPTH_HOLD_THRESHOLDS_MS,
   findGravityTarget,
   nextDepth,
@@ -81,6 +84,72 @@ describe('explore-interaction', () => {
 
       expect(biased.yaw).toBeCloseTo(0.35);
       expect(biased.pitch).toBeCloseTo(0.34);
+    });
+  });
+
+  describe('Arrow-Key Object Cycling (calculateCycleIndex)', () => {
+    it('returns -1 when totalCount is 0 or negative', () => {
+      expect(calculateCycleIndex(0, 0, 'next')).toBe(-1);
+      expect(calculateCycleIndex(0, -1, 'prev')).toBe(-1);
+    });
+
+    it('starts at index 0 when unselected (-1) moving next', () => {
+      expect(calculateCycleIndex(-1, 5, 'next')).toBe(0);
+    });
+
+    it('starts at last index (totalCount - 1) when unselected (-1) moving prev', () => {
+      expect(calculateCycleIndex(-1, 5, 'prev')).toBe(4);
+    });
+
+    it('advances to next index sequentially and wraps around at end', () => {
+      expect(calculateCycleIndex(0, 3, 'next')).toBe(1);
+      expect(calculateCycleIndex(1, 3, 'next')).toBe(2);
+      expect(calculateCycleIndex(2, 3, 'next')).toBe(0);
+    });
+
+    it('decrements index sequentially and wraps around to end at start', () => {
+      expect(calculateCycleIndex(2, 3, 'prev')).toBe(1);
+      expect(calculateCycleIndex(1, 3, 'prev')).toBe(0);
+      expect(calculateCycleIndex(0, 3, 'prev')).toBe(2);
+    });
+
+    it('resets out-of-bounds current index safely', () => {
+      expect(calculateCycleIndex(10, 5, 'next')).toBe(0);
+      expect(calculateCycleIndex(10, 5, 'prev')).toBe(4);
+    });
+  });
+
+  describe('Pinch-to-Zoom Touch Math (computePinchZoomFov & calculateTouchPinchDistance)', () => {
+    it('calculates 2D distance between two points correctly', () => {
+      const p1 = { x: 0, y: 0 };
+      const p2 = { x: 3, y: 4 };
+      expect(calculateTouchPinchDistance(p1, p2)).toBe(5);
+    });
+
+    it('zooms in (reduces FOV) when pinch distance increases (fingers move apart)', () => {
+      // Initial FOV = 60°, initial dist = 100px. Current dist = 200px (fingers spread)
+      // scale = 100 / 200 = 0.5 -> FOV = 30°
+      const fov = computePinchZoomFov(60, 100, 200);
+      expect(fov).toBe(30);
+    });
+
+    it('zooms out (increases FOV) when pinch distance decreases (fingers move together)', () => {
+      // Initial FOV = 40°, initial dist = 200px. Current dist = 100px (fingers pinch in)
+      // scale = 200 / 100 = 2.0 -> FOV = 80°
+      const fov = computePinchZoomFov(40, 200, 100);
+      expect(fov).toBe(80);
+    });
+
+    it('clamps resulting FOV to minFov and maxFov bounds', () => {
+      // Extreme pinch apart -> FOV would be 10°, clamped to minFov 30°
+      expect(computePinchZoomFov(60, 100, 600, 30, 90)).toBe(30);
+      // Extreme pinch together -> FOV would be 120°, clamped to maxFov 90°
+      expect(computePinchZoomFov(60, 300, 100, 30, 90)).toBe(90);
+    });
+
+    it('returns initial FOV safely when distance inputs are non-positive', () => {
+      expect(computePinchZoomFov(60, 0, 100)).toBe(60);
+      expect(computePinchZoomFov(60, 100, 0)).toBe(60);
     });
   });
 });
