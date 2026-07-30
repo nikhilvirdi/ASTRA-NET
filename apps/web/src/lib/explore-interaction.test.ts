@@ -7,6 +7,7 @@ import {
   computePinchZoomFov,
   DEPTH_HOLD_THRESHOLDS_MS,
   findGravityTarget,
+  hasScreenPosChanged,
   nextDepth,
 } from './explore-interaction';
 import type { GravityTarget } from '@/components/explore/CameraController';
@@ -150,6 +151,40 @@ describe('explore-interaction', () => {
     it('returns initial FOV safely when distance inputs are non-positive', () => {
       expect(computePinchZoomFov(60, 0, 100)).toBe(60);
       expect(computePinchZoomFov(60, 100, 0)).toBe(60);
+    });
+  });
+
+  describe('Screen Position Map Throttling (hasScreenPosChanged)', () => {
+    it('returns false when position maps are identical', () => {
+      const pos = { iss: { x: 100, y: 200, inView: true } };
+      expect(hasScreenPosChanged(pos, pos)).toBe(false);
+    });
+
+    it('returns false when position shifts are below minDeltaPx threshold (0.5px)', () => {
+      const prev = { iss: { x: 100, y: 200, inView: true } };
+      const next = { iss: { x: 100.2, y: 200.3, inView: true } };
+      expect(hasScreenPosChanged(prev, next, 0.5)).toBe(false);
+    });
+
+    it('returns true when position shift exceeds minDeltaPx threshold', () => {
+      const prev = { iss: { x: 100, y: 200, inView: true } };
+      const next = { iss: { x: 101.0, y: 200.0, inView: true } };
+      expect(hasScreenPosChanged(prev, next, 0.5)).toBe(true);
+    });
+
+    it('returns true when visibility (inView) changes', () => {
+      const prev = { iss: { x: 100, y: 200, inView: true } };
+      const next = { iss: { x: 100, y: 200, inView: false } };
+      expect(hasScreenPosChanged(prev, next)).toBe(true);
+    });
+
+    it('returns true when object key sets differ', () => {
+      const prev = { iss: { x: 100, y: 200, inView: true } };
+      const next = {
+        iss: { x: 100, y: 200, inView: true },
+        jupiter: { x: 300, y: 400, inView: true },
+      };
+      expect(hasScreenPosChanged(prev, next)).toBe(true);
     });
   });
 });

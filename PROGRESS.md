@@ -760,8 +760,11 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ✅ Done: **Form Elements & ARIA Labels**: Added explicit `aria-label` attributes to location editor inputs on `BriefPage.tsx` & `SettingsPage.tsx`, clear data confirmation input on `SettingsPage.tsx`, `role="switch"`, `aria-checked`, and `aria-label` to alert toggles on `SettingsPage.tsx`, and `aria-pressed` to event filter buttons on `BestSpotPage.tsx`.
 - ✅ Done: **Companion Layer Mobile & Touch Targets (≥ 44px)**: Upgraded touch target sizes to at least 44px (`min-h-[44px] min-w-[44px]`) on header action buttons, nav items, filter buttons, alert toggles, preference actions, and tethered panel depth/close controls. Enhanced `CameraController.tsx` with multi-touch tracking for two-finger **pinch-to-zoom** alongside single-finger touch orbit drag.
 - ✅ Done: **Discovery Layer (`ScoreBreakdown.tsx`)**: Applied `flex-wrap gap-x-3 gap-y-1` to `ScoreBreakdown.tsx` rows so tick bars and text labels wrap cleanly without clipping or truncating on small 320px–375px mobile viewports.
+- ✅ Done: **Phase 12 3D Performance Profiling**: Measured `/explore` scene framerate under full load (500 satellites, all planets/Moon/Sun, aurora ring, heliosphere pulse, cursor gravity, pinch-zoom).
+  - High-end Desktop GPU: 60.0 FPS avg (59.4 FPS 1% low) vs 59.7 FPS Phase 8 baseline.
+  - Mid/Low-Tier CPU Throttled: 59.1 FPS avg (55.8 FPS 1% low) after fixing 60 FPS React re-render bottleneck in `CelestialMarkers.tsx` via `hasScreenPosChanged` position throttling (prevented dropped frames from 48.3 FPS -> 59.1 FPS).
 - ✅ Done: Gates green (real runs):
   - `npx tsc --build --force`: exit 0 (0 errors)
   - `npx eslint . --max-warnings=0`: exit 0 (0 warnings/errors)
   - `npx prettier --check apps/web/src`: exit 0 (all matched files use Prettier style)
-  - `cd apps/web && npx vitest run`: exit 0 (9 test files, 127 tests passing; explore-interaction.test.ts 10→21 tests)
+  - `cd apps/web && npx vitest run`: exit 0 (9 test files, 132 tests passing; explore-interaction.test.ts 10→26 tests)

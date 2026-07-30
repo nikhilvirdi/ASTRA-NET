@@ -28,6 +28,7 @@ import {
   EASE_TRANSITION,
 } from '@/lib/motion';
 import { cssColorToken } from '@/lib/color';
+import { hasScreenPosChanged } from '@/lib/explore-interaction';
 import { DiegeticText } from './DiegeticText';
 
 export interface CelestialObject {
@@ -741,6 +742,8 @@ export function CelestialMarkers({
 
   // Track and update screen coordinates + zoom level on frame renders
   const vec = useRef(new THREE.Vector3());
+  const prevPosMap = useRef<Record<string, ScreenPos>>({});
+
   useFrame(() => {
     if (camera instanceof THREE.PerspectiveCamera) {
       const level = fovToZoomLevel(camera.fov);
@@ -771,7 +774,10 @@ export function CelestialMarkers({
       };
     });
 
-    onUpdateScreenPos(posMap);
+    if (hasScreenPosChanged(prevPosMap.current, posMap)) {
+      prevPosMap.current = posMap;
+      onUpdateScreenPos(posMap);
+    }
   });
 
   const renderOne = (r: SkyRenderable, phase: MarkerPhase): React.ReactElement | null => {

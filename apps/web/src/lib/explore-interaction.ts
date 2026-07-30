@@ -128,3 +128,34 @@ export function calculateTouchPinchDistance(
 ): number {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
+
+export interface SimpleScreenPos {
+  x: number;
+  y: number;
+  inView: boolean;
+}
+
+/**
+ * Checks if two screen position maps differ significantly (shift > minDeltaPx or inView change).
+ */
+export function hasScreenPosChanged(
+  prev: Record<string, SimpleScreenPos>,
+  next: Record<string, SimpleScreenPos>,
+  minDeltaPx = 0.5,
+): boolean {
+  const prevKeys = Object.keys(prev);
+  const nextKeys = Object.keys(next);
+  if (prevKeys.length !== nextKeys.length) return true;
+
+  for (const key of nextKeys) {
+    const p = prev[key];
+    const n = next[key];
+    if (!p || !n) return true;
+    if (p.inView !== n.inView) return true;
+    if (Math.abs(p.x - n.x) > minDeltaPx || Math.abs(p.y - n.y) > minDeltaPx) {
+      return true;
+    }
+  }
+
+  return false;
+}
