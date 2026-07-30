@@ -338,12 +338,12 @@ This is the element ASTRANET is remembered by. It appears on `/`, `/best-spot`, 
 
 ### 10. `/` — Daily Brief
 
-The entry point. Must work logged-out. Must answer the question in under three seconds.
+The entry point. There is no account system — must work for every visitor. Must answer the question in under three seconds.
 
 #### Composition, top to bottom
 
 **Eyebrow strip** (mono, `micro`, uppercase, `brass-500`)
-`JAMMU · 32.73°N 74.87°E · WED 22 JUL · CIVIL TWILIGHT ENDS 20:01`
+`DELHI · 28.61°N 77.21°E · WED 22 JUL · CIVIL TWILIGHT ENDS 19:42`
 
 Left-aligned. A location switcher sits at its right end as a text button, not a dropdown chip — it should read as part of the line, not a control bolted on.
 
@@ -388,7 +388,7 @@ A single locked cinematic, only on first visit (subsequent visits drop the user 
 
 | Time | Event                                                                                                                                                                                   |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00 | Black. A single mono line, centered, small: `32.73°N 74.87°E · 21:04 LOCAL`. Ambient audio fades in — low wind, no music.                                                               |
+| 0:00 | Black. A single mono line, centered, small: `28.61°N 77.21°E · 21:04 LOCAL`. Ambient audio fades in — low wind, no music.                                                               |
 | 0:04 | The user's real night sky fades up. Stars at true positions, magnitude-scaled. No labels yet. The horizon rule is faintly visible at the bottom.                                        |
 | 0:12 | One point of light begins moving. Cursor gravity gently biases toward it. A hairline tether and a single mono label appear: `ISS`.                                                      |
 | 0:20 | On click: the camera lifts — a long `expo.inOut` rise from ground to orbit, 1.6s — and locks to the ISS in true orbital motion. Ambient audio shifts from wind to a low mechanical hum. |
@@ -434,7 +434,7 @@ Same three-bar language as the Confidence Ticks — one visual grammar for "this
 
 ### 13. `/log` — Personal Sky Log
 
-A field journal. Auth required.
+A field journal. Public, local to this browser — no account, no server-side record.
 
 **Header stats** — three large mono figures with small proportional labels beneath: nights observed, ISS passes caught, last aurora. Set at `data-l`, widely spaced, no cards, no boxes. Just numbers on the page, like a plate in a scientific monograph.
 
@@ -462,25 +462,21 @@ Axis labels, gridlines, and annotations all in brass mono at `micro`. Gridlines 
 
 ### 15. `/settings`
 
-Auth required. Calm, wide-spaced, single column, no tabs.
+Public, local to this browser — no account. Calm, wide-spaced, single column, no tabs.
 
-Sections separated by hairline rules with mono uppercase section labels: `SAVED LOCATIONS`, `ALERTS`, `APPEARANCE`, `ACCOUNT`, `YOUR DATA`.
+Sections separated by hairline rules with mono uppercase section labels: `LOCATION`, `ALERTS`, `APPEARANCE`, `YOUR DATA`.
+
+**Location** replaces what used to be a saved-locations list: there is one current location, editable inline (label, latitude, longitude), applying site-wide across the Daily Brief, Explore, and Best Spot the moment it's saved. No sign-in, no per-account list — just a browser-local setting anyone can change.
 
 **Appearance** contains the Red Light Mode toggle with a one-line serif explanation of _why_ it exists — a small moment of teaching that reinforces the product's credibility.
 
-**Your data** — the delete-my-data control. It is not hidden, not styled as dangerous-red-by-default, not buried behind three confirmations. It sits plainly with an honest description: _Deleting removes your saved locations, sky log, and prediction history from our database. It is not a deactivation — the rows are gone and cannot be restored._ One confirmation, typed email to confirm, done. `ARCHITECTURE.md` §7 promises real deletion; the UI should carry that promise plainly rather than making it feel like a trap.
+**Your data** — the clear-local-data control. It is not hidden, not styled as dangerous-red-by-default, not buried behind three confirmations. It sits plainly with an honest description: _Wipes your saved location, Sky Log entries, and alert preferences from this browser. It cannot be undone._ One typed confirmation, done — there is no server-side account or row to delete, only this browser's own storage.
 
 ---
 
-### 16. `/login` and `/signup`
+### 16. `/login` and `/signup` — removed
 
-One screen, mode toggle in the corner. Auth is friction — the design's job is to minimize it.
-
-The form sits in a 400px column, vertically centered, on the live twilight surface. Behind it, at 20% opacity, the real star field for the user's approximate location — the product's promise is visible before the user has an account.
-
-Fields are underlined, not boxed. Labels sit above in mono `micro` uppercase. Errors appear inline beneath the field in `ember-600`, and they state what happened and what to do: _That email is already registered. Log in instead?_ — with the link inline. Never a generic red box at the top of the form.
-
-The submit button is the one place in the product where `ember-600` fills a solid shape. It should be the most visually assertive element on any screen, precisely because it's the only one.
+There is no account system (see `DECISIONS.md`). This section number is retired rather than reused or renumbered, so existing citations to the sections after it (`§17` Share Card) stay stable.
 
 ---
 

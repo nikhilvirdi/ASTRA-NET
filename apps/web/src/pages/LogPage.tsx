@@ -1,102 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { createSkyLogEntry, deleteSkyLogEntry, fetchSkyLog, type SkyLogEntryData } from '@/lib/api';
+import React, { useState } from 'react';
+import { useAppStore } from '@/store';
 import {
   calculateLogStats,
   formatEventTypeLabel,
   groupEntriesByMonth,
 } from '@/lib/phase10-helpers';
 
-/** LogPage — /log · Personal Sky Log · Phase 10 · DESIGN_SPEC.md §13 */
+/** LogPage — /log · Personal Sky Log · local-only, browser storage · DESIGN_SPEC.md §13 */
 export function LogPage(): React.ReactElement {
-  const [entries, setEntries] = useState<SkyLogEntryData[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUnauthed, setIsUnauthed] = useState<boolean>(false);
+  const entries = useAppStore((s) => s.skyLogEntries);
+  const addSkyLogEntry = useAppStore((s) => s.addSkyLogEntry);
+  const removeSkyLogEntry = useAppStore((s) => s.removeSkyLogEntry);
 
   // New entry form state
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [newEventType, setNewEventType] = useState<string>('stargazing');
   const [newNotes, setNewNotes] = useState<string>('');
-  const [submitting, setSubmitting] = useState<boolean>(false);
-
-  const loadLog = (): void => {
-    setLoading(true);
-    setError(null);
-    setIsUnauthed(false);
-
-    fetchSkyLog(100)
-      .then((data) => {
-        setEntries(data);
-        setLoading(false);
-      })
-      .catch((err: Error) => {
-        if (err.message === 'UNAUTHORIZED') {
-          setIsUnauthed(true);
-        } else {
-          console.error('[LogPage] fetch error:', err);
-          setError('Failed to load sky log history.');
-        }
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    loadLog();
-  }, []);
 
   const handleAddEntry = (e: React.FormEvent): void => {
     e.preventDefault();
-    setSubmitting(true);
-
-    createSkyLogEntry({
+    addSkyLogEntry({
       eventType: newEventType,
       timestamp: new Date().toISOString(),
       notes: newNotes.trim() || undefined,
-    })
-      .then(() => {
-        setSubmitting(false);
-        setShowAddForm(false);
-        setNewNotes('');
-        loadLog();
-      })
-      .catch((err) => {
-        console.error('Failed to create log entry:', err);
-        setSubmitting(false);
-      });
-  };
-
-  const handleDeleteEntry = (id: string): void => {
-    deleteSkyLogEntry(id)
-      .then(() => loadLog())
-      .catch((err) => console.error('Failed to delete log entry:', err));
+    });
+    setShowAddForm(false);
+    setNewNotes('');
   };
 
   const stats = calculateLogStats(entries);
   const groupedMonths = groupEntriesByMonth(entries);
-
-  if (isUnauthed) {
-    return (
-      <main
-        id="main-content"
-        className="pt-20 pb-16 px-4 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center select-none"
-      >
-        <span className="type-micro text-brass-500 uppercase tracking-widest block mb-2">
-          PERSONAL SKY LOG · AUTH REQUIRED
-        </span>
-        <h1 className="type-display-l text-sky-100 font-serif mb-4">Your Field Journal</h1>
-        <p className="type-body text-sky-300 max-w-md mb-8 leading-relaxed">
-          Sign in to automatically record sightings, track your observation streak, and maintain a
-          private field log.
-        </p>
-        <a
-          href="/login"
-          className="px-6 py-3 border border-brass-300 text-brass-300 hover:bg-brass-300/10 font-mono text-xs uppercase tracking-wider transition-colors"
-        >
-          SIGN IN TO VIEW SKY LOG →
-        </a>
-      </main>
-    );
-  }
 
   return (
     <main
@@ -108,7 +41,7 @@ export function LogPage(): React.ReactElement {
       <div className="flex flex-col sm:flex-row items-start sm:items-baseline justify-between border-b border-sky-800/40 pb-8 mb-12 gap-6">
         <div>
           <span className="type-display-l font-mono text-sky-100 block">
-            {loading ? '—' : stats.totalSightings}
+            {stats.totalSightings}
           </span>
           <span className="type-caption text-sky-400 uppercase tracking-wider block mt-1">
             NIGHTS OBSERVED
@@ -116,9 +49,7 @@ export function LogPage(): React.ReactElement {
         </div>
 
         <div>
-          <span className="type-display-l font-mono text-brass-300 block">
-            {loading ? '—' : stats.streakDays}
-          </span>
+          <span className="type-display-l font-mono text-brass-300 block">{stats.streakDays}</span>
           <span className="type-caption text-sky-400 uppercase tracking-wider block mt-1">
             STREAK (DAYS)
           </span>
@@ -126,7 +57,7 @@ export function LogPage(): React.ReactElement {
 
         <div>
           <span className="type-display-l font-mono text-sky-100 block">
-            {loading || !stats.lastAurora
+            {!stats.lastAurora
               ? 'NONE'
               : new Date(stats.lastAurora)
                   .toLocaleDateString('en-US', { day: '2-digit', month: 'short' })
@@ -187,44 +118,31 @@ export function LogPage(): React.ReactElement {
 
           <button
             type="submit"
-            disabled={submitting}
             className="self-end px-5 py-2 bg-brass-300 text-sky-950 font-mono text-xs font-bold uppercase tracking-wider cursor-pointer hover:bg-brass-300/90 transition-colors"
           >
-            {submitting ? 'LOGGING...' : 'SAVE TO LOG'}
+            SAVE TO LOG
           </button>
         </form>
       )}
 
-      {loading && (
-        <div className="py-16 text-center font-mono text-xs text-sky-400 animate-pulse">
-          LOADING FIELD JOURNAL...
-        </div>
-      )}
-
-      {error && (
-        <div className="p-4 bg-sky-950 border border-ember-400/40 text-xs font-mono text-ember-400 mb-8 text-center">
-          {error}
-        </div>
-      )}
-
       {/* DESIGN_SPEC.md §13 — Empty State */}
-      {!loading && !error && entries.length === 0 && (
+      {entries.length === 0 && (
         <div className="py-16 px-6 text-center border border-sky-800/40 bg-sky-950/40 flex flex-col items-center gap-4">
           <p className="type-body text-sky-200 text-base max-w-md font-serif italic">
             Nothing logged yet. Your first ISS pass tonight is available — catch it and it lands
             here.
           </p>
           <a
-            href="/brief"
+            href="/"
             className="type-micro text-brass-300 hover:text-brass-300/80 font-mono uppercase tracking-wider underline"
           >
-            VIEW TONIGHT’S BRIEF →
+            VIEW TONIGHT'S BRIEF →
           </a>
         </div>
       )}
 
       {/* DESIGN_SPEC.md §13 — Timeline: Single vertical brass rule down left */}
-      {!loading && entries.length > 0 && (
+      {entries.length > 0 && (
         <div className="relative pl-6 border-l border-brass-300/40 space-y-12">
           {Array.from(groupedMonths.entries()).map(([monthYear, monthEntries]) => (
             <section key={monthYear} className="relative space-y-8">
@@ -272,7 +190,7 @@ export function LogPage(): React.ReactElement {
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteEntry(entry.id)}
+                          onClick={() => removeSkyLogEntry(entry.id)}
                           className="opacity-0 group-hover:opacity-100 text-sky-500 hover:text-ember-400 font-mono text-xs transition-opacity cursor-pointer self-end sm:self-auto"
                           aria-label="Delete entry"
                         >

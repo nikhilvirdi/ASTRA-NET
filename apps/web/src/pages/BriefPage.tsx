@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { twilightStateForSunAltitude } from '@astranet/shared';
-import { createShareSnapshot, fetchBrief, getEffectiveLocation, type DailyBrief } from '@/lib/api';
+import {
+  createShareSnapshot,
+  fetchBrief,
+  DEFAULT_OBSERVER_LOCATION,
+  type DailyBrief,
+} from '@/lib/api';
+import { useAppStore } from '@/store';
 import { HorizonBand } from '@/components/brief/HorizonBand';
 import { spaceWeatherUiState } from '@/lib/space-weather-status';
 import { LivePulse } from '@/components/common/LivePulse';
@@ -22,7 +28,33 @@ export function BriefPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState<boolean>(false);
 
-  const location = getEffectiveLocation();
+  // Reactive (not `getEffectiveLocation()`'s one-shot read): the site-wide
+  // location switcher below writes here, and every consumer of this store
+  // slot — this page, Explore, Best-Spot — needs to re-render when it does.
+  const storeLocation = useAppStore((s) => s.location);
+  const setStoreLocation = useAppStore((s) => s.setLocation);
+  const location = storeLocation ?? DEFAULT_OBSERVER_LOCATION;
+
+  const [editingLocation, setEditingLocation] = useState<boolean>(false);
+  const [labelInput, setLabelInput] = useState<string>(location.name);
+  const [latInput, setLatInput] = useState<string>(String(location.lat));
+  const [lonInput, setLonInput] = useState<string>(String(location.lon));
+
+  const openLocationEditor = (): void => {
+    setLabelInput(location.name);
+    setLatInput(String(location.lat));
+    setLonInput(String(location.lon));
+    setEditingLocation(true);
+  };
+
+  const handleSaveLocation = (e: React.FormEvent): void => {
+    e.preventDefault();
+    const lat = parseFloat(latInput);
+    const lon = parseFloat(lonInput);
+    if (Number.isNaN(lat) || Number.isNaN(lon) || !labelInput.trim()) return;
+    setStoreLocation({ lat, lon, name: labelInput.trim().toUpperCase() });
+    setEditingLocation(false);
+  };
 
   const handleShare = () => {
     if (sharing) return;
@@ -136,13 +168,53 @@ export function BriefPage(): React.ReactElement {
             </button>
             <button
               type="button"
-              onClick={() => alert(`Location: ${location.name} (${location.lat}, ${location.lon})`)}
+              onClick={() => (editingLocation ? setEditingLocation(false) : openLocationEditor())}
               className="type-micro text-brass-500 hover:text-sky-100 transition-colors uppercase cursor-pointer border-b border-brass-500/40 hover:border-sky-100"
             >
-              CHANGE LOCATION
+              {editingLocation ? 'CANCEL' : 'CHANGE LOCATION'}
             </button>
           </div>
         </div>
+
+        {editingLocation && (
+          <form
+            onSubmit={handleSaveLocation}
+            className="mt-3 flex flex-wrap items-center gap-2 type-micro"
+          >
+            <input
+              type="text"
+              value={labelInput}
+              onChange={(e) => setLabelInput(e.target.value)}
+              placeholder="Label"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              required
+            />
+            <input
+              type="number"
+              step="any"
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+              placeholder="Latitude"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              required
+            />
+            <input
+              type="number"
+              step="any"
+              value={lonInput}
+              onChange={(e) => setLonInput(e.target.value)}
+              placeholder="Longitude"
+              className="bg-sky-900 border border-sky-700 text-sky-100 px-2 py-1 font-mono text-xs w-28"
+              required
+            />
+            <button
+              type="submit"
+              className="text-brass-300 hover:text-sky-100 uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 px-2 py-1 rounded"
+            >
+              SAVE
+            </button>
+          </form>
+        )}
       </header>
 
       {/* ── 2. The Headline (§10) ──────────────────────────────────────────── */}

@@ -1,7 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { PersistentNav } from '@/components/nav/PersistentNav';
-import { useAppStore } from '@/store';
 
 // Pages
 import { BriefPage } from '@/pages/BriefPage';
@@ -11,7 +10,6 @@ import { LogPage } from '@/pages/LogPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AccuracyPage } from '@/pages/AccuracyPage';
 import { SharePage } from '@/pages/SharePage';
-import { LoginPage } from '@/pages/LoginPage';
 
 /**
  * ASTRANET App Shell
@@ -19,20 +17,19 @@ import { LoginPage } from '@/pages/LoginPage';
  * ARCHITECTURE.md §8: "Single persistent app shell wrapping all routes
  * EXCEPT /explore, which is full-bleed and immersive with nav auto-hiding."
  *
- * Route table (ARCHITECTURE.md §8):
+ * There is no account system — every route is public. Location, the
+ * Personal Sky Log, and Settings are all local to this browser.
+ *
+ * Route table:
  *   /            public  Daily Brief
  *   /explore     public  Explorable Universe (3D, full-bleed)
  *   /best-spot   public  Best-Spot-Tonight Finder
- *   /log         auth    Personal Sky Log
- *   /settings    auth    Saved locations, alerts, account
- *   /login       public  Auth (mode=login|signup)
- *   /signup      →       Redirect to /login?mode=signup
+ *   /log         public  Personal Sky Log (local-only)
+ *   /settings    public  Location, alerts, local data controls
  *   /accuracy    public  Track record
  *   /share/:id   public  Shareable Sky Card
  */
 export function App(): React.ReactElement {
-  const user = useAppStore((s) => s.user);
-
   return (
     <>
       {/* Skip link for keyboard navigation — §6 Quality Floor */}
@@ -47,24 +44,13 @@ export function App(): React.ReactElement {
       <PersistentNav />
 
       <Routes>
-        {/* Public routes */}
         <Route path="/" element={<BriefPage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/best-spot" element={<BestSpotPage />} />
         <Route path="/accuracy" element={<AccuracyPage />} />
         <Route path="/share/:id" element={<SharePage />} />
-
-        {/* Auth routes */}
-        <Route path="/login" element={<LoginPage />} />
-        {/* /signup → /login?mode=signup (same component, mode toggle) */}
-        <Route path="/signup" element={<Navigate to="/login?mode=signup" replace />} />
-
-        {/* Protected routes — redirect to /login if unauthenticated */}
-        <Route path="/log" element={user ? <LogPage /> : <Navigate to="/login" replace />} />
-        <Route
-          path="/settings"
-          element={user ? <SettingsPage /> : <Navigate to="/login" replace />}
-        />
+        <Route path="/log" element={<LogPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
 
         {/* 404 fallback */}
         <Route

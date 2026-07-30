@@ -5,15 +5,16 @@
  * input), makes the per-request live/impure work `buildBrief` itself
  * can't: ISS next-pass (observer-specific, see `iss-card.ts`), the
  * global accuracy-loop history feeding f_hist (`predictions/history.ts`),
- * and — new in Phase 6 — persisting the Brief's aurora prediction
- * (`predictions/accuracy.ts`'s daily job later scores it) when there's
- * an active CME and the caller is authenticated. No prediction *math* or
- * degradation logic lives here; that all belongs to `build-brief.ts`.
+ * and persisting the Brief's aurora prediction (`predictions/accuracy.ts`'s
+ * daily job later scores it) whenever there's an active CME. No prediction
+ * *math* or degradation logic lives here; that all belongs to
+ * `build-brief.ts`.
  *
- * Auth is optional, not required: this endpoint is genuinely public
- * (`require-auth.ts`'s header comment), so `tryAuthenticate` — never
- * `requireAuth` — decides whether persistence happens, without ever
- * gating the Brief response itself on being logged in.
+ * There is no account system: every request is anonymous, `lat`/`lon` are
+ * always required from the caller, and every qualifying Brief view writes
+ * a `Prediction` row — the global accuracy track record (`/api/accuracy`)
+ * is a property of the forecasting methodology itself, not of who was
+ * looking, so it isn't gated on identity that no longer exists.
  */
 
 import type { Express, Request, Response } from 'express';
@@ -24,25 +25,16 @@ import {
   logUnexpectedBriefError,
   type ComposeBriefDeps,
 } from '../brief/compose-brief.js';
-import { tryAuthenticate } from '../auth/require-auth.js';
 import type { fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses } from '../clients/n2yo/index.js';
 
-/**
- * `lat`/`lon` are optional so an authenticated caller can fall back to
- * their saved default location — ARCHITECTURE.md §8: "Logged-out =
- * generic location; logged-in = saved location". Explicit coordinates
- * always win, so an authenticated user can still look at another sky.
- * An anonymous caller with neither still gets the same 400 as before.
- */
 const BriefQuerySchema = z.object({
-  lat: z.coerce.number().min(-90).max(90).optional(),
-  lon: z.coerce.number().min(-180).max(180).optional(),
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
 });
 
 export interface BriefRouteDeps extends ComposeBriefDeps {
   n2yoApiKey: string;
   prisma: PrismaClient;
-  jwtAccessSecret: string;
   fetchN2yoVisualPasses?: typeof defaultFetchN2yoVisualPasses;
 }
 
@@ -56,47 +48,12 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
       return;
     }
     const now = new Date();
-    const userId = await tryAuthenticate(req, { jwtAccessSecret: deps.jwtAccessSecret });
-
-    // Both coordinates or neither: a lone `lat` is a malformed request,
-    // not an invitation to fill the other half in from the saved location
-    // (which would silently discard the coordinate the caller did send).
-    let lat = parsed.data.lat;
-    let lon = parsed.data.lon;
-    if ((lat === undefined) !== (lon === undefined)) {
-      res
-        .status(400)
-        .json({ error: 'lat and lon query params are required and must be valid coordinates' });
-      return;
-    }
-    if (lat === undefined || lon === undefined) {
-      const saved =
-        userId === null
-          ? null
-          : await deps.prisma.location
-              .findFirst({
-                where: { userId, isDefault: true },
-                select: { latitude: true, longitude: true },
-              })
-              .catch((error: unknown) => {
-                logUnexpectedBriefError('default-location lookup', error);
-                return null;
-              });
-      if (saved === null) {
-        res
-          .status(400)
-          .json({ error: 'lat and lon query params are required and must be valid coordinates' });
-        return;
-      }
-      lat = saved.latitude;
-      lon = saved.longitude;
-    }
+    const { lat, lon } = parsed.data;
 
     const brief = await composeBriefForObserver(deps, lat, lon, now);
 
     const aurora = brief.spaceWeather.data?.aurora;
     if (
-      userId !== null &&
       aurora?.hasActiveCme === true &&
       aurora.cmeArrivalTime !== null &&
       aurora.confidence !== null
@@ -104,7 +61,6 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
       try {
         await deps.prisma.prediction.create({
           data: {
-            userId,
             targetTime: new Date(aurora.cmeArrivalTime),
             predictedKp: aurora.kpPredicted,
             confidence: aurora.confidence,

@@ -16,7 +16,6 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
 import { createPrismaClient } from '../db/client.js';
-import { signAccessToken } from '../auth/jwt.js';
 import { resetStore, setSourceState } from '../poller/store.js';
 import {
   ShareSnapshotSchema,
@@ -25,9 +24,6 @@ import {
 } from '../share/share.schemas.js';
 import type { PrismaClient } from '@prisma/client';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
-
-const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
-const TEST_EMAIL_SUFFIX = '@share-route-test.invalid';
 
 const LONDON = { lat: 51.5072, lon: -0.1276 };
 
@@ -80,7 +76,6 @@ function appWith(overrides: Partial<Parameters<typeof createApp>[0]> = {}) {
   return createApp({
     n2yoApiKey: 'TEST_KEY',
     prisma,
-    jwtAccessSecret: JWT_ACCESS_SECRET,
     fetchN2yoVisualPasses: vi.fn(() => Promise.resolve(visualPasses)),
     ...overrides,
   });
@@ -100,12 +95,8 @@ interface CreatedCard {
 async function createCard(
   app = appWith(),
   body: Record<string, unknown> = LONDON,
-  accessToken?: string,
 ): Promise<{ status: number; body: CreatedCard }> {
-  const pending = request(app).post('/api/share').send(body);
-  // `tryAuthenticate` reads `Authorization: Bearer`, not a cookie.
-  if (accessToken !== undefined) void pending.set('Authorization', `Bearer ${accessToken}`);
-  const res = await pending;
+  const res = await request(app).post('/api/share').send(body);
   const created = res.body as Partial<CreatedCard>;
   if (typeof created.id === 'string') createdIds.push(created.id);
   return { status: res.status, body: res.body as CreatedCard };
@@ -116,7 +107,6 @@ async function cleanup(): Promise<void> {
     await prisma.shareCard.deleteMany({ where: { id: { in: createdIds } } });
     createdIds.length = 0;
   }
-  await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
   // `POST /api/share` composes a Brief, and visual passes are now served
   // from the Cache table on a TTL. Every test here shares one observer
   // position, so without this a successful pass list written by an earlier
@@ -187,20 +177,6 @@ describe('POST /api/share', () => {
     expect(res.body.ogImageUrl).toBe(
       `https://api.astranet.example/api/share/${res.body.id}/og.png`,
     );
-  });
-
-  it('ties the card to the account when the caller is logged in', async () => {
-    const user = await prisma.user.create({
-      data: { email: `owner${Date.now()}${TEST_EMAIL_SUFFIX}` },
-    });
-    const token = await signAccessToken(user.id, JWT_ACCESS_SECRET, new Date());
-    const res = await createCard(appWith(), LONDON, token);
-
-    const row = await prisma.shareCard.findUnique({
-      where: { id: res.body.id },
-      select: { userId: true },
-    });
-    expect(row?.userId).toBe(user.id);
   });
 
   it('gives every card a distinct, unguessable id', async () => {
@@ -342,7 +318,6 @@ describe('GET /api/share/:id', () => {
     await prisma.shareCard.create({
       data: {
         id,
-        userId: null,
         capturedAt: new Date(),
         latitude: 0,
         longitude: 0,

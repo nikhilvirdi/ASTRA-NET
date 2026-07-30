@@ -69,7 +69,6 @@ import openMeteo from '../clients/open-meteo/__fixtures__/open_meteo.json';
 vi.setConfig({ testTimeout: 30_000 });
 
 const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
-const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
 const N2YO_KEY = 'TEST_KEY';
 const NOW = new Date('2026-07-17T21:40:00.000Z');
 const OBSERVER = { lat: 51.5072, lon: -0.1276 };
@@ -205,7 +204,6 @@ function appUnderTest() {
   return createApp({
     n2yoApiKey: N2YO_KEY,
     prisma,
-    jwtAccessSecret: JWT_ACCESS_SECRET,
     // The real client, so the route's own N2YO call goes through the same
     // injected transport as the poller's.
     fetchN2yoVisualPasses,

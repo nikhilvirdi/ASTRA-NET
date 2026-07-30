@@ -24,8 +24,6 @@ import {
   startAccuracyJobLoop,
 } from './accuracy.js';
 
-const TEST_EMAIL_SUFFIX = '@predictions-accuracy-test.invalid';
-
 function loadDatabaseUrl(): string {
   if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
     try {
@@ -46,13 +44,27 @@ function loadDatabaseUrl(): string {
 const prisma = createPrismaClient(loadDatabaseUrl());
 const NOW = new Date('2026-07-22T12:00:00Z');
 
-async function createTestUser(prefix: string): Promise<string> {
-  const user = await prisma.user.create({ data: { email: `${prefix}${TEST_EMAIL_SUFFIX}` } });
-  return user.id;
+/** Every prediction this file writes is tracked here, so cleanup is exact. */
+const createdIds: string[] = [];
+
+async function createTestPrediction(data: {
+  targetTime: Date;
+  predictedKp: number;
+  confidence: number;
+  scored?: boolean;
+  hit?: boolean;
+  actualKp?: number;
+}): Promise<{ id: string }> {
+  const prediction = await prisma.prediction.create({ data });
+  createdIds.push(prediction.id);
+  return prediction;
 }
 
 async function cleanup(): Promise<void> {
-  await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
+  if (createdIds.length > 0) {
+    await prisma.prediction.deleteMany({ where: { id: { in: createdIds } } });
+    createdIds.length = 0;
+  }
 }
 
 beforeEach(cleanup);
@@ -115,9 +127,10 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('scores an elapsed unscored prediction as a hit and writes actualKp/hit/scored back', async () => {
-    const userId = await createTestUser('hit-case');
-    const prediction = await prisma.prediction.create({
-      data: { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
+    const prediction = await createTestPrediction({
+      targetTime: NOW,
+      predictedKp: 4,
+      confidence: 0.6,
     });
 
     const result = await runAccuracyJob(
@@ -133,9 +146,10 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('scores an elapsed unscored prediction as a miss when actual Kp is far off', async () => {
-    const userId = await createTestUser('miss-case');
-    const prediction = await prisma.prediction.create({
-      data: { userId, targetTime: NOW, predictedKp: 2, confidence: 0.6 },
+    const prediction = await createTestPrediction({
+      targetTime: NOW,
+      predictedKp: 2,
+      confidence: 0.6,
     });
 
     await runAccuracyJob({ prisma, fetchSwpcSlow: fakeFetchSwpcSlow([observedEntry(0, 7)]) }, NOW);
@@ -147,10 +161,11 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('leaves a not-yet-elapsed prediction untouched', async () => {
-    const userId = await createTestUser('not-elapsed');
     const future = new Date(NOW.getTime() + 3_600_000);
-    const prediction = await prisma.prediction.create({
-      data: { userId, targetTime: future, predictedKp: 4, confidence: 0.6 },
+    const prediction = await createTestPrediction({
+      targetTime: future,
+      predictedKp: 4,
+      confidence: 0.6,
     });
 
     const result = await runAccuracyJob(
@@ -165,17 +180,13 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('leaves an already-scored prediction untouched', async () => {
-    const userId = await createTestUser('already-scored');
-    const prediction = await prisma.prediction.create({
-      data: {
-        userId,
-        targetTime: NOW,
-        predictedKp: 4,
-        confidence: 0.6,
-        scored: true,
-        hit: true,
-        actualKp: 4,
-      },
+    const prediction = await createTestPrediction({
+      targetTime: NOW,
+      predictedKp: 4,
+      confidence: 0.6,
+      scored: true,
+      hit: true,
+      actualKp: 4,
     });
 
     const result = await runAccuracyJob(
@@ -189,9 +200,10 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('leaves a prediction unscored (never fabricates a match) when no observed entry is close enough', async () => {
-    const userId = await createTestUser('too-stale');
-    const prediction = await prisma.prediction.create({
-      data: { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
+    const prediction = await createTestPrediction({
+      targetTime: NOW,
+      predictedKp: 4,
+      confidence: 0.6,
     });
     // Nearest observed entry is 5 hours away — past MAX_OBSERVED_MATCH_AGE_MS (1.5h).
     const result = await runAccuracyJob(
@@ -205,27 +217,22 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('returns scored: 0 without throwing when SWPC has no observed data at all', async () => {
-    const userId = await createTestUser('no-observed-data');
-    await prisma.prediction.create({
-      data: { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
-    });
+    await createTestPrediction({ targetTime: NOW, predictedKp: 4, confidence: 0.6 });
 
     const result = await runAccuracyJob({ prisma, fetchSwpcSlow: fakeFetchSwpcSlow(null) }, NOW);
     expect(result).toEqual({ scored: 0 });
   });
 
   it('scores multiple elapsed predictions in one run, each against its own nearest observed entry', async () => {
-    const userId = await createTestUser('batch');
-    const predictionA = await prisma.prediction.create({
-      data: { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
+    const predictionA = await createTestPrediction({
+      targetTime: NOW,
+      predictedKp: 4,
+      confidence: 0.6,
     });
-    const predictionB = await prisma.prediction.create({
-      data: {
-        userId,
-        targetTime: new Date(NOW.getTime() - 3_600_000),
-        predictedKp: 6,
-        confidence: 0.6,
-      },
+    const predictionB = await createTestPrediction({
+      targetTime: new Date(NOW.getTime() - 3_600_000),
+      predictedKp: 6,
+      confidence: 0.6,
     });
 
     const observed = [observedEntry(0, 5), observedEntry(-1, 6)];
@@ -244,16 +251,11 @@ describe('runAccuracyJob against real Postgres', () => {
   });
 
   it('closes the loop: real scored predictions pull historyFactor toward the observed rate, never to 0% or 100%', async () => {
-    const userId = await createTestUser('beta-prior');
     // 3 hits, 1 miss, all elapsed and unscored going in.
-    await prisma.prediction.createMany({
-      data: [
-        { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
-        { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
-        { userId, targetTime: NOW, predictedKp: 4, confidence: 0.6 },
-        { userId, targetTime: NOW, predictedKp: 8, confidence: 0.6 }, // will miss
-      ],
-    });
+    await createTestPrediction({ targetTime: NOW, predictedKp: 4, confidence: 0.6 });
+    await createTestPrediction({ targetTime: NOW, predictedKp: 4, confidence: 0.6 });
+    await createTestPrediction({ targetTime: NOW, predictedKp: 4, confidence: 0.6 });
+    await createTestPrediction({ targetTime: NOW, predictedKp: 8, confidence: 0.6 }); // will miss
 
     await runAccuracyJob({ prisma, fetchSwpcSlow: fakeFetchSwpcSlow([observedEntry(0, 4)]) }, NOW);
 

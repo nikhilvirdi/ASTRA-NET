@@ -33,19 +33,12 @@ export function generateShareId(): string {
 export interface SaveShareCardParams {
   prisma: PrismaClient;
   snapshot: ShareSnapshot;
-  /** Null for an anonymous share; set means delete-my-data will remove this card. */
-  userId: string | null;
 }
 
-export async function saveShareCard({
-  prisma,
-  snapshot,
-  userId,
-}: SaveShareCardParams): Promise<void> {
+export async function saveShareCard({ prisma, snapshot }: SaveShareCardParams): Promise<void> {
   await prisma.shareCard.create({
     data: {
       id: snapshot.id,
-      userId,
       capturedAt: new Date(snapshot.capturedAt),
       latitude: snapshot.observer.latDeg,
       longitude: snapshot.observer.lonDeg,

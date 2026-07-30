@@ -4,7 +4,6 @@ import request from 'supertest';
 import { historyFactor } from '@astranet/shared';
 import { createApp } from '../app.js';
 import { createPrismaClient } from '../db/client.js';
-import { signAccessToken } from '../auth/jwt.js';
 import { resetStore, setSourceState } from '../poller/store.js';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
 import type { DailyBrief } from '../brief/build-brief.js';
@@ -12,9 +11,6 @@ import type { DailyBrief } from '../brief/build-brief.js';
 // Never connects: these tests exercise a route that doesn't touch the
 // DB, and Prisma only opens a connection on first query.
 const prisma = createPrismaClient('postgresql://unused:unused@db.invalid:5432/unused');
-
-// Obviously-fake placeholder secret — matches auth.test.ts's convention.
-const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
 
 const NOW_SECONDS = Math.floor(Date.now() / 1000);
 
@@ -48,33 +44,20 @@ describe('GET /api/brief', () => {
   });
 
   it('400s when lat/lon are missing', async () => {
-    const app = createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma,
-      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
-    });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
     const res = await request(app).get('/api/brief');
     expect(res.status).toBe(400);
   });
 
   it('400s when lat/lon are out of range', async () => {
-    const app = createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma,
-      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
-    });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma });
     const res = await request(app).get('/api/brief?lat=999&lon=45');
     expect(res.status).toBe(400);
   });
 
   it('200s with a resolved Brief for valid coordinates, including a live-fetched next pass', async () => {
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma,
-      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
-      fetchN2yoVisualPasses,
-    });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -116,12 +99,7 @@ describe('GET /api/brief', () => {
       true,
     );
     const fetchN2yoVisualPasses = vi.fn().mockRejectedValue(new Error('N2YO down'));
-    const app = createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma,
-      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
-      fetchN2yoVisualPasses,
-    });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -154,12 +132,7 @@ describe('GET /api/brief', () => {
     );
 
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma,
-      jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
-      fetchN2yoVisualPasses,
-    });
+    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -170,16 +143,14 @@ describe('GET /api/brief', () => {
 });
 
 /**
- * Prediction persistence + global f_hist wiring (Phase 6 Task 4) — these
- * genuinely touch the DB (an active CME in poller state triggers a
- * history lookup and, for authenticated requests, a `Prediction` write),
- * so they run against the real docker-compose Postgres, matching
- * `locations.test.ts`'s standard, rather than the `db.invalid` client
- * the tests above rely on.
+ * Prediction persistence + global f_hist wiring — these genuinely touch
+ * the DB (an active CME in poller state triggers a history lookup and a
+ * `Prediction` write), so they run against the real docker-compose
+ * Postgres rather than the `db.invalid` client the tests above rely on.
+ * There is no account system: every qualifying request persists, not
+ * just some — see DECISIONS.md.
  */
 describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', () => {
-  const TEST_EMAIL_SUFFIX = '@brief-prediction-test.invalid';
-
   function loadDatabaseUrl(): string {
     if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
       try {
@@ -199,14 +170,14 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
 
   const realPrisma = createPrismaClient(loadDatabaseUrl());
 
-  async function createTestUser(prefix: string): Promise<{ userId: string; accessToken: string }> {
-    const user = await realPrisma.user.create({ data: { email: `${prefix}${TEST_EMAIL_SUFFIX}` } });
-    const accessToken = await signAccessToken(user.id, JWT_ACCESS_SECRET, new Date());
-    return { userId: user.id, accessToken };
-  }
+  /** Every prediction this file writes is tracked here, so cleanup is exact. */
+  const createdIds: string[] = [];
 
   async function cleanup(): Promise<void> {
-    await realPrisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
+    if (createdIds.length > 0) {
+      await realPrisma.prediction.deleteMany({ where: { id: { in: createdIds } } });
+      createdIds.length = 0;
+    }
   }
 
   /** Sets up poller state with an active, still-incoming CME (same shape space-weather-card.test.ts's cmeEvent uses). */
@@ -273,7 +244,6 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     return createApp({
       n2yoApiKey: 'TEST_KEY',
       prisma: realPrisma,
-      jwtAccessSecret: JWT_ACCESS_SECRET,
       fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
     });
   }
@@ -287,20 +257,20 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     await realPrisma.$disconnect();
   });
 
-  it('persists a Prediction for an authenticated request when there is an active CME', async () => {
-    const { userId, accessToken } = await createTestUser('authed-active-cme');
+  it('persists a Prediction for every qualifying request when there is an active CME', async () => {
     const now = new Date();
     setActiveCmeState(now);
 
-    const res = await request(createTestApp())
-      .get('/api/brief?lat=65&lon=-20')
-      .set('Authorization', `Bearer ${accessToken}`);
+    const res = await request(createTestApp()).get('/api/brief?lat=65&lon=-20');
     const body = res.body as DailyBrief;
 
     expect(res.status).toBe(200);
     expect(body.spaceWeather.data?.aurora?.hasActiveCme).toBe(true);
 
-    const stored = await realPrisma.prediction.findMany({ where: { userId } });
+    const stored = await realPrisma.prediction.findMany({
+      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
+    });
+    stored.forEach((row) => createdIds.push(row.id));
     expect(stored).toHaveLength(1);
     // `predictedKp`/`confidence` are Prisma `Float` (PG `double precision`). Postgres emits
     // float8 as decimal text at `extra_float_digits` significant digits (1 → 16 on this
@@ -328,43 +298,27 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     expect(context.leadHours).toBeGreaterThan(0);
   });
 
-  it('never persists a Prediction for an anonymous request, even with an active CME', async () => {
-    const now = new Date();
-    setActiveCmeState(now);
-
-    const res = await request(createTestApp()).get('/api/brief?lat=65&lon=-20');
-    const body = res.body as DailyBrief;
-
-    expect(res.status).toBe(200);
-    expect(body.spaceWeather.data?.aurora?.hasActiveCme).toBe(true);
-    const stored = await realPrisma.prediction.findMany({
-      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
-    });
-    expect(stored).toHaveLength(0);
-  });
-
-  it('never persists a Prediction when there is no active CME, even for an authenticated request', async () => {
-    const { userId, accessToken } = await createTestUser('authed-no-cme');
+  it('never persists a Prediction when there is no active CME', async () => {
     // No setActiveCmeState call — poller store stays empty (no CME data at all).
+    // No per-request marker to filter on here, so this asserts on the
+    // total count rather than a scoped query, matching the accuracy
+    // route tests' own before/after convention against a shared database.
+    const before = await realPrisma.prediction.count();
 
-    const res = await request(createTestApp())
-      .get('/api/brief?lat=45&lon=-75')
-      .set('Authorization', `Bearer ${accessToken}`);
+    const res = await request(createTestApp()).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
 
     expect(res.status).toBe(200);
     expect(body.spaceWeather.data?.aurora?.hasActiveCme ?? false).toBe(false);
-    const stored = await realPrisma.prediction.findMany({ where: { userId } });
-    expect(stored).toHaveLength(0);
+    const after = await realPrisma.prediction.count();
+    expect(after).toBe(before);
   });
 
   it('feeds real global accuracy-loop history into the returned confidence factors (f_hist)', async () => {
-    const { userId } = await createTestUser('history-feed');
     // Seed a real, already-scored track record: 3 hits out of 4 trials.
-    await realPrisma.prediction.createMany({
-      data: [
-        {
-          userId,
+    const seeded = await Promise.all([
+      realPrisma.prediction.create({
+        data: {
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -372,8 +326,9 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
           hit: true,
           actualKp: 4,
         },
-        {
-          userId,
+      }),
+      realPrisma.prediction.create({
+        data: {
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -381,8 +336,9 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
           hit: true,
           actualKp: 4,
         },
-        {
-          userId,
+      }),
+      realPrisma.prediction.create({
+        data: {
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -390,8 +346,9 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
           hit: true,
           actualKp: 4,
         },
-        {
-          userId,
+      }),
+      realPrisma.prediction.create({
+        data: {
           targetTime: new Date(),
           predictedKp: 8,
           confidence: 0.6,
@@ -399,8 +356,9 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
           hit: false,
           actualKp: 2,
         },
-      ],
-    });
+      }),
+    ]);
+    seeded.forEach((row) => createdIds.push(row.id));
 
     const now = new Date();
     setActiveCmeState(now);
@@ -413,149 +371,31 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     // 0.5 this same scenario would produce with zero real history.
     expect(body.spaceWeather.data?.aurora?.factors?.history).toBeCloseTo(historyFactor(3, 4), 10);
     expect(body.spaceWeather.data?.aurora?.factors?.history).not.toBeCloseTo(0.5, 2);
-  });
-});
 
-describe('GET /api/brief — saved-location fallback (real Postgres)', () => {
-  const LOCATION_TEST_SUFFIX = '@brief-location-test.invalid';
-
-  function loadLocationTestDbUrl(): string {
-    if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
-      try {
-        process.loadEnvFile(fileURLToPath(new URL('../../../../.env', import.meta.url)));
-      } catch {
-        // No .env — the explicit check below produces the real error.
-      }
-    }
-    const url = process.env.DATABASE_URL;
-    if (url === undefined || url === '') {
-      throw new Error('DATABASE_URL is not set — start the docker compose Postgres first.');
-    }
-    return url;
-  }
-
-  const locationPrisma = createPrismaClient(loadLocationTestDbUrl());
-
-  function locationTestApp(): ReturnType<typeof createApp> {
-    return createApp({
-      n2yoApiKey: 'TEST_KEY',
-      prisma: locationPrisma,
-      jwtAccessSecret: JWT_ACCESS_SECRET,
-      fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+    // The Brief's own persisted row (matched by its CME marker) also needs cleanup.
+    const own = await realPrisma.prediction.findMany({
+      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
     });
-  }
-
-  async function cleanupLocationUsers(): Promise<void> {
-    await locationPrisma.user.deleteMany({ where: { email: { endsWith: LOCATION_TEST_SUFFIX } } });
-  }
-
-  async function createUserWithLocation(
-    prefix: string,
-    location: { latitude: number; longitude: number } | null,
-  ) {
-    const user = await locationPrisma.user.create({
-      data: { email: `${prefix}${LOCATION_TEST_SUFFIX}` },
-    });
-    if (location !== null) {
-      await locationPrisma.location.create({
-        data: { userId: user.id, label: 'Home', ...location, isDefault: true },
-      });
-    }
-    const accessToken = await signAccessToken(user.id, JWT_ACCESS_SECRET, new Date());
-    return { userId: user.id, accessToken };
-  }
-
-  beforeEach(async () => {
-    resetStore();
-    await cleanupLocationUsers();
-  });
-  afterAll(async () => {
-    await cleanupLocationUsers();
-    await locationPrisma.$disconnect();
-  });
-
-  it('still 400s for an anonymous request with no coordinates', async () => {
-    const res = await request(locationTestApp()).get('/api/brief');
-    expect(res.status).toBe(400);
-  });
-
-  it('uses the authenticated user default location when lat/lon are omitted', async () => {
-    const { accessToken } = await createUserWithLocation('saved', {
-      latitude: 12.34,
-      longitude: 56.78,
-    });
-
-    const res = await request(locationTestApp())
-      .get('/api/brief')
-      .set('Authorization', `Bearer ${accessToken}`);
-    const body = res.body as DailyBrief;
-
-    expect(res.status).toBe(200);
-    expect(body.observer.latDeg).toBeCloseTo(12.34, 10);
-    expect(body.observer.lonDeg).toBeCloseTo(56.78, 10);
-  });
-
-  it('lets explicit coordinates win over the saved location', async () => {
-    const { accessToken } = await createUserWithLocation('override', {
-      latitude: 12.34,
-      longitude: 56.78,
-    });
-
-    const res = await request(locationTestApp())
-      .get('/api/brief?lat=65&lon=-20')
-      .set('Authorization', `Bearer ${accessToken}`);
-    const body = res.body as DailyBrief;
-
-    expect(body.observer.latDeg).toBeCloseTo(65, 10);
-    expect(body.observer.lonDeg).toBeCloseTo(-20, 10);
-  });
-
-  it('400s for an authenticated user who has saved no location', async () => {
-    const { accessToken } = await createUserWithLocation('nolocation', null);
-
-    const res = await request(locationTestApp())
-      .get('/api/brief')
-      .set('Authorization', `Bearer ${accessToken}`);
-
-    expect(res.status).toBe(400);
-  });
-
-  it('400s on a half-specified position rather than filling in the other half', async () => {
-    const { accessToken } = await createUserWithLocation('halfway', {
-      latitude: 12.34,
-      longitude: 56.78,
-    });
-
-    const res = await request(locationTestApp())
-      .get('/api/brief?lat=65')
-      .set('Authorization', `Bearer ${accessToken}`);
-
-    expect(res.status).toBe(400);
+    own.forEach((row) => createdIds.push(row.id));
   });
 });
 
 /**
- * The three "a DB call failed, degrade rather than blank the Brief" paths.
+ * The two "a DB call failed, degrade rather than blank the Brief" paths.
  *
- * All three route through `logUnexpectedBriefError`, which had never been
- * executed by any test — it was the sole reason `routes/brief.ts` sat at
- * 50% function coverage before this session, and it stayed there until now.
- * Each path is asserted on behaviour (the Brief still serves, or 400s
- * honestly), not merely on the log call.
+ * Both route through `logUnexpectedBriefError`. Each path is asserted on
+ * behaviour (the Brief still serves), not merely on the log call.
  */
 describe('GET /api/brief — degradation when a DB call fails', () => {
-  const failingSecret = JWT_ACCESS_SECRET;
-
   function appWithPrisma(prismaLike: unknown): ReturnType<typeof createApp> {
     return createApp({
       n2yoApiKey: 'TEST_KEY',
       prisma: prismaLike as Parameters<typeof createApp>[0]['prisma'],
-      jwtAccessSecret: failingSecret,
       fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
     });
   }
 
-  /** Poller state with an active, still-incoming CME — what triggers both prediction paths. */
+  /** Poller state with an active, still-incoming CME — what triggers the prediction-persistence path. */
   function setActiveCme(now: Date): void {
     setSourceState(
       'solarWind',
@@ -620,23 +460,9 @@ describe('GET /api/brief — degradation when a DB call fails', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  it('400s honestly when the saved-location lookup throws', async () => {
-    const token = await signAccessToken('user-loc-fail', JWT_ACCESS_SECRET, new Date());
-    const app = appWithPrisma({
-      location: { findFirst: () => Promise.reject(new Error('connection lost')) },
-    });
-
-    const res = await request(app).get('/api/brief').set('Authorization', `Bearer ${token}`);
-
-    // Degrades to "no saved location" rather than 500ing the whole Brief.
-    expect(res.status).toBe(400);
-    expect(console.error).toHaveBeenCalled();
-  });
-
   it('still serves the Brief on the neutral prior when the history lookup throws', async () => {
     const now = new Date();
     setActiveCme(now);
-    const token = await signAccessToken('user-hist-fail', JWT_ACCESS_SECRET, new Date());
     const app = appWithPrisma({
       prediction: {
         count: () => Promise.reject(new Error('connection lost')),
@@ -644,9 +470,7 @@ describe('GET /api/brief — degradation when a DB call fails', () => {
       },
     });
 
-    const res = await request(app)
-      .get('/api/brief?lat=65&lon=-20')
-      .set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/api/brief?lat=65&lon=-20');
     const body = res.body as DailyBrief;
 
     expect(res.status).toBe(200);
@@ -659,7 +483,6 @@ describe('GET /api/brief — degradation when a DB call fails', () => {
   it('still serves the Brief when persisting the prediction throws', async () => {
     const now = new Date();
     setActiveCme(now);
-    const token = await signAccessToken('user-persist-fail', JWT_ACCESS_SECRET, new Date());
     const app = appWithPrisma({
       prediction: {
         count: () => Promise.resolve(0),
@@ -667,9 +490,7 @@ describe('GET /api/brief — degradation when a DB call fails', () => {
       },
     });
 
-    const res = await request(app)
-      .get('/api/brief?lat=65&lon=-20')
-      .set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/api/brief?lat=65&lon=-20');
     const body = res.body as DailyBrief;
 
     // Persistence is a side effect; failing it must never cost the user their Brief.

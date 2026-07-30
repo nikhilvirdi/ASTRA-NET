@@ -5,7 +5,8 @@ import {
   generateStepPlotPaths,
   groupEntriesByMonth,
 } from './phase10-helpers';
-import type { AccuracyPointData, SkyLogEntryData } from './api';
+import type { AccuracyPointData } from './api';
+import type { SkyLogEntryData } from '@/store';
 
 describe('Phase 10 Helpers', () => {
   describe('calculateLogStats', () => {
@@ -18,7 +19,6 @@ describe('Phase 10 Helpers', () => {
       const entries: SkyLogEntryData[] = [
         {
           id: '1',
-          userId: 'u1',
           eventType: 'aurora',
           timestamp: '2026-07-27T21:00:00.000Z',
           notes: 'Bright green pillars',
@@ -28,11 +28,10 @@ describe('Phase 10 Helpers', () => {
         },
         {
           id: '2',
-          userId: 'u1',
           eventType: 'iss_pass',
           timestamp: '2026-07-20T19:00:00.000Z',
           notes: 'Clear pass overhead',
-          source: 'auto',
+          source: 'manual',
           details: null,
           createdAt: '2026-07-20T19:00:00.000Z',
         },
@@ -49,7 +48,6 @@ describe('Phase 10 Helpers', () => {
       const entries: SkyLogEntryData[] = [
         {
           id: '1',
-          userId: 'u1',
           eventType: 'iss_pass',
           timestamp: '2026-07-27T21:00:00.000Z',
           notes: null,
@@ -59,7 +57,6 @@ describe('Phase 10 Helpers', () => {
         },
         {
           id: '2',
-          userId: 'u1',
           eventType: 'stargazing',
           timestamp: '2026-06-15T22:00:00.000Z',
           notes: null,

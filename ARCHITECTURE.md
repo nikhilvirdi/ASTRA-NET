@@ -23,16 +23,16 @@ Reference document for the locked technical architecture. This is the "what and 
 │  └─────┬───────┘   └──────────────┘   └───────┬────────┘  │
 │        │ uses                                   │ uses     │
 │  ┌─────▼───────┐   ┌──────────────┐   ┌────────▼───────┐  │
-│  │ DATA CLIENTS │   │ PURE ENGINES │   │  AUTH (JWT)    │  │
-│  │ (Phase 1)    │   │ (Phase 2)    │   │  + Argon2      │  │
+│  │ DATA CLIENTS │   │ PURE ENGINES │   │  DB (Prisma)   │  │
+│  │ (Phase 1)    │   │ (Phase 2)    │   │  Predictions   │  │
 │  └─────────────┘   └──────────────┘   └────────────────┘  │
 │                            │                    │          │
 │                            ▼                    ▼          │
 │                    ┌───────────────────────────────────┐  │
 │                    │  PostgreSQL 16 (Docker, self-host) │  │
-│                    │  via Prisma — users, sessions,     │  │
-│                    │  locations, sky_log, predictions,  │  │
-│                    │  cache                             │  │
+│                    │  via Prisma — predictions,         │  │
+│                    │  share cards, and cache —          │  │
+│                    │  no accounts at all.               │  │
 │                    └───────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────┘
                 │ polls (central, constant load)
@@ -74,15 +74,14 @@ Reference document for the locked technical architecture. This is the "what and 
 
 ### Backend
 
-| Concern            | Choice                                                                           |
-| ------------------ | -------------------------------------------------------------------------------- |
-| Runtime/framework  | Node.js + Express + TypeScript                                                   |
-| Database           | PostgreSQL 16, self-hosted via Docker                                            |
-| ORM                | Prisma                                                                           |
-| Auth               | Custom JWT (15-min access + rotated refresh) + Argon2; optional Google OAuth 2.0 |
-| Realtime           | Server-Sent Events (fast tier only)                                              |
-| Validation         | Zod (at every external-data boundary)                                            |
-| Process management | pm2 or Docker restart policy                                                     |
+| Concern            | Choice                                |
+| ------------------ | ------------------------------------- |
+| Runtime/framework  | Node.js + Express + TypeScript        |
+| Database           | PostgreSQL 16, self-hosted via Docker |
+| ORM                | Prisma                                |
+| Realtime           | Server-Sent Events (fast tier only)   |
+| Validation         | Zod (at every external-data boundary) |
+| Process management | pm2 or Docker restart policy          |
 
 ### Tooling
 
@@ -92,9 +91,9 @@ Reference document for the locked technical architecture. This is the "what and 
 
 ## 3. Key Architecture Decisions (and why)
 
-**A. Self-hosted Postgres over Supabase.** Removes the 7-day free-tier pause entirely and the need to babysit it. The only thing Supabase gave us that we now own is auth — handled by custom JWT. One system we fully control.
+**A. Self-hosted Postgres over Supabase.** Removes the 7-day free-tier pause entirely and the need to babysit it. Auth was the other thing Supabase would have given us — moot now that there is no account system at all (see `DECISIONS.md`).
 
-**B. Single Postgres, no MongoDB.** Fluid/semi-structured data (sky-log history, cached payloads) uses JSONB columns; cache expiry uses an `expires_at` table cleaned on read plus a periodic sweep. One datastore, one thing to operate, cleaner to reason about. Mongo would only earn its place with a query pattern Postgres genuinely can't serve — none exists here.
+**B. Single Postgres, no MongoDB.** Fluid/semi-structured data (cached upstream payloads, a prediction's factor-breakdown context) uses JSONB columns; cache expiry uses an `expires_at` table cleaned on read plus a periodic sweep. One datastore, one thing to operate, cleaner to reason about. Mongo would only earn its place with a query pattern Postgres genuinely can't serve — none exists here.
 
 **C. Prisma over Drizzle.** Chosen for familiarity and a readable schema/migration story. Schema in `schema.prisma` is the real source of truth; `SCHEMA.md` explains the "why."
 
@@ -104,7 +103,7 @@ Reference document for the locked technical architecture. This is the "what and 
 
 **F. Central poller + SSE fan-out.** See §1. Constant upstream load, live client updates without WebSocket complexity (one-directional server→client is all we need).
 
-**G. Custom JWT auth.** Access token (15 min) + refresh token (30 days, httpOnly cookie, rotated on use, stored hashed in `sessions` for revocation). Google OAuth 2.0 is an additive authorization-code path issuing the same token pair — never a prerequisite.
+**G. (retired) Custom JWT auth.** ASTRANET originally shipped custom JWT auth (access + rotated refresh, optional Google OAuth). Removed entirely by explicit human decision — no login, no accounts, no per-user data. Location, the Personal Sky Log, and Settings are now plain client-side state (browser `localStorage`), not server-persisted per-account rows. See `DECISIONS.md` for the removal and `SCHEMA.md` for the resulting data model. This letter stays retired rather than being reused, so old citations to "§3 G" elsewhere in this repo's history remain traceable to what they meant at the time.
 
 ---
 
@@ -170,28 +169,27 @@ This contract is enforced identically on backend (`/api/brief` composition) and 
 
 ## 7. Security & Privacy
 
-- Passwords hashed with Argon2; never stored or logged in plaintext.
-- Refresh tokens stored hashed, rotated on use, revocable via the `sessions` table.
-- Per-user data access enforced in the API layer (no cross-user reads).
-- Location data is used only to personalize; never sold or shared.
-- **Delete-my-data** performs real, complete removal of a user's locations, sky log, and predictions — deletion means deletion, not deactivation.
+There is no account system, so there is no personal data on the server to protect in the first place:
+
+- Location, the Personal Sky Log, and alert preferences all live only in the visitor's own browser (`localStorage`) — never transmitted to or stored by the backend.
+- The database holds nothing that identifies a visitor: `Prediction` rows are global forecast/outcome pairs (no owner field), `ShareCard` rows are anonymous public snapshots, `Cache` is upstream-payload TTL storage. See `SCHEMA.md`.
+- **Clear local data** (in `/settings`) wipes that browser's own location, Sky Log, and alert preferences — a client-side operation, not a server request.
 
 ---
 
 ## 8. Pages
 
-Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Log · Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding.
+Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Log · Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding. Every route is public — there is no account system and therefore no auth-gated page.
 
-| Route               | Auth     | Contents                                                                                                                                                                     |
-| ------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | public   | **Daily Brief** — tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Logged-out = generic location; logged-in = saved location. |
-| `/explore`          | public   | **Explorable Universe (3D)** — opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation.                                    |
-| `/best-spot`        | public   | **Best-Spot-Tonight Finder** — MapLibre map + ranked nearby viewing spots (clarity × darkness × travel), filterable by tonight's event.                                      |
-| `/log`              | required | **Personal Sky Log** — timeline of witnessed events + simple stats (total, streak, last aurora).                                                                             |
-| `/settings`         | required | Saved locations, alert toggles, account, **delete-my-data**.                                                                                                                 |
-| `/login`, `/signup` | public   | Single auth page, mode toggle, redirect back after auth.                                                                                                                     |
-| `/share/:id`        | public   | **Shareable Sky Card** — no-login snapshot of a day's brief, OG-tagged. The growth loop.                                                                                     |
-| `/accuracy`         | public   | **Track record** — predicted vs. actual Kp over time + rolling hit-rate (Recharts).                                                                                          |
+| Route        | Contents                                                                                                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`          | **Daily Brief** — tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Location is a client-side setting (default: Delhi) applied site-wide. |
+| `/explore`   | **Explorable Universe (3D)** — opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation.                                               |
+| `/best-spot` | **Best-Spot-Tonight Finder** — MapLibre map + ranked nearby viewing spots (clarity × darkness × travel), filterable by tonight's event.                                                 |
+| `/log`       | **Personal Sky Log** — timeline of witnessed events + simple stats (total, streak, last aurora). Local to the browser (`localStorage`), not server-persisted.                           |
+| `/settings`  | Current location, alert toggles, **clear local data** (wipes this browser's location/Sky Log/alerts).                                                                                   |
+| `/share/:id` | **Shareable Sky Card** — anonymous snapshot of a day's brief, OG-tagged. The growth loop.                                                                                               |
+| `/accuracy`  | **Track record** — predicted vs. actual Kp over time + rolling hit-rate (Recharts).                                                                                                     |
 
 ---
 
@@ -209,5 +207,5 @@ Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Log
 - No procedural/fictional objects — everything traces to a real catalog.
 - No deep-sky/cosmological subsystem in scope (deferred to horizon, see `NOTES.md`).
 - No professional satellite-ops tooling.
-- No third-party auth provider dependency.
+- No account system at all — no login, no signup, no per-user data, no third-party auth provider.
 - No second datastore unless a real query pattern forces it.

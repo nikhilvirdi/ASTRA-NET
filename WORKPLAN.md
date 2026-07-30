@@ -6,6 +6,8 @@ Humans and agents follow this order. Do not skip ahead. Do not start a phase unt
 > **Current Phase:** `Phase 10` — update this marker as you progress. Agents must read this line first and only work within the current phase unless explicitly told otherwise.
 >
 > **Phase 8 was closed by explicit human decision on 2026-07-27 with three items accepted as open, not completed** — real-browser verification of the real (non-simulated) satellite population, the §11 0:20 orbit-drop cinematic, and the diegetic-font/DevTools check. This is a deliberate, logged exception to Rule 1 ("Order is law") and the binary Definition-of-Done gate, not a precedent. See `DECISIONS.md` (2026-07-27, Phase 8 → 9 transition) for the full list and who owns each.
+>
+> **Phase 5's Authentication and the auth-gated pieces of Phase 6/10 were removed entirely by explicit human decision on 2026-07-30.** There is no account system: no login/signup, no per-user `Location`/`SkyLogEntry`/`Session`/`User` tables. Location, the Personal Sky Log, and Settings are now plain client-side state (browser `localStorage`). The task lists below for Phases 5, 6, and 10 describe what was originally built and are left as historical record, not a description of the current system — see `ARCHITECTURE.md` §3 G/§7/§8, `SCHEMA.md`, and `DECISIONS.md` (2026-07-30) for what actually exists now.
 
 ---
 

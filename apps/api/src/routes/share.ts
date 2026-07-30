@@ -1,19 +1,12 @@
 /**
  * `/api/share` — the Shareable Sky Card (WORKPLAN.md Phase 11,
  * ARCHITECTURE.md §8's `/share/:id` "public"). Four endpoints, all of them
- * genuinely login-free:
+ * genuinely login-free (there is no account system at all):
  *
  *   POST /api/share               create a snapshot of a Brief moment
  *   GET  /api/share/:id           the snapshot, as JSON
  *   GET  /api/share/:id/og.png    the 1200x630 twilight-accurate card
  *   GET  /api/share/:id/meta.html the crawler document with the OG tags
- *
- * Reading requires no auth at all — not `requireAuth`, and unlike
- * `/api/brief` not even `tryAuthenticate`, since nothing about a read
- * varies by caller. Creating uses optional auth (`tryAuthenticate`, the
- * `/api/brief` precedent): an anonymous visitor can share, and a logged-in
- * one gets the card tied to their account so delete-my-data removes it
- * (ARCHITECTURE.md §7).
  *
  * The snapshot is built from a Brief this server composes at that instant,
  * never from a client-supplied payload — a shared card is a public claim
@@ -31,7 +24,6 @@
 import express, { type Express, type Request, type Response } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { composeBriefForObserver, type ComposeBriefDeps } from '../brief/compose-brief.js';
-import { tryAuthenticate } from '../auth/require-auth.js';
 import { buildShareSnapshot } from '../share/build-snapshot.js';
 import { generateShareId, readShareCard, saveShareCard } from '../share/store.js';
 import { renderShareCardPng } from '../share/og-image.js';
@@ -54,7 +46,6 @@ const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
 export interface ShareRouteDeps extends ComposeBriefDeps {
   prisma: PrismaClient;
-  jwtAccessSecret: string;
   /**
    * Absolute origin this API is reachable at, used to build the `og:image`
    * URL (OG consumers reject relative image URLs). Optional: when unset it
@@ -134,7 +125,6 @@ export function registerShareRoutes(app: Express, deps: ShareRouteDeps): void {
     }
 
     const now = new Date();
-    const userId = await tryAuthenticate(req, { jwtAccessSecret: deps.jwtAccessSecret });
     const brief = await composeBriefForObserver(deps, parsed.data.lat, parsed.data.lon, now);
 
     const snapshot = buildShareSnapshot({ id: generateShareId(), brief, createdAt: now });
@@ -157,7 +147,7 @@ export function registerShareRoutes(app: Express, deps: ShareRouteDeps): void {
     }
 
     try {
-      await saveShareCard({ prisma: deps.prisma, snapshot, userId });
+      await saveShareCard({ prisma: deps.prisma, snapshot });
     } catch (error) {
       console.error(
         `[share] could not persist share card: ${error instanceof Error ? error.name : 'unknown error'}`,

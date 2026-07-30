@@ -2,12 +2,9 @@
  * `ShareCard` persistence (WORKPLAN.md Phase 11, SCHEMA.md).
  *
  * Runs against the real docker-compose Postgres rather than a mocked
- * Prisma, for the same reason `account-deletion.test.ts` does: the two
- * behaviours worth testing here are both *database* behaviours. The
- * `userId` FK cascade is enforced by the schema, not by this module, so a
- * mock would prove nothing about it; and round-tripping a snapshot through
- * JSONB is exactly where a blob that "looks fine in memory" can come back
- * subtly different.
+ * Prisma: round-tripping a snapshot through JSONB is exactly where a blob
+ * that "looks fine in memory" can come back subtly different, which a
+ * mock would prove nothing about.
  */
 
 import { fileURLToPath } from 'node:url';
@@ -16,8 +13,6 @@ import { createPrismaClient } from '../db/client.js';
 import { generateShareId, readShareCard, saveShareCard } from './store.js';
 import { SHARE_ID_PATTERN } from './share.schemas.js';
 import { makeShareSnapshot } from './__fixtures__/snapshot.js';
-
-const TEST_EMAIL_SUFFIX = '@share-store-test.invalid';
 
 function loadDatabaseUrl(): string {
   if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
@@ -43,9 +38,8 @@ const createdIds: string[] = [];
 
 async function saveFixture(
   snapshot = makeShareSnapshot({ id: generateShareId() }),
-  userId: string | null = null,
 ): Promise<string> {
-  await saveShareCard({ prisma, snapshot, userId });
+  await saveShareCard({ prisma, snapshot });
   createdIds.push(snapshot.id);
   return snapshot.id;
 }
@@ -55,7 +49,6 @@ async function cleanup(): Promise<void> {
     await prisma.shareCard.deleteMany({ where: { id: { in: createdIds } } });
     createdIds.length = 0;
   }
-  await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
 }
 
 beforeEach(cleanup);
@@ -165,7 +158,6 @@ describe('saveShareCard / readShareCard', () => {
     await prisma.shareCard.create({
       data: {
         id,
-        userId: null,
         capturedAt: new Date(),
         latitude: 0,
         longitude: 0,
@@ -182,7 +174,6 @@ describe('saveShareCard / readShareCard', () => {
     await prisma.shareCard.create({
       data: {
         id,
-        userId: null,
         capturedAt: new Date(),
         latitude: 0,
         longitude: 0,
@@ -192,12 +183,6 @@ describe('saveShareCard / readShareCard', () => {
     createdIds.push(id);
 
     expect(await readShareCard(prisma, id)).toEqual({ status: 'corrupt' });
-  });
-
-  it('stores an anonymous card with a null userId', async () => {
-    const id = await saveFixture();
-    const row = await prisma.shareCard.findUnique({ where: { id }, select: { userId: true } });
-    expect(row?.userId).toBeNull();
   });
 
   it('denormalizes capturedAt and the coordinates alongside the blob', async () => {
@@ -216,29 +201,6 @@ describe('saveShareCard / readShareCard', () => {
   it('refuses to write two cards with the same id', async () => {
     const snapshot = makeShareSnapshot({ id: generateShareId() });
     await saveFixture(snapshot);
-    await expect(saveShareCard({ prisma, snapshot, userId: null })).rejects.toThrow();
-  });
-
-  it('deletes a logged-in user’s cards when the account is deleted', async () => {
-    // ARCHITECTURE.md §7's "deletion means deletion" — enforced by the
-    // schema's onDelete: Cascade, which only a real database can prove.
-    const user = await prisma.user.create({
-      data: { email: `cascade${Date.now()}${TEST_EMAIL_SUFFIX}` },
-    });
-    const id = await saveFixture(makeShareSnapshot({ id: generateShareId() }), user.id);
-
-    expect(await prisma.shareCard.count({ where: { id } })).toBe(1);
-    await prisma.user.delete({ where: { id: user.id } });
-    expect(await prisma.shareCard.count({ where: { id } })).toBe(0);
-  });
-
-  it('keeps an anonymous card when an unrelated user is deleted', async () => {
-    const user = await prisma.user.create({
-      data: { email: `bystander${Date.now()}${TEST_EMAIL_SUFFIX}` },
-    });
-    const id = await saveFixture();
-
-    await prisma.user.delete({ where: { id: user.id } });
-    expect(await prisma.shareCard.count({ where: { id } })).toBe(1);
+    await expect(saveShareCard({ prisma, snapshot })).rejects.toThrow();
   });
 });

@@ -1,4 +1,5 @@
-import type { AccuracyPointData, SkyLogEntryData } from './api';
+import type { AccuracyPointData } from './api';
+import type { SkyLogEntryData } from '@/store';
 
 /**
  * Calculates header summary statistics for the Personal Sky Log (DESIGN_SPEC.md §13).

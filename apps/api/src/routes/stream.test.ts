@@ -92,7 +92,6 @@ describe('GET /stream', () => {
       createApp({
         n2yoApiKey: 'TEST_KEY',
         prisma,
-        jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
       }),
     );
     await new Promise<void>((resolve) => server.listen(0, resolve));

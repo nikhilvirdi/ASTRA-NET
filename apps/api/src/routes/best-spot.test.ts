@@ -43,7 +43,6 @@ function appWith(
   return createApp({
     n2yoApiKey: 'TEST_KEY',
     prisma,
-    jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
     fetchOpenMeteoBatch: cloudBatch(),
     bortleAt: bortleStub,
     ...overrides,

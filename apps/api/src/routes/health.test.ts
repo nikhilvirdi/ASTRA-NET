@@ -79,7 +79,6 @@ describe('GET /health', () => {
       createApp({
         n2yoApiKey: 'TEST_KEY',
         prisma,
-        jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
       }),
     ).get('/health');
     const body = res.body as HealthPayload;

@@ -16,34 +16,34 @@ import { AccuracyPayloadSchema } from '../accuracy/accuracy.schemas.js';
 import type { AccuracyPayload } from '../accuracy/build-accuracy.js';
 import { loadDatabaseUrl } from '../test-support/db.js';
 
-const TEST_EMAIL_SUFFIX = '@accuracy-route-test.invalid';
-const JWT_ACCESS_SECRET = 'test-only-fake-jwt-secret-not-a-real-value';
-
 const prisma = createPrismaClient(loadDatabaseUrl());
 
 function app() {
-  return createApp({ n2yoApiKey: 'TEST_KEY', prisma, jwtAccessSecret: JWT_ACCESS_SECRET });
+  return createApp({ n2yoApiKey: 'TEST_KEY', prisma });
 }
 
 /**
  * `/accuracy` is global, so any Prediction row in the database shows up.
  * These tests therefore assert on *their own* rows relative to a baseline
  * taken first, rather than on absolute totals a shared dev database
- * cannot guarantee.
+ * cannot guarantee. Every prediction this file writes is tracked here, so
+ * cleanup is exact.
  */
+const createdIds: string[] = [];
+
 async function cleanup(): Promise<void> {
-  await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
+  if (createdIds.length > 0) {
+    await prisma.prediction.deleteMany({ where: { id: { in: createdIds } } });
+    createdIds.length = 0;
+  }
 }
 
 async function seedScoredPredictions(
-  prefix: string,
   rows: { targetTime: string; predictedKp: number; actualKp: number; hit: boolean }[],
-) {
-  const user = await prisma.user.create({ data: { email: `${prefix}${TEST_EMAIL_SUFFIX}` } });
+): Promise<void> {
   for (const row of rows) {
-    await prisma.prediction.create({
+    const prediction = await prisma.prediction.create({
       data: {
-        userId: user.id,
         targetTime: new Date(row.targetTime),
         predictedKp: row.predictedKp,
         confidence: 0.5,
@@ -52,8 +52,8 @@ async function seedScoredPredictions(
         scored: true,
       },
     });
+    createdIds.push(prediction.id);
   }
-  return user.id;
 }
 
 async function getBody(query = ''): Promise<AccuracyPayload> {
@@ -77,7 +77,7 @@ describe('GET /api/accuracy', () => {
 
   it('publishes real scored predictions', async () => {
     const before = await getBody();
-    await seedScoredPredictions('seeded', [
+    await seedScoredPredictions([
       { targetTime: '2026-06-01T00:00:00Z', predictedKp: 5, actualKp: 5, hit: true },
       { targetTime: '2026-06-02T00:00:00Z', predictedKp: 6, actualKp: 3, hit: false },
     ]);
@@ -89,15 +89,14 @@ describe('GET /api/accuracy', () => {
     expect(AccuracyPayloadSchema.safeParse(after).success).toBe(true);
   });
 
-  it('never exposes a user identifier — it is a public endpoint', async () => {
-    await seedScoredPredictions('private', [
+  it('never exposes a prediction identifier — it is a public endpoint', async () => {
+    await seedScoredPredictions([
       { targetTime: '2026-06-03T00:00:00Z', predictedKp: 4, actualKp: 4, hit: true },
     ]);
     const body = await getBody();
 
     expect(body.series.length).toBeGreaterThan(0);
     for (const point of body.series) {
-      expect(point).not.toHaveProperty('userId');
       expect(point).not.toHaveProperty('id');
       expect(Object.keys(point).sort()).toEqual(['actualKp', 'hit', 'predictedKp', 'targetTime']);
     }
@@ -105,15 +104,14 @@ describe('GET /api/accuracy', () => {
 
   it('omits unscored predictions rather than plotting them as zeroes', async () => {
     const before = await getBody();
-    const user = await prisma.user.create({ data: { email: `unscored${TEST_EMAIL_SUFFIX}` } });
-    await prisma.prediction.create({
+    const prediction = await prisma.prediction.create({
       data: {
-        userId: user.id,
         targetTime: new Date('2026-06-04T00:00:00Z'),
         predictedKp: 7,
         confidence: 0.5,
       },
     });
+    createdIds.push(prediction.id);
     const after = await getBody();
 
     expect(after.series.length).toBe(before.series.length);
@@ -121,7 +119,7 @@ describe('GET /api/accuracy', () => {
   });
 
   it('returns the series oldest-first', async () => {
-    await seedScoredPredictions('ordered', [
+    await seedScoredPredictions([
       { targetTime: '2026-06-20T00:00:00Z', predictedKp: 5, actualKp: 5, hit: true },
       { targetTime: '2026-06-05T00:00:00Z', predictedKp: 5, actualKp: 5, hit: true },
       { targetTime: '2026-06-12T00:00:00Z', predictedKp: 5, actualKp: 5, hit: true },
@@ -141,7 +139,7 @@ describe('GET /api/accuracy', () => {
   describe('DESIGN_SPEC §14 — no cherry-picking controls', () => {
     beforeEach(async () => {
       await cleanup();
-      await seedScoredPredictions('nocherry', [
+      await seedScoredPredictions([
         { targetTime: '2026-01-01T00:00:00Z', predictedKp: 5, actualKp: 1, hit: false },
         { targetTime: '2026-02-01T00:00:00Z', predictedKp: 5, actualKp: 1, hit: false },
         { targetTime: '2026-06-01T00:00:00Z', predictedKp: 5, actualKp: 5, hit: true },
@@ -181,10 +179,8 @@ describe('GET /api/accuracy — failure paths', () => {
   it('500s rather than publishing a record that fails its own schema', async () => {
     // `actualKp` is a plain Float column, so a bad write can hold a value
     // outside the 0-9 Kp index. Publishing it would misdraw the chart.
-    const user = await prisma.user.create({ data: { email: `badkp${TEST_EMAIL_SUFFIX}` } });
-    await prisma.prediction.create({
+    const prediction = await prisma.prediction.create({
       data: {
-        userId: user.id,
         targetTime: new Date('2026-06-09T00:00:00Z'),
         predictedKp: 5,
         confidence: 0.5,
@@ -193,6 +189,7 @@ describe('GET /api/accuracy — failure paths', () => {
         scored: true,
       },
     });
+    createdIds.push(prediction.id);
 
     const res = await request(app()).get('/api/accuracy');
 
@@ -212,7 +209,6 @@ describe('GET /api/accuracy — failure paths', () => {
       createApp({
         n2yoApiKey: 'TEST_KEY',
         prisma: failingPrisma,
-        jwtAccessSecret: JWT_ACCESS_SECRET,
       }),
     ).get('/api/accuracy');
 

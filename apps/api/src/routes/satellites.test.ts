@@ -88,7 +88,6 @@ describe('GET /api/satellites', () => {
       createApp({
         n2yoApiKey: 'TEST_KEY',
         prisma,
-        jwtAccessSecret: 'test-only-fake-jwt-secret-not-a-real-value',
       }),
     ).get('/api/satellites');
     const body = res.body as SatellitesPayload;

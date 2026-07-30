@@ -203,17 +203,19 @@ export interface FastTierStreamPayload {
 }
 
 // ─── Default Location Anchor ──────────────────────────────────────────────────
-// Jammu, India — explicit placeholder matching DESIGN_SPEC.md §10 & test suites
+// Delhi, India — the site-wide default until a visitor sets their own
+// location (DESIGN_SPEC.md §10). No account required: this is a plain
+// client-side setting, not a saved-per-user value.
 export const DEFAULT_OBSERVER_LOCATION: UserLocation = {
-  lat: 32.73,
-  lon: 74.87,
-  name: 'JAMMU',
+  lat: 28.6139,
+  lon: 77.209,
+  name: 'DELHI',
 };
 
 /**
  * Resolves effective location using fallback chain:
- * 1. Explicit store.location
- * 2. Default Jammu coordinates (32.73, 74.87)
+ * 1. Explicit store.location (set by the site-wide location switcher)
+ * 2. Default Delhi coordinates
  */
 export function getEffectiveLocation(): UserLocation {
   const storeLocation = useAppStore.getState().location;
@@ -226,7 +228,7 @@ export function getEffectiveLocation(): UserLocation {
  */
 export async function fetchBrief(lat: number, lon: number): Promise<DailyBrief> {
   const url = `/api/brief?lat=${lat}&lon=${lon}`;
-  const res = await fetch(url, { credentials: 'include' });
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch brief: ${res.status} ${res.statusText}`);
   }
@@ -309,59 +311,14 @@ export async function fetchBestSpot(
   if (event !== 'all') params.set('event', event);
   if (at) params.set('at', at);
 
-  const res = await fetch(`/api/best-spot?${params.toString()}`, { credentials: 'include' });
+  const res = await fetch(`/api/best-spot?${params.toString()}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch best spot payload: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as BestSpotPayload;
 }
 
-// ─── Phase 10 API Contracts (Sky Log, Settings, Locations, Accuracy, Delete Account) ───
-
-export interface SkyLogEntryData {
-  id: string;
-  userId: string;
-  eventType: string;
-  timestamp: string;
-  notes: string | null;
-  source: 'manual' | 'auto';
-  details: {
-    kp?: number;
-    cloudCoverPercent?: number;
-    moonPhase?: string;
-  } | null;
-  createdAt: string;
-}
-
-export interface UserAlertsData {
-  iss_pass: boolean;
-  aurora: boolean;
-  meteor_shower: boolean;
-  neo_approach: boolean;
-}
-
-export interface DefaultLocationData {
-  id: string;
-  label: string;
-  latitude: number;
-  longitude: number;
-}
-
-export interface SettingsPayloadData {
-  alerts: UserAlertsData;
-  defaultLocation: DefaultLocationData | null;
-  alertsDeliverable: boolean;
-}
-
-export interface SavedLocationData {
-  id: string;
-  userId: string;
-  label: string;
-  latitude: number;
-  longitude: number;
-  isDefault: boolean;
-  createdAt: string;
-}
+// ─── Accuracy (/api/accuracy) ─────────────────────────────────────────────────
 
 export interface AccuracyPointData {
   targetTime: string;
@@ -386,124 +343,6 @@ export interface AccuracyPayloadData {
   series: AccuracyPointData[];
   hitRate: AccuracyHitRateData;
   empty: boolean;
-}
-
-/** Fetches personal sky log entries from GET /api/sky-log */
-export async function fetchSkyLog(limit = 100): Promise<SkyLogEntryData[]> {
-  const res = await fetch(`/api/sky-log?limit=${limit}`, { credentials: 'include' });
-  if (!res.ok) {
-    if (res.status === 401) throw new Error('UNAUTHORIZED');
-    throw new Error(`Failed to fetch sky log: ${res.status}`);
-  }
-  return (await res.json()) as SkyLogEntryData[];
-}
-
-/** Creates a new manual sky log entry via POST /api/sky-log */
-export async function createSkyLogEntry(data: {
-  eventType: string;
-  timestamp: string;
-  notes?: string;
-  details?: Record<string, unknown>;
-}): Promise<SkyLogEntryData> {
-  const res = await fetch('/api/sky-log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(`Failed to create log entry: ${res.status}`);
-  return (await res.json()) as SkyLogEntryData;
-}
-
-/** Deletes a sky log entry via DELETE /api/sky-log/:id */
-export async function deleteSkyLogEntry(id: string): Promise<void> {
-  const res = await fetch(`/api/sky-log/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error(`Failed to delete log entry: ${res.status}`);
-}
-
-/** Fetches user settings from GET /api/settings */
-export async function fetchSettings(): Promise<SettingsPayloadData> {
-  const res = await fetch('/api/settings', { credentials: 'include' });
-  if (!res.ok) {
-    if (res.status === 401) throw new Error('UNAUTHORIZED');
-    throw new Error(`Failed to fetch settings: ${res.status}`);
-  }
-  return (await res.json()) as SettingsPayloadData;
-}
-
-/** Updates alert toggles via PUT /api/settings/alerts */
-export async function updateAlertSettings(
-  alerts: Partial<UserAlertsData>,
-): Promise<UserAlertsData> {
-  const res = await fetch('/api/settings/alerts', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ alerts }),
-  });
-  if (!res.ok) throw new Error(`Failed to update alerts: ${res.status}`);
-  const payload = (await res.json()) as { alerts: UserAlertsData };
-  return payload.alerts;
-}
-
-/** Fetches saved locations from GET /api/locations */
-export async function fetchLocations(): Promise<SavedLocationData[]> {
-  const res = await fetch('/api/locations', { credentials: 'include' });
-  if (!res.ok) {
-    if (res.status === 401) throw new Error('UNAUTHORIZED');
-    throw new Error(`Failed to fetch locations: ${res.status}`);
-  }
-  return (await res.json()) as SavedLocationData[];
-}
-
-/** Creates a saved location via POST /api/locations */
-export async function createSavedLocation(data: {
-  label: string;
-  latitude: number;
-  longitude: number;
-  isDefault?: boolean;
-}): Promise<SavedLocationData> {
-  const res = await fetch('/api/locations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(`Failed to create location: ${res.status}`);
-  return (await res.json()) as SavedLocationData;
-}
-
-/** Sets a location as the default override via PUT /api/locations/:id */
-export async function setDefaultLocation(id: string): Promise<SavedLocationData> {
-  const res = await fetch(`/api/locations/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ isDefault: true }),
-  });
-  if (!res.ok) throw new Error(`Failed to set default location: ${res.status}`);
-  return (await res.json()) as SavedLocationData;
-}
-
-/** Deletes a saved location via DELETE /api/locations/:id */
-export async function deleteSavedLocation(id: string): Promise<void> {
-  const res = await fetch(`/api/locations/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error(`Failed to delete location: ${res.status}`);
-}
-
-/** Permanently deletes user account & all associated data via DELETE /api/auth/account */
-export async function deleteAccount(): Promise<void> {
-  const res = await fetch('/api/auth/account', {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) throw new Error(`Failed to delete account: ${res.status}`);
 }
 
 /** Fetches public accuracy & track record data from GET /api/accuracy */
@@ -592,7 +431,6 @@ export async function createShareSnapshot(
   const res = await fetch('/api/share', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify({ lat, lon }),
   });
   if (!res.ok) throw new Error(`Failed to create share card: ${res.status}`);

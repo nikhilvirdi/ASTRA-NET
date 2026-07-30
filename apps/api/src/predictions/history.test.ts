@@ -2,17 +2,15 @@
  * Integration tests against the real docker-compose Postgres (no mocked
  * Prisma Client), matching this project's standing Phase 5+ DB-testing
  * convention. Exercises the GLOBAL scope decision directly (DECISIONS.md):
- * hits/trials must aggregate across every user's scored predictions, not
- * just one user's — the opposite of `locations.test.ts`'s per-user
- * isolation contract.
+ * hits/trials aggregate across every scored prediction with no ownership
+ * filter at all — there is no account system, so "global" is simply the
+ * whole table.
  */
 
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createPrismaClient } from '../db/client.js';
 import { getGlobalPredictionHistory, NEUTRAL_PREDICTION_HISTORY } from './history.js';
-
-const TEST_EMAIL_SUFFIX = '@predictions-history-test.invalid';
 
 function loadDatabaseUrl(): string {
   if (process.env.DATABASE_URL === undefined || process.env.DATABASE_URL === '') {
@@ -34,13 +32,25 @@ function loadDatabaseUrl(): string {
 const prisma = createPrismaClient(loadDatabaseUrl());
 const NOW = new Date('2026-07-22T12:00:00Z');
 
-async function createTestUser(prefix: string): Promise<string> {
-  const user = await prisma.user.create({ data: { email: `${prefix}${TEST_EMAIL_SUFFIX}` } });
-  return user.id;
+/** Every prediction this file writes is tracked here, so cleanup is exact. */
+const createdIds: string[] = [];
+
+async function createTestPrediction(data: {
+  predictedKp: number;
+  confidence: number;
+  scored: boolean;
+  hit?: boolean;
+  actualKp?: number;
+}): Promise<void> {
+  const prediction = await prisma.prediction.create({ data: { targetTime: NOW, ...data } });
+  createdIds.push(prediction.id);
 }
 
 async function cleanup(): Promise<void> {
-  await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_SUFFIX } } });
+  if (createdIds.length > 0) {
+    await prisma.prediction.deleteMany({ where: { id: { in: createdIds } } });
+    createdIds.length = 0;
+  }
 }
 
 beforeEach(cleanup);
@@ -56,59 +66,40 @@ describe('getGlobalPredictionHistory against real Postgres', () => {
   });
 
   it('counts only scored predictions as trials, and only scored+hit ones as hits', async () => {
-    const userId = await createTestUser('single-user');
-    await prisma.prediction.createMany({
-      data: [
-        {
-          userId,
-          targetTime: NOW,
-          predictedKp: 4,
-          confidence: 0.6,
-          scored: true,
-          hit: true,
-          actualKp: 4,
-        },
-        {
-          userId,
-          targetTime: NOW,
-          predictedKp: 5,
-          confidence: 0.6,
-          scored: true,
-          hit: false,
-          actualKp: 8,
-        },
-        { userId, targetTime: NOW, predictedKp: 3, confidence: 0.6, scored: false }, // not yet elapsed/scored
-      ],
+    await createTestPrediction({
+      predictedKp: 4,
+      confidence: 0.6,
+      scored: true,
+      hit: true,
+      actualKp: 4,
     });
+    await createTestPrediction({
+      predictedKp: 5,
+      confidence: 0.6,
+      scored: true,
+      hit: false,
+      actualKp: 8,
+    });
+    await createTestPrediction({ predictedKp: 3, confidence: 0.6, scored: false }); // not yet elapsed/scored
 
     const result = await getGlobalPredictionHistory(prisma);
     expect(result).toEqual({ hits: 1, trials: 2 });
   });
 
-  it('aggregates across users — GLOBAL scope, not per-user (DECISIONS.md)', async () => {
-    const userA = await createTestUser('user-a');
-    const userB = await createTestUser('user-b');
-    await prisma.prediction.createMany({
-      data: [
-        {
-          userId: userA,
-          targetTime: NOW,
-          predictedKp: 4,
-          confidence: 0.6,
-          scored: true,
-          hit: true,
-          actualKp: 4,
-        },
-        {
-          userId: userB,
-          targetTime: NOW,
-          predictedKp: 5,
-          confidence: 0.6,
-          scored: true,
-          hit: true,
-          actualKp: 5,
-        },
-      ],
+  it('aggregates every scored prediction — GLOBAL scope, no ownership filter (DECISIONS.md)', async () => {
+    await createTestPrediction({
+      predictedKp: 4,
+      confidence: 0.6,
+      scored: true,
+      hit: true,
+      actualKp: 4,
+    });
+    await createTestPrediction({
+      predictedKp: 5,
+      confidence: 0.6,
+      scored: true,
+      hit: true,
+      actualKp: 5,
     });
 
     const result = await getGlobalPredictionHistory(prisma);

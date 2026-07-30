@@ -17,7 +17,6 @@ import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
 import { fetchHorizons, fetchHorizonsRaDec } from './clients/jpl-horizons/index.js';
 import { fetchCelestrakTle } from './clients/celestrak/index.js';
-import type { GoogleOAuthConfig } from './routes/auth.js';
 
 /**
  * `.env` is loaded on a best-effort basis: local dev relies on it, but
@@ -41,39 +40,7 @@ function requireEnv(name: string): string {
 const nasaApiKey = requireEnv('NASA_API_KEY');
 const n2yoApiKey = requireEnv('N2YO_API_KEY');
 const databaseUrl = requireEnv('DATABASE_URL');
-const jwtAccessSecret = requireEnv('JWT_ACCESS_SECRET');
 const port = Number(process.env.PORT ?? 3000);
-
-/**
- * Google OAuth is additive, never a prerequisite (ARCHITECTURE.md §3 G)
- * — read optionally, not via `requireEnv`, so the app still boots (and
- * every other auth route still works) with no Google app registered
- * yet. Only enabled once every piece it needs is present.
- */
-function readGoogleOAuthConfig(): GoogleOAuthConfig | undefined {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-  const webOrigin = process.env.WEB_ORIGIN;
-  if (
-    clientId === undefined ||
-    clientId === '' ||
-    clientSecret === undefined ||
-    clientSecret === '' ||
-    redirectUri === undefined ||
-    redirectUri === '' ||
-    webOrigin === undefined ||
-    webOrigin === ''
-  ) {
-    console.warn(
-      '[auth] Google OAuth is disabled — GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI/WEB_ORIGIN not all set',
-    );
-    return undefined;
-  }
-  return { clientId, clientSecret, redirectUri, webOrigin };
-}
-
-const googleOAuth = readGoogleOAuthConfig();
 
 /**
  * Fail fast, before any poller or the HTTP listener starts: Prisma
@@ -106,11 +73,9 @@ startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob });
 const app = createApp({
   n2yoApiKey,
   prisma,
-  jwtAccessSecret,
-  googleOAuth,
   // Both optional (Phase 11): the share card's absolute `og:image` URL
   // falls back to the request's own origin, and its human-facing link
-  // reuses the `WEB_ORIGIN` that Google OAuth already reads.
+  // reuses `WEB_ORIGIN`.
   publicApiOrigin: process.env.PUBLIC_API_ORIGIN,
   webOrigin: process.env.WEB_ORIGIN,
 });

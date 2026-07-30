@@ -1,11 +1,6 @@
 /**
- * Shared test-only helper for the DB-backed route tests.
- *
- * `auth.test.ts`, `locations.test.ts`, `sky-log.test.ts` and
- * `brief.test.ts` each carry their own copy of this loader. Rather than
- * add four more copies for Phase 10, the new tests share one — the
- * existing copies are left alone, since refactoring passing tests was not
- * this task's scope.
+ * Shared test-only helper for the DB-backed route tests, resolving
+ * `DATABASE_URL` from the repo-root `.env` regardless of the test file's cwd.
  */
 
 import { fileURLToPath } from 'node:url';
