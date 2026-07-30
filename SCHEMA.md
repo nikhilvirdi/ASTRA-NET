@@ -16,7 +16,7 @@ ShareCard      (public — a frozen, anonymous snapshot of a Brief moment)
 Cache          (standalone — TTL'd upstream payloads)
 ```
 
-There is intentionally nothing else. ASTRANET originally had `User`, `Session`, `Location`, and `SkyLogEntry` models backing a custom-JWT account system; that system was removed entirely by explicit human decision (see `DECISIONS.md`), and those four models and their migration-level cascades were dropped along with it — not deprecated in place, actually gone from the schema. Location, the Personal Sky Log, and alert preferences are now plain client-side state (browser `localStorage`, `apps/web/src/store`), never sent to or stored by the backend.
+There is intentionally nothing else. ASTRANET originally had `User`, `Session`, `Location`, and `SkyLogEntry` models backing a custom-JWT account system; that system was removed entirely by explicit human decision (see `DECISIONS.md`), and those four models and their migration-level cascades were dropped along with it — not deprecated in place, actually gone from the schema. Location and alert preferences are now plain client-side state (browser `localStorage`, `apps/web/src/store`), never sent to or stored by the backend. The Personal Sky Log went further still: it was removed from the product entirely, not merely moved client-side (see `DECISIONS.md`, 2026-07-30).
 
 ---
 
@@ -60,7 +60,8 @@ Standalone TTL store for upstream API payloads — the "no Redis" decision (`ARC
 ## What's Deliberately NOT Modeled
 
 - **Accounts, sessions, or any per-visitor identity** — removed entirely; there is no login (`ARCHITECTURE.md` §3 G, `DECISIONS.md`).
-- **Location, the Personal Sky Log, and alert preferences** — client-side state only (`apps/web/src/store`, persisted to `localStorage`). The server never sees them and has no table for them.
+- **Location and alert preferences** — client-side state only (`apps/web/src/store`, persisted to `localStorage`). The server never sees them and has no table for them.
+- **The Personal Sky Log** — removed from the product entirely (`DECISIONS.md`, 2026-07-30), not merely relocated client-side.
 - **Live telemetry / poller state** — lives in memory, rebuilt on boot, never persisted (`ARCHITECTURE.md` §4). The DB stores the accuracy record and share cards, not the live feed.
 - **Deep-sky / cosmological objects** — horizon features, not in scope (`NOTES.md`).
 - **Analytics / event tracking tables** — not part of the core product; add only if a real need appears.

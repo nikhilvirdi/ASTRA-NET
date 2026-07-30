@@ -432,17 +432,9 @@ Same three-bar language as the Confidence Ticks — one visual grammar for "this
 
 ---
 
-### 13. `/log` — Personal Sky Log
+### 13. `/log` — removed
 
-A field journal. Public, local to this browser — no account, no server-side record.
-
-**Header stats** — three large mono figures with small proportional labels beneath: nights observed, ISS passes caught, last aurora. Set at `data-l`, widely spaced, no cards, no boxes. Just numbers on the page, like a plate in a scientific monograph.
-
-**Timeline** — a single vertical brass rule down the left of the reading track. Entries hang off it, newest first, grouped by month with the month set in `display-m` at low opacity as a section marker.
-
-Each entry: date (mono), event type (small engraved icon + label), the conditions at the time (Kp, cloud, moon phase — all mono), and an optional user note (serif, italic). Auto-logged and manually-added entries are distinguished by a filled versus hollow marker on the rule — a small honest distinction between what the system observed and what the user claimed.
-
-**Empty state** — not a shrug. A single line of direction: _Nothing logged yet. Your first ISS pass tonight is at_ `21:42` _— catch it and it lands here._ With a link to the Brief. An empty screen is an invitation to act.
+The Personal Sky Log was removed entirely by explicit human decision (see `DECISIONS.md`). This section number is retired rather than reused or renumbered, same precedent as `§16`'s removal — existing citations to the sections after it stay stable.
 
 ---
 
@@ -470,7 +462,7 @@ Sections separated by hairline rules with mono uppercase section labels: `LOCATI
 
 **Appearance** contains the Red Light Mode toggle with a one-line serif explanation of _why_ it exists — a small moment of teaching that reinforces the product's credibility.
 
-**Your data** — the clear-local-data control. It is not hidden, not styled as dangerous-red-by-default, not buried behind three confirmations. It sits plainly with an honest description: _Wipes your saved location, Sky Log entries, and alert preferences from this browser. It cannot be undone._ One typed confirmation, done — there is no server-side account or row to delete, only this browser's own storage.
+**Your data** — the clear-local-data control. It is not hidden, not styled as dangerous-red-by-default, not buried behind three confirmations. It sits plainly with an honest description: _Wipes your saved location and alert preferences from this browser. It cannot be undone._ One typed confirmation, done — there is no server-side account or row to delete, only this browser's own storage.
 
 ---
 
@@ -566,7 +558,7 @@ The interface writes like a knowledgeable friend who respects your time, not lik
 | -------------------------------------------------------------------------------- | --------------------------------------------------- |
 | _The ISS passes at 21:42, high and bright._                                      | _ISS transit event detected — visibility: nominal._ |
 | _We can't reach the space weather service right now. Last reading was at 14:20._ | _Error: SWPC endpoint unavailable (503)._           |
-| _Nothing logged yet. Your first ISS pass tonight is at 21:42._                   | _No data to display._                               |
+| _Cloud data unavailable — ranking on darkness and travel only._                  | _Insufficient data. Confidence degraded._           |
 | _About as wide as the Eiffel Tower is tall._                                     | _Estimated diameter: 324m._                         |
 
 Rules:

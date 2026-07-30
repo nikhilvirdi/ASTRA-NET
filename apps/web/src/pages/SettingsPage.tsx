@@ -239,8 +239,8 @@ export function SettingsPage(): React.ReactElement {
                 CLEAR LOCAL DATA
               </h3>
               <p className="type-body font-serif italic text-sky-300 text-sm leading-relaxed">
-                Wipes your saved location, Sky Log entries, and alert preferences from this browser.
-                It cannot be undone.
+                Wipes your saved location and alert preferences from this browser. It cannot be
+                undone.
               </p>
             </div>
 
@@ -263,8 +263,8 @@ export function SettingsPage(): React.ReactElement {
               CONFIRM CLEAR LOCAL DATA
             </h2>
             <p className="type-body text-sky-200 text-xs font-mono leading-relaxed">
-              This clears your saved location, Sky Log entries, and alert preferences from this
-              browser. To confirm, type <strong className="text-ember-400">CLEAR</strong> below:
+              This clears your saved location and alert preferences from this browser. To confirm,
+              type <strong className="text-ember-400">CLEAR</strong> below:
             </p>
 
             <input

@@ -101,9 +101,6 @@ export function PersistentNav(): React.ReactElement | null {
             <NavItem to="/best-spot" label="Best Spot" />
           </li>
           <li>
-            <NavItem to="/log" label="Log" />
-          </li>
-          <li>
             <NavItem to="/settings" label="Settings" />
           </li>
         </ul>

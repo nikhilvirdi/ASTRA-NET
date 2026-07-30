@@ -10,7 +10,7 @@ Reference document for the locked technical architecture. This is the "what and 
 ┌──────────────────────────────────────────────────────────┐
 │  BROWSER (Cloudflare Pages)                                │
 │  React + Vite + Three.js/R3F + Zustand + Tailwind         │
-│  - Daily Brief, Explore (3D), Best-Spot, Log, Settings    │
+│  - Daily Brief, Explore (3D), Best-Spot, Settings         │
 │  - Consumes REST /api/* and subscribes to SSE /stream     │
 └───────────────┬───────────────────────┬──────────────────┘
                 │ REST (JSON)            │ SSE (live fast-tier)
@@ -171,23 +171,22 @@ This contract is enforced identically on backend (`/api/brief` composition) and 
 
 There is no account system, so there is no personal data on the server to protect in the first place:
 
-- Location, the Personal Sky Log, and alert preferences all live only in the visitor's own browser (`localStorage`) — never transmitted to or stored by the backend.
+- Location and alert preferences live only in the visitor's own browser (`localStorage`) — never transmitted to or stored by the backend.
 - The database holds nothing that identifies a visitor: `Prediction` rows are global forecast/outcome pairs (no owner field), `ShareCard` rows are anonymous public snapshots, `Cache` is upstream-payload TTL storage. See `SCHEMA.md`.
-- **Clear local data** (in `/settings`) wipes that browser's own location, Sky Log, and alert preferences — a client-side operation, not a server request.
+- **Clear local data** (in `/settings`) wipes that browser's own location and alert preferences — a client-side operation, not a server request.
 
 ---
 
 ## 8. Pages
 
-Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Log · Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding. Every route is public — there is no account system and therefore no auth-gated page.
+Single persistent app shell (logo + minimal top nav: Explore · Best Spot · Settings) wrapping all routes **except** `/explore`, which is full-bleed and immersive with nav auto-hiding. Every route is public — there is no account system and therefore no auth-gated page.
 
 | Route        | Contents                                                                                                                                                                                |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`          | **Daily Brief** — tonight's sky, aurora odds + confidence, next ISS pass, one solar line, 60-sec learning moment. Location is a client-side setting (default: Delhi) applied site-wide. |
 | `/explore`   | **Explorable Universe (3D)** — opens on Ground Truth Sky Anchor; click-driven contextual overlays; no menus, the scene is the navigation.                                               |
 | `/best-spot` | **Best-Spot-Tonight Finder** — MapLibre map + ranked nearby viewing spots (clarity × darkness × travel), filterable by tonight's event.                                                 |
-| `/log`       | **Personal Sky Log** — timeline of witnessed events + simple stats (total, streak, last aurora). Local to the browser (`localStorage`), not server-persisted.                           |
-| `/settings`  | Current location, alert toggles, **clear local data** (wipes this browser's location/Sky Log/alerts).                                                                                   |
+| `/settings`  | Current location, alert toggles, **clear local data** (wipes this browser's location/alerts).                                                                                           |
 | `/share/:id` | **Shareable Sky Card** — anonymous snapshot of a day's brief, OG-tagged. The growth loop.                                                                                               |
 | `/accuracy`  | **Track record** — predicted vs. actual Kp over time + rolling hit-rate (Recharts).                                                                                                     |
 

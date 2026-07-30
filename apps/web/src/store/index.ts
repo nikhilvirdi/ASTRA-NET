@@ -4,11 +4,11 @@ import { persist } from 'zustand/middleware';
 /**
  * ASTRANET Zustand store — global app state
  *
- * Scope: active location, Personal Sky Log entries, alert preferences,
- * display mode preferences. There is no account system: location, the
- * Sky Log, and alert toggles all live in this browser only, persisted to
- * localStorage — not on a server. Route-local data (e.g. the Brief API
- * response) stays in component-local state, not here.
+ * Scope: active location, alert preferences, display mode preferences.
+ * There is no account system: location and alert toggles live in this
+ * browser only, persisted to localStorage — not on a server. Route-local
+ * data (e.g. the Brief API response) stays in component-local state, not
+ * here.
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -17,20 +17,6 @@ export interface UserLocation {
   lat: number;
   lon: number;
   name: string;
-}
-
-export interface SkyLogEntryData {
-  id: string;
-  eventType: string;
-  timestamp: string;
-  notes: string | null;
-  source: 'manual';
-  details: {
-    kp?: number;
-    cloudCoverPercent?: number;
-    moonPhase?: string;
-  } | null;
-  createdAt: string;
 }
 
 export interface UserAlertsData {
@@ -54,17 +40,12 @@ export interface AppState {
   location: UserLocation | null;
   setLocation: (loc: UserLocation) => void;
 
-  // Personal Sky Log — local-only, browser storage.
-  skyLogEntries: SkyLogEntryData[];
-  addSkyLogEntry: (entry: { eventType: string; timestamp: string; notes?: string }) => void;
-  removeSkyLogEntry: (id: string) => void;
-
   // Alert toggle preferences — local-only. No delivery mechanism exists
   // yet; toggles just persist the preference for future delivery.
   alerts: UserAlertsData;
   setAlerts: (alerts: Partial<UserAlertsData>) => void;
 
-  /** Wipes location, Sky Log entries, and alert preferences from this browser. */
+  /** Wipes location and alert preferences from this browser. */
   clearLocalData: () => void;
 
   // Display modes
@@ -86,29 +67,10 @@ export const useAppStore = create<AppState>()(
       location: null,
       setLocation: (location) => set({ location }),
 
-      skyLogEntries: [],
-      addSkyLogEntry: (entry) =>
-        set((s) => ({
-          skyLogEntries: [
-            {
-              id: crypto.randomUUID(),
-              eventType: entry.eventType,
-              timestamp: entry.timestamp,
-              notes: entry.notes?.trim() ? entry.notes.trim() : null,
-              source: 'manual',
-              details: null,
-              createdAt: new Date().toISOString(),
-            },
-            ...s.skyLogEntries,
-          ],
-        })),
-      removeSkyLogEntry: (id) =>
-        set((s) => ({ skyLogEntries: s.skyLogEntries.filter((e) => e.id !== id) })),
-
       alerts: DEFAULT_ALERTS,
       setAlerts: (alerts) => set((s) => ({ alerts: { ...s.alerts, ...alerts } })),
 
-      clearLocalData: () => set({ location: null, skyLogEntries: [], alerts: DEFAULT_ALERTS }),
+      clearLocalData: () => set({ location: null, alerts: DEFAULT_ALERTS }),
 
       redLightMode: false,
       toggleRedLightMode: () => set((s) => ({ redLightMode: !s.redLightMode })),
@@ -123,7 +85,6 @@ export const useAppStore = create<AppState>()(
       // reloading mid-auto-hide restores a stale hidden nav.
       partialize: (state) => ({
         location: state.location,
-        skyLogEntries: state.skyLogEntries,
         alerts: state.alerts,
         redLightMode: state.redLightMode,
       }),

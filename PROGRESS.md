@@ -742,3 +742,12 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
   - `vitest run --coverage` (`apps/api`): **44 test files, 625 tests, all passing**; coverage 98.52% lines / 93.84% branch / 100% functions — clears the 80% threshold gate.
   - `vitest run --coverage` (`apps/web`): **9 test files, 120 tests, all passing**, exit 0 — no coverage threshold configured here by longstanding design (component/scene code is exercised by typecheck + live-browser verification, not jsdom; only `src/lib`'s pure helpers are unit-tested).
   - `packages/shared` sanity-checked (untouched by this task): 15 test files, 188 tests, all passing.
+
+## 2026-07-30 (Personal Sky Log removed from the frontend, by Claude Code)
+
+- ✅ Done: Deleted `LogPage.tsx`, the `/log` route (`App.tsx`), and the "Log" nav link (`PersistentNav.tsx`). Removed the `skyLogEntries` slice entirely from `store/index.ts` (type, state, actions, `clearLocalData`, `persist` partialize).
+- ✅ Done: Checked `phase10-helpers.ts` before deleting anything — `calculateLogStats`/`groupEntriesByMonth`/`formatEventTypeLabel` had no callers left besides `LogPage`, removed; `generateStepPlotPaths` (used by `AccuracyPage`) kept, along with its tests.
+- ✅ Done: `SettingsPage.tsx`'s "Clear local data" copy updated to match what it actually wipes now (location + alerts, no Sky Log).
+- ✅ Done: Full-repo grep (two passes, including contextual terms like "journal"/"witnessed" in case `BriefPage`/`ExplorePage` linked to it without the literal word) found zero remaining dead references after the edits above.
+- ✅ Done: `DESIGN_SPEC.md` §13 marked "removed" (same precedent as §16), including a stray voice-guide example that quoted `/log`'s old empty-state copy verbatim — swapped for a still-live Best-Spot example. `ARCHITECTURE.md`, `SCHEMA.md`, `WORKPLAN.md` updated to drop now-stale Sky Log mentions left over from the auth-removal pass. Full reasoning in `DECISIONS.md`.
+- ✅ Done: Gates, real output — `tsc --build --force` (root) exit 0; `eslint . --max-warnings=0` exit 0; `prettier --check` clean; `vitest run` (`apps/web`) all passing.
