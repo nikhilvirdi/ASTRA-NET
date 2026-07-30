@@ -52,6 +52,7 @@
     "node_modules",
     "prisma/generated",
     "*.config.js",
-    "*.config.ts"
+    "*.config.ts",
+    "vitest.workspace.ts"
   ]
 }
