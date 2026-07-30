@@ -145,6 +145,11 @@ describe('surfaceColorForTwilight', () => {
     expect(surfaceColorForTwilight(99)).toBe(SKY_900_NIGHT);
   });
 
+  it('clamps +/-Infinity the same as an ordinary out-of-range value', () => {
+    expect(surfaceColorForTwilight(Number.POSITIVE_INFINITY)).toBe(SKY_900_NIGHT);
+    expect(surfaceColorForTwilight(Number.NEGATIVE_INFINITY)).toBe(SKY_100_DAY);
+  });
+
   it('returns the night surface for NaN (the safe end for an outdoor screen)', () => {
     expect(surfaceColorForTwilight(Number.NaN)).toBe(SKY_900_NIGHT);
   });

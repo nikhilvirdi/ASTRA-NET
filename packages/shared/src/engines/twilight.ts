@@ -112,16 +112,21 @@ export function surfaceColorForTwilight(value: number): string {
     return '#111818';
   }
   const clamped = Math.min(3, Math.max(0, value));
+  // clamped is always in [0, 3] (Math.max/min behave the same for +/-Infinity
+  // as for finite numbers), so floor(clamped) is in {0,1,2,3}; capping at
+  // SURFACE_RAMP.length - 2 (= 2) keeps lowerIndex in [0, 2] and lowerIndex + 1
+  // in [1, 3] -- both always valid indices into the fixed 4-entry ramp, for
+  // every non-NaN `value` (verified exhaustively in twilight.test.ts).
   const lowerIndex = Math.min(SURFACE_RAMP.length - 2, Math.floor(clamped));
-  const lower = SURFACE_RAMP[lowerIndex];
-  const upper = SURFACE_RAMP[lowerIndex + 1];
-  if (lower === undefined || upper === undefined) {
-    return '#111818';
-  }
+  const lower = SURFACE_RAMP[lowerIndex]!;
+  const upper = SURFACE_RAMP[lowerIndex + 1]!;
 
   const t = clamped - lower.value;
+  // Same reasoning as above: lower.rgb and upper.rgb are both fixed 3-tuples,
+  // so i (from mapping over lower.rgb) is always 0, 1, or 2 -- upper.rgb[i]
+  // is always defined, never the `?? channel` fallback this used to need.
   const channels = lower.rgb.map((channel, i) => {
-    const target = upper.rgb[i] ?? channel;
+    const target = upper.rgb[i]!;
     return channel + (target - channel) * t;
   });
 
