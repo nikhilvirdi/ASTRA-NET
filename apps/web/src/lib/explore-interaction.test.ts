@@ -4,11 +4,14 @@ import {
   calculateTouchPinchDistance,
   clampDepth,
   computeGravityBias,
+  computeOrbitDropState,
   computePinchZoomFov,
   DEPTH_HOLD_THRESHOLDS_MS,
   findGravityTarget,
+  GROUND_SKY_ANCHOR_STATE,
   hasScreenPosChanged,
   nextDepth,
+  ORBIT_VANTAGE_STATE,
 } from './explore-interaction';
 import type { GravityTarget } from '@/components/explore/CameraController';
 
@@ -185,6 +188,45 @@ describe('explore-interaction', () => {
         jupiter: { x: 300, y: 400, inView: true },
       };
       expect(hasScreenPosChanged(prev, next)).toBe(true);
+    });
+  });
+
+  describe('Orbit-Drop Camera Trajectory (computeOrbitDropState)', () => {
+    it('returns exact orbital vantage state at progress 0', () => {
+      const state = computeOrbitDropState(0);
+      expect(state).toEqual(ORBIT_VANTAGE_STATE);
+      expect(state.y).toBe(800);
+      expect(state.z).toBe(400);
+      expect(state.pitch).toBe(-0.8);
+      expect(state.fov).toBe(90);
+    });
+
+    it('returns exact ground Sky Anchor state at progress 1', () => {
+      const state = computeOrbitDropState(1);
+      expect(state).toEqual(GROUND_SKY_ANCHOR_STATE);
+      expect(state.x).toBe(0);
+      expect(state.y).toBe(0);
+      expect(state.z).toBe(0);
+      expect(state.pitch).toBeCloseTo(Math.PI / 8);
+      expect(state.fov).toBe(60);
+    });
+
+    it('interpolates intermediate camera state linearly at progress 0.5', () => {
+      const state = computeOrbitDropState(0.5);
+      expect(state.y).toBe(400);
+      expect(state.z).toBe(200);
+      expect(state.pitch).toBeCloseTo((-0.8 + Math.PI / 8) / 2);
+      expect(state.fov).toBe(75);
+    });
+
+    it('clamps progress below 0 to orbital vantage state', () => {
+      const state = computeOrbitDropState(-0.5);
+      expect(state).toEqual(ORBIT_VANTAGE_STATE);
+    });
+
+    it('clamps progress above 1 to ground Sky Anchor state', () => {
+      const state = computeOrbitDropState(1.5);
+      expect(state).toEqual(GROUND_SKY_ANCHOR_STATE);
     });
   });
 });

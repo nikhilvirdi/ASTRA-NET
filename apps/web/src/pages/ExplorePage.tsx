@@ -280,6 +280,7 @@ export function ExplorePage(): React.ReactElement {
         }}
       >
         <CameraController
+          openingActive={openingActive}
           focusTarget={focusTarget}
           onFocusRelease={() => setFocusTarget(null)}
           gravityTargets={gravityTargets}

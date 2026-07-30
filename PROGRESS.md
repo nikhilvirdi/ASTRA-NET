@@ -763,8 +763,9 @@ Re-ran every gate Antigravity reported as "verified during authoring" but could 
 - ✅ Done: **Phase 12 3D Performance Profiling**: Measured `/explore` scene framerate under full load (500 satellites, all planets/Moon/Sun, aurora ring, heliosphere pulse, cursor gravity, pinch-zoom).
   - High-end Desktop GPU: 60.0 FPS avg (59.4 FPS 1% low) vs 59.7 FPS Phase 8 baseline.
   - Mid/Low-Tier CPU Throttled: 59.1 FPS avg (55.8 FPS 1% low) after fixing 60 FPS React re-render bottleneck in `CelestialMarkers.tsx` via `hasScreenPosChanged` position throttling (prevented dropped frames from 48.3 FPS -> 59.1 FPS).
+- ✅ Done: **Orbit-Drop Cinematic Camera Flight (`/explore`)**: Implemented orbital vantage point camera flight per `DESIGN_SPEC.md` §11 and `WORKPLAN.md` Phase 8 DoD. On first visit (`openingActive`), the camera starts in orbit (`position: [0, 800, 400]`, `pitch: -0.8`, `fov: 90°`). At `0:04` (matching black veil fade up), the camera executes a 2.5s GSAP `expo.inOut` cinematic descent down to the ground-level Sky Anchor position (`position: [0, 0, 0]`, `pitch: Math.PI / 8`, `fov: 60°`). Under `prefers-reduced-motion`, the camera remains at ground level and the veil collapses to a 200ms fade without breaking ISS camera locks or cursor gravity.
 - ✅ Done: Gates green (real runs):
   - `npx tsc --build --force`: exit 0 (0 errors)
   - `npx eslint . --max-warnings=0`: exit 0 (0 warnings/errors)
   - `npx prettier --check apps/web/src`: exit 0 (all matched files use Prettier style)
-  - `cd apps/web && npx vitest run`: exit 0 (9 test files, 132 tests passing; explore-interaction.test.ts 10→26 tests)
+  - `cd apps/web && npx vitest run`: exit 0 (9 test files, 137 tests passing; explore-interaction.test.ts 10→31 tests)

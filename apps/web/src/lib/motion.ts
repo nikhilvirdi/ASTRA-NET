@@ -80,6 +80,9 @@ export const OPENING_SEQUENCE = {
   skyFadeUpAt: 4,
   /** Fade-up length: §11 states none; cinematic upper bound (§7.1, 800–1600ms). */
   skyFadeUpDuration: 1.6,
+  /** 0:04 — orbit-drop camera flight duration from orbital vantage point to ground level. */
+  orbitDropDuration: 2.5,
+  orbitDropEase: EASE_CINEMATIC,
   /** 0:12 — one point of light (ISS) begins moving; cursor gravity biases toward it. */
   issRevealAt: 12,
   /** 0:20 on click — "a long expo.inOut rise from ground to orbit, 1.6s" (stated). */

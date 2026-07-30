@@ -5,9 +5,11 @@ import gsap from 'gsap';
 import { DUR_REDUCED_MOTION_FADE, OPENING_SEQUENCE } from '@/lib/motion';
 import {
   computeGravityBias,
+  computeOrbitDropState,
   computePinchZoomFov,
   calculateTouchPinchDistance,
   findGravityTarget,
+  ORBIT_VANTAGE_STATE,
   type GravityTarget,
 } from '@/lib/explore-interaction';
 
@@ -59,6 +61,8 @@ interface CameraControllerProps {
   minFov?: number;
   /** Maximum Field of View for zoom out (degrees) */
   maxFov?: number;
+  /** Whether the §11 first-visit opening sequence is currently active. */
+  openingActive?: boolean;
   /** Cinematic focus request; null = free camera. */
   focusTarget?: CameraFocusTarget | null;
   /** The focus ended: the user broke the lock, or a flyTo arrived. */
@@ -82,12 +86,17 @@ export function CameraController({
   maxPitch = Math.PI / 2 - 0.02, // ~88.8 degrees (just under zenith to prevent gimbal lock)
   minFov = 30,
   maxFov = 90,
+  openingActive = false,
   focusTarget = null,
   onFocusRelease,
   gravityTargets = [],
   pointerPos = null,
 }: CameraControllerProps): React.ReactElement | null {
   const { camera, gl } = useThree();
+
+  // Position targets for orbit-drop camera flight (§11 / Phase 8 DoD)
+  const targetCamPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
+  const currentCamPos = useRef<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
 
   // Angle targets and current smoothed angles
   const targetYaw = useRef<number>(0);
@@ -122,6 +131,51 @@ export function CameraController({
     focusPhase.current = 'idle';
     onFocusReleaseRef.current?.(reason);
   }).current;
+
+  // §11 / Phase 8 DoD Orbit-Drop Cinematic Flight
+  const openingDropRan = useRef<boolean>(false);
+  useEffect(() => {
+    if (!openingActive || openingDropRan.current) return;
+    openingDropRan.current = true;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;
+
+    // Start camera high in orbital vantage point looking down toward earth/horizon
+    targetCamPos.current = {
+      x: ORBIT_VANTAGE_STATE.x,
+      y: ORBIT_VANTAGE_STATE.y,
+      z: ORBIT_VANTAGE_STATE.z,
+    };
+    currentCamPos.current = {
+      x: ORBIT_VANTAGE_STATE.x,
+      y: ORBIT_VANTAGE_STATE.y,
+      z: ORBIT_VANTAGE_STATE.z,
+    };
+    targetPitch.current = ORBIT_VANTAGE_STATE.pitch;
+    currentPitch.current = ORBIT_VANTAGE_STATE.pitch;
+    targetFov.current = ORBIT_VANTAGE_STATE.fov;
+    currentFov.current = ORBIT_VANTAGE_STATE.fov;
+
+    const proxy = { progress: 0 };
+
+    const dropTween = gsap.to(proxy, {
+      progress: 1,
+      delay: OPENING_SEQUENCE.skyFadeUpAt,
+      duration: OPENING_SEQUENCE.orbitDropDuration,
+      ease: OPENING_SEQUENCE.orbitDropEase,
+      onUpdate: () => {
+        const state = computeOrbitDropState(proxy.progress);
+        targetCamPos.current = { x: state.x, y: state.y, z: state.z };
+        targetPitch.current = state.pitch;
+        targetFov.current = state.fov;
+      },
+    });
+
+    return () => {
+      dropTween.kill();
+    };
+  }, [openingActive]);
 
   // Start/replace the cinematic when a (new) focus target arrives.
   const focusId = focusTarget?.id ?? null;
@@ -335,9 +389,12 @@ export function CameraController({
 
     currentYaw.current += (targetYaw.current - currentYaw.current) * damping;
     currentPitch.current += (targetPitch.current - currentPitch.current) * damping;
+    currentCamPos.current.x += (targetCamPos.current.x - currentCamPos.current.x) * damping;
+    currentCamPos.current.y += (targetCamPos.current.y - currentCamPos.current.y) * damping;
+    currentCamPos.current.z += (targetCamPos.current.z - currentCamPos.current.z) * damping;
 
     camera.rotation.set(currentPitch.current, currentYaw.current, 0, 'YXZ');
-    camera.position.set(0, 0, 0);
+    camera.position.set(currentCamPos.current.x, currentCamPos.current.y, currentCamPos.current.z);
 
     if (camera instanceof THREE.PerspectiveCamera) {
       currentFov.current += (targetFov.current - currentFov.current) * damping;

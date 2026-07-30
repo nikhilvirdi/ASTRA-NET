@@ -159,3 +159,45 @@ export function hasScreenPosChanged(
 
   return false;
 }
+
+export interface CameraState {
+  x: number;
+  y: number;
+  z: number;
+  pitch: number;
+  fov: number;
+}
+
+export const ORBIT_VANTAGE_STATE: CameraState = {
+  x: 0,
+  y: 800,
+  z: 400,
+  pitch: -0.8,
+  fov: 90,
+};
+
+export const GROUND_SKY_ANCHOR_STATE: CameraState = {
+  x: 0,
+  y: 0,
+  z: 0,
+  pitch: Math.PI / 8,
+  fov: 60,
+};
+
+/**
+ * Computes camera state along the Orbit-Drop trajectory given normalized progress t in [0, 1].
+ */
+export function computeOrbitDropState(
+  progress: number,
+  start: CameraState = ORBIT_VANTAGE_STATE,
+  end: CameraState = GROUND_SKY_ANCHOR_STATE,
+): CameraState {
+  const t = Math.max(0, Math.min(1, progress));
+  return {
+    x: start.x + (end.x - start.x) * t,
+    y: start.y + (end.y - start.y) * t,
+    z: start.z + (end.z - start.z) * t,
+    pitch: start.pitch + (end.pitch - start.pitch) * t,
+    fov: start.fov + (end.fov - start.fov) * t,
+  };
+}
