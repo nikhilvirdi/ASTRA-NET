@@ -7,11 +7,14 @@ import {
   computeOrbitDropState,
   computePinchZoomFov,
   DEPTH_HOLD_THRESHOLDS_MS,
+  filterVisibleCardinalMarks,
   findGravityTarget,
   GROUND_SKY_ANCHOR_STATE,
+  hasCardinalMarksChanged,
   hasScreenPosChanged,
   nextDepth,
   ORBIT_VANTAGE_STATE,
+  type CardinalMarkInput,
 } from './explore-interaction';
 import type { GravityTarget } from '@/components/explore/CameraController';
 
@@ -227,6 +230,42 @@ describe('explore-interaction', () => {
     it('clamps progress above 1 to ground Sky Anchor state', () => {
       const state = computeOrbitDropState(1.5);
       expect(state).toEqual(GROUND_SKY_ANCHOR_STATE);
+    });
+  });
+
+  describe('Cardinal Marks View Culling & Collision Prevention', () => {
+    const marks: CardinalMarkInput[] = [
+      { label: 'N', azimuthRad: 0, position: [0, 10, -100] },
+      { label: 'E', azimuthRad: Math.PI / 2, position: [100, 10, 0] },
+      { label: 'S', azimuthRad: Math.PI, position: [0, 10, 100] },
+      { label: 'W', azimuthRad: (3 * Math.PI) / 2, position: [-100, 10, 0] },
+    ];
+
+    it('retains in-view marks and culls back-facing marks when camera looks North', () => {
+      const filtered = filterVisibleCardinalMarks(marks, 0, 0); // camera looking North (yaw=0, pitch=0)
+      const labels = filtered.map((m) => m.label);
+      expect(labels).toContain('N');
+      expect(labels).not.toContain('S'); // S is directly behind camera (dot < 0)
+    });
+
+    it('culls overlapping marks at extreme grazing angles', () => {
+      // Create artificial marks placed at very close angular proximity
+      const closeMarks: CardinalMarkInput[] = [
+        { label: 'N', azimuthRad: 0, position: [0, 10, -100] },
+        { label: 'NNE', azimuthRad: 0.05, position: [5, 10, -100] }, // ~2.8 deg away from N
+      ];
+      const filtered = filterVisibleCardinalMarks(closeMarks, 0, 0, 0.05, 0.35); // min angular sep ~20 deg
+      expect(filtered.length).toBe(1);
+      expect(filtered[0]!.label).toBe('N');
+    });
+
+    it('correctly detects changes in active cardinal mark sets', () => {
+      const current = [marks[0]!];
+      const nextSame = [marks[0]!];
+      const nextDiff = [marks[0]!, marks[1]!];
+
+      expect(hasCardinalMarksChanged(current, nextSame)).toBe(false);
+      expect(hasCardinalMarksChanged(current, nextDiff)).toBe(true);
     });
   });
 });

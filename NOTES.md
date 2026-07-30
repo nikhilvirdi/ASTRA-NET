@@ -53,24 +53,14 @@ These were removed for structural reasons, not just prioritization — don't rei
 
 Distinct from the sections above: these are not features anyone chose to defer, they are things currently wrong or fragile, recorded so they are not rediscovered from scratch. Nothing here should be built from without the human moving it into `WORKPLAN.md` first.
 
-### Explore scene — cardinal marks can overlap markers at grazing camera angles
+### Explore scene — cardinal marks can overlap markers at grazing camera angles [RESOLVED - Phase 12]
 
-`apps/web/src/components/explore/CardinalMarks.tsx` renders N/E/S/W as billboarded `DiegeticText` at a fixed 3D radius just above the horizon rule. `CelestialMarkers.tsx` places bodies at their own 3D positions. At shallow camera elevations the two can collide in **screen space** even though they are well separated in world space.
+`apps/web/src/components/explore/CardinalMarks.tsx` renders N/E/S/W as billboarded `DiegeticText` at a fixed 3D radius just above the horizon rule. Fixed in Phase 12 via `filterVisibleCardinalMarks` in `lib/explore-interaction.ts`: culls back-facing cardinal direction labels (`dot < 0.05`) and enforces minimum angular separation (`minAngularSeparationRad = 0.35` ~20°).
 
-Different bug class from the 2D share-card collision fixed in `og-svg.ts` (that one was a fixed layout with a deterministic overlap; this one is camera-dependent and transient), and lower priority — the user can orbit away from it, and no information is destroyed. A real fix means screen-space label deconfliction in the 3D layer, which nothing in the codebase does yet. Logged 2026-07-29.
+### Share card — deep below-horizon marker glyphs can touch a compass label (RESOLVED — see `DECISIONS.md`, 2026-07-30)
 
-### Share card — deep below-horizon marker glyphs can touch a compass label
+Fixed by re-composing the Horizon Band's vertical rhythm (`DESIGN_SPEC.md` §17): the compass-label offset, the below-horizon label row, and the fact plate (plus everything anchored to it) shift down by a fixed 14px, using real font metrics rather than the previous non-metric-backed estimate. Verified exhaustively (every 0.1° from 0 to -90°) in `og-svg.test.ts`. No longer a known limitation.
 
-`og-svg.ts`'s below-horizon **labels** were moved off the compass row and no longer collide at any altitude. The **glyphs** are a separate, unresolved case: the rule-to-plate budget is 50px and must hold three rows, so for the deepest marker's disc to clear the compass label band entirely `HORIZON_MAX_DROP` would have to be under 5.75px — too shallow for a marker to read as below the rule at all.
+### `apps/api` test suite — `f_hist` assertion flaky under parallel runs (RESOLVED — see `DECISIONS.md`, 2026-07-30)
 
-At the current 16px a Sun glyph clears down to **−32.3°**; past that, and only when its azimuth falls within ~5° of a tick, the disc can touch a compass label. That bites on mid-winter night cards at mid latitudes (London reaches about −61.9°). Resolving it properly means re-composing the Horizon Band's vertical rhythm, which is a `DESIGN_SPEC.md` §17 decision rather than a bug fix. Logged 2026-07-29.
-
-### `apps/api` test suite — `f_hist` assertion is flaky under parallel runs
-
-`src/routes/brief.test.ts > feeds real global accuracy-loop history into the returned confidence factors (f_hist)` fails intermittently on full-suite runs. Reproduced on `main` at **2 of 3** full runs, so it predates Phase 11 and is not caused by the share card work.
-
-Cause: `getGlobalPredictionHistory` (`src/predictions/history.ts`) counts **every** scored `Prediction` row with no test scoping — global is the correct production behaviour (see `DECISIONS.md`), but six test files seed predictions and vitest runs files in parallel against one shared Postgres. The test expects exactly its own 3 hits / 4 trials; a failing run observed 0.5454 = 6/11 = (4+2)/(7+4), i.e. one extra hit and three extra trials leaked in from a concurrent file.
-
-Note the whole `apps/api` suite additionally requires the docker-compose Postgres to be running (`docker compose up -d`), or the DB-backed files fail outright with `Can't reach database server at localhost:5433` — a separate, non-flaky prerequisite that is easy to mistake for this bug.
-
-Three possible fixes, none chosen because all three affect every run and none is a Phase 11 concern: serialize the DB-touching test files (`fileParallelism: false` or a dedicated pool), give each test file its own schema/database, or loosen the assertion to "greater than the neutral prior" and lose its precision. Logged 2026-07-29.
+Fixed: the four Postgres-integration test files that write to the global `Prediction` table now run in a dedicated, serialized Vitest project (`apps/api/vitest.workspace.ts`), so they can no longer race each other. Verified with 6 consecutive clean full-suite runs. No longer a known limitation.

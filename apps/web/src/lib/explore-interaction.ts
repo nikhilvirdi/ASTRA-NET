@@ -201,3 +201,73 @@ export function computeOrbitDropState(
     fov: start.fov + (end.fov - start.fov) * t,
   };
 }
+
+export interface CardinalMarkInput {
+  label: string;
+  azimuthRad: number;
+  position: [number, number, number];
+}
+
+/**
+ * Filters and sorts cardinal marks to prevent grazing-angle screen collisions and back-face rendering.
+ */
+export function filterVisibleCardinalMarks(
+  marks: readonly CardinalMarkInput[],
+  cameraYaw: number,
+  cameraPitch: number,
+  minCosAngle = 0.05,
+  minAngularSeparationRad = 0.35,
+): CardinalMarkInput[] {
+  const cosPitch = Math.cos(cameraPitch);
+  const camX = -Math.sin(cameraYaw) * cosPitch;
+  const camY = Math.sin(cameraPitch);
+  const camZ = -Math.cos(cameraYaw) * cosPitch;
+
+  const scored = marks
+    .map((m) => {
+      const len = Math.hypot(m.position[0], m.position[1], m.position[2]) || 1;
+      const dirX = m.position[0] / len;
+      const dirY = m.position[1] / len;
+      const dirZ = m.position[2] / len;
+      const dot = camX * dirX + camY * dirY + camZ * dirZ;
+      return { mark: m, dot, dirX, dirY, dirZ };
+    })
+    .filter((s) => s.dot >= minCosAngle);
+
+  scored.sort((a, b) => b.dot - a.dot);
+
+  const result: CardinalMarkInput[] = [];
+  const acceptedDirs: { x: number; y: number; z: number }[] = [];
+
+  for (const item of scored) {
+    let tooClose = false;
+    for (const prev of acceptedDirs) {
+      const cosSep = item.dirX * prev.x + item.dirY * prev.y + item.dirZ * prev.z;
+      const angleSep = Math.acos(Math.max(-1, Math.min(1, cosSep)));
+      if (angleSep < minAngularSeparationRad) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (!tooClose) {
+      result.push(item.mark);
+      acceptedDirs.push({ x: item.dirX, y: item.dirY, z: item.dirZ });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Checks if cardinal mark selection has changed (by label sequence).
+ */
+export function hasCardinalMarksChanged(
+  current: readonly CardinalMarkInput[],
+  next: readonly CardinalMarkInput[],
+): boolean {
+  if (current.length !== next.length) return true;
+  for (let i = 0; i < current.length; i++) {
+    if (current[i]?.label !== next[i]?.label) return true;
+  }
+  return false;
+}
