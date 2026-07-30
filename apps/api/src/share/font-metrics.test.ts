@@ -201,6 +201,30 @@ describe('parseFontMetrics', () => {
     // A broken build artifact, not a runtime condition to degrade around.
     expect(() => parseFontMetrics(new URL(import.meta.url).pathname)).toThrow();
   });
+
+  /**
+   * Real values read directly from each vendored font's own `OS/2` table
+   * (`os2.offset + 88` for `sCapHeight`, `+ 70` for `sTypoDescender`),
+   * confirmed independently with a standalone table-directory read before
+   * this test was written, not derived from `parseFontMetrics` itself —
+   * pinning these guards `og-svg.ts`'s Horizon Band collision fix (which
+   * depends on Martian Mono's exact `capHeight`) against silently drifting
+   * if the vendored file is ever swapped for a different build of the
+   * same family.
+   */
+  it('reads the real OS/2 vertical metrics for each vendored face, not an estimate', () => {
+    const mono = parseFontMetrics(MARTIAN_MONO_PATH);
+    expect(mono.unitsPerEm).toBe(1000);
+    expect(mono.capHeight).toBe(800);
+    expect(mono.descender).toBe(200);
+
+    for (const path of [ARCHIVO_REGULAR_PATH, ARCHIVO_SEMIBOLD_PATH]) {
+      const archivo = parseFontMetrics(path);
+      expect(archivo.unitsPerEm).toBe(1000);
+      expect(archivo.capHeight).toBe(686);
+      expect(archivo.descender).toBe(210);
+    }
+  });
 });
 
 describe('wrapText', () => {

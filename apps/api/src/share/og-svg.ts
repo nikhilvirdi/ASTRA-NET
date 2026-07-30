@@ -60,23 +60,40 @@ const HORIZON_MAX_RISE = 62;
  * position relative to the rule carry "below", and 90deg of depth was
  * already squeezed into a few px — so the space is better spent keeping
  * the glyphs clear of the label rows underneath.
- *
- * **Known residual, measured not guessed.** The rule-to-plate budget is
- * 50px and has to hold three things: below-horizon glyphs, the compass
- * ticks and their labels, and the below-horizon label row. For the deepest
- * marker's glyph to clear the compass label band entirely this value would
- * have to be under 5.75px, which is too shallow for a marker to read as
- * below the rule at all. At 16 a Sun glyph clears the compass labels down
- * to -32.3deg; past that, and only when its azimuth falls within ~5deg of
- * a tick, the disc can touch a compass label. That bites on mid-winter
- * night cards at mid latitudes (London reaches about -61.9deg). Resolving
- * it properly means re-composing the band's vertical rhythm, which is a
- * §17 decision rather than a bug fix, so it is recorded here and in
- * NOTES.md instead of being half-solved.
  */
 const HORIZON_MAX_DROP = 16;
-/** Compass tick labels, measured from the rule. */
-const COMPASS_LABEL_OFFSET = 26;
+/**
+ * Compass tick labels, measured from the rule.
+ *
+ * **§17 re-composition, resolving the below-horizon glyph/compass-label
+ * collision (NOTES.md, 2026-07-29) rather than extending its threshold
+ * further.** The old budget (rule-to-plate 50px, offset 26) could not fit
+ * a below-horizon glyph and the compass label band without collision at
+ * every drop — verified by reading the vendored Martian Mono file's own
+ * `OS/2` table directly (`sCapHeight = 800`, `unitsPerEm = 1000`), not
+ * estimated: at `SIZE_MICRO` (15px) a compass label's real ink-top is
+ * `800/1000 * 15 = 12px` above its baseline. The old comment's "-32.3deg"
+ * clearance figure was never checked against this — the real crossover is
+ * -25.3deg, worse than documented.
+ *
+ * The fix keeps `HORIZON_MAX_DROP` untouched (already a deliberate floor —
+ * shallower and a marker stops reading as below the rule at all) and
+ * instead grows the offset so the deepest possible marker (Sun, radius 9 +
+ * 1px stroke = 9.5px half-extent, centered at `HORIZON_RULE_Y +
+ * HORIZON_MAX_DROP` at -90deg) clears the label's real ink-top with a 1px
+ * margin at every altitude down to -90deg, not just past whatever a prior
+ * pass happened to check:
+ *
+ *   deepest marker bottom = 442 + 16 + 9.5 = 467.5
+ *   required baseline     = 467.5 + 12 (real capHeight) + 1 (margin) = 480.5
+ *   → offset = ceil(480.5 - 442) = 39
+ *
+ * Verified exhaustively, not just at this one boundary — see
+ * `og-svg.test.ts`'s "resolves the glyph/compass-label collision (§17
+ * re-composition)" suite, which sweeps every altitude from 0 to -90deg in
+ * 0.1deg steps for the worst-case marker and asserts zero overlap at each.
+ */
+const COMPASS_LABEL_OFFSET = 39;
 /**
  * Below-horizon marker labels sit on one fixed baseline beneath the compass
  * row rather than tracking their marker at `y + 26`.
@@ -95,11 +112,25 @@ const COMPASS_LABEL_OFFSET = 26;
  * Residual, rare: two below-horizon markers close in azimuth (Sun and Moon)
  * would overlap each other on this row. Planets below the horizon are
  * omitted entirely, so only those two can ever contend.
+ *
+ * Repositioned alongside `COMPASS_LABEL_OFFSET` above: the compass label's
+ * own real descender (`200/1000 * 15 = 3px`) plus the same real capHeight
+ * (12px) plus a 1px margin puts this baseline at
+ * `ceil(442 + 39 + 3 + 12 + 1) = 497`.
  */
-const BELOW_HORIZON_LABEL_BASELINE = 486;
-const FACT_LABEL_BASELINE = 512;
-const FACT_VALUE_BASELINE = 556;
-const FOOTER_BASELINE = 594;
+const BELOW_HORIZON_LABEL_BASELINE = 497;
+/**
+ * The whole cluster from here down shifts by the same +14px that moving
+ * `BELOW_HORIZON_LABEL_BASELINE` (486 → 497, +11) and its real descender
+ * clearance require — `ceil(497 + 3 + 6px breathing room, the original
+ * design's own below-label-to-plate gap) = 506` — so every gap below this
+ * point (fact plate to footer, footer to the card's bottom edge) is
+ * identical in px to the pre-fix design, just displaced downward. Nothing
+ * below here needed its own re-derivation.
+ */
+const FACT_LABEL_BASELINE = 526;
+const FACT_VALUE_BASELINE = 570;
+const FOOTER_BASELINE = 608;
 
 const CONTENT_WIDTH = OG_WIDTH - MARGIN_X * 2;
 
@@ -107,12 +138,12 @@ const CONTENT_WIDTH = OG_WIDTH - MARGIN_X * 2;
  * DESIGN_SPEC.md §17's instrument plate. Both rects are sized to clear the
  * ascender and descender of the largest face they back, plus §6.1 padding,
  * and are checked in `og-svg.test.ts` against the elements above and below
- * them (the compass tick labels at 468 and the footer baseline at 594) so a
+ * them (the compass tick labels at 481 and the footer baseline at 608) so a
  * later type-scale change cannot make them collide unnoticed.
  */
 const EYEBROW_PLATE_Y = 68;
 const EYEBROW_PLATE_HEIGHT = 30;
-const FACT_PLATE_Y = 492;
+const FACT_PLATE_Y = 506;
 const FACT_PLATE_HEIGHT = 82;
 /** §6.3 — the smallest radius on the scale; the plate is a panel, not a pill. */
 const PLATE_RADIUS = 2;

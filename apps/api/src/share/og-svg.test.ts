@@ -28,6 +28,15 @@ function compose(snapshot: ShareSnapshot = makeShareSnapshot()): string {
   return composeShareCardSvg({ snapshot, fonts });
 }
 
+/** Every <text> baseline in the document, with its x. Shared by every describe block below. */
+function texts(svg: string): { x: number; y: number; body: string }[] {
+  return [...svg.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].map((m) => {
+    const attr = (n: string): number =>
+      Number(new RegExp(`${n}="([^"]*)"`).exec(m[1] ?? '')?.[1] ?? NaN);
+    return { x: attr('x'), y: attr('y'), body: m[2] ?? '' };
+  });
+}
+
 /** Contrast ratio per WCAG 2.1, on the same Rec. 709 channels §4.1 is specified in. */
 function contrastRatio(foreground: string, background: string): number {
   const relative = (hex: string): number => {
@@ -310,8 +319,8 @@ describe('composeShareCardSvg', () => {
   it('omits the fact row entirely rather than drawing empty columns', () => {
     const snapshot = makeShareSnapshot({ facts: [] });
     const svg = compose(snapshot);
-    expect(svg).not.toContain('y="512"');
-    expect(svg).not.toContain('y="556"');
+    expect(svg).not.toContain('y="526"');
+    expect(svg).not.toContain('y="570"');
   });
 
   it('carries the wordmark and exactly one CTA', () => {
@@ -397,7 +406,7 @@ describe('the instrument plate (DESIGN_SPEC.md §17)', () => {
     const [eyebrow, facts] = plates.sort((a, b) => a.y - b.y);
     expect(eyebrow!.y).toBe(68);
     expect(eyebrow!.h).toBe(30);
-    expect(facts!.y).toBe(492);
+    expect(facts!.y).toBe(506);
     expect(facts!.h).toBe(82);
   });
 
@@ -416,9 +425,9 @@ describe('the instrument plate (DESIGN_SPEC.md §17)', () => {
     expect(backing.every((r) => r.fill === PLATE)).toBe(true);
 
     // The headline baseline (196), the horizon rule (442) and the compass
-    // tick labels (468) fall inside neither plate.
+    // tick labels (481) fall inside neither plate.
     for (const plate of backing) {
-      for (const y of [196, 442, 468]) {
+      for (const y of [196, 442, 481]) {
         expect(y >= plate.y && y <= plate.y + plate.h).toBe(false);
       }
     }
@@ -503,17 +512,8 @@ describe('below-horizon marker labels (compass collision fix)', () => {
   const MICRO = 15;
   const ASCENDER = MICRO * 0.75;
   const DESCENDER = MICRO * 0.25;
-  const COMPASS_LABEL_BASELINE = 468;
-  const BELOW_LABEL_BASELINE = 486;
-
-  /** Every <text> baseline in the document, with its x. */
-  function texts(svg: string): { x: number; y: number; body: string }[] {
-    return [...svg.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].map((m) => {
-      const attr = (n: string): number =>
-        Number(new RegExp(`${n}="([^"]*)"`).exec(m[1] ?? '')?.[1] ?? NaN);
-      return { x: attr('x'), y: attr('y'), body: m[2] ?? '' };
-    });
-  }
+  const COMPASS_LABEL_BASELINE = 481;
+  const BELOW_LABEL_BASELINE = 497;
 
   function withSun(altitudeDeg: number, azimuthDeg = 318.4): ShareSnapshot {
     return makeShareSnapshot({
@@ -583,6 +583,146 @@ describe('below-horizon marker labels (compass collision fix)', () => {
   });
 
   it('keeps the below-horizon label row clear of the fact plate', () => {
-    expect(BELOW_LABEL_BASELINE + DESCENDER).toBeLessThan(492);
+    expect(BELOW_LABEL_BASELINE + DESCENDER).toBeLessThan(506);
+  });
+});
+
+/**
+ * §17 re-composition: the below-horizon marker glyph vs. compass-label
+ * collision (NOTES.md, 2026-07-29; fixed 2026-07-30). The prior fix only
+ * moved marker *labels* off the compass row — the marker *glyphs*
+ * (circles/rects, positioned by real altitude, not text) were a separate,
+ * unresolved case, documented as clearing only down to "-32.3deg" with no
+ * real font metrics behind that number.
+ *
+ * This suite proves the fix the same way the original plate/contrast work
+ * was verified — real geometry, not a single spot-check: it reads the
+ * vendored Martian Mono file's own parsed `capHeight`/`descender` (not an
+ * estimated fraction of font size) and sweeps the *entire* possible
+ * altitude range in fine steps, at a compass tick's exact azimuth (the
+ * worst-case horizontal alignment), asserting zero vertical overlap at
+ * every step — not just past whatever altitude a prior pass happened to
+ * check.
+ */
+describe('Horizon Band glyph/compass-label collision (§17 re-composition)', () => {
+  const capHeightPx = (fonts.mono.capHeight / fonts.mono.unitsPerEm) * 15; // SIZE_MICRO = 15
+  const descenderPx = (fonts.mono.descender / fonts.mono.unitsPerEm) * 15;
+
+  /**
+   * Every marker glyph in the document, with its real rendered vertical
+   * half-extent. Every marker shape (`markerShape` in `og-svg.ts`) draws a
+   * `stroke-width` — the full-bleed background rect and the two instrument
+   * plates never do, which is the real discriminator used here, not shape
+   * type: all circles happen to be markers (Sun/Moon/planet), but not all
+   * rects are (ISS is a marker rect; the background and both plates are
+   * rects too, and must be excluded).
+   */
+  function markerGlyphs(svg: string): { cx: number; cy: number; halfExtent: number }[] {
+    const attrOf = (raw: string, n: string): number =>
+      Number(new RegExp(`${n}="([^"]*)"`).exec(raw)?.[1] ?? NaN);
+    const hasStroke = (raw: string): boolean => /stroke-width="/.test(raw);
+
+    const circles = [...svg.matchAll(/<circle ([^>]*)\/>/g)]
+      .map((m) => m[1] ?? '')
+      .filter(hasStroke)
+      .map((raw) => ({
+        cx: attrOf(raw, 'cx'),
+        cy: attrOf(raw, 'cy'),
+        halfExtent: attrOf(raw, 'r') + attrOf(raw, 'stroke-width') / 2,
+      }));
+    const rects = [...svg.matchAll(/<rect ([^>]*)\/>/g)]
+      .map((m) => m[1] ?? '')
+      .filter(hasStroke)
+      .map((raw) => {
+        const height = attrOf(raw, 'height');
+        return {
+          cx: attrOf(raw, 'x') + attrOf(raw, 'width') / 2,
+          cy: attrOf(raw, 'y') + height / 2,
+          halfExtent: height / 2 + attrOf(raw, 'stroke-width') / 2,
+        };
+      });
+    return [...circles, ...rects];
+  }
+
+  function withMarkerAt(
+    altitudeDeg: number,
+    type: 'sun' | 'iss' | 'moon' | 'planet',
+  ): ShareSnapshot {
+    return makeShareSnapshot({
+      horizon: {
+        markers: [
+          {
+            id: type,
+            label: type.toUpperCase(),
+            sublabel: `ALT ${altitudeDeg}°`,
+            type,
+            azimuthDeg: 0, // exactly the "N" tick — worst-case horizontal alignment
+            altitudeDeg,
+          },
+        ],
+      },
+    });
+  }
+
+  it("reads Martian Mono's real capHeight/descender, not an assumed fraction of font size", () => {
+    // Sanity check on the values this whole suite depends on — confirmed
+    // independently in font-metrics.test.ts against the font file directly.
+    expect(fonts.mono.capHeight).toBe(800);
+    expect(fonts.mono.unitsPerEm).toBe(1000);
+    expect(capHeightPx).toBe(12);
+  });
+
+  it('never lets any marker glyph reach the compass label band, at any altitude from 0 to -90deg', () => {
+    // 901 steps: every 0.1deg across the *entire* possible range, not a
+    // handful of spot-checks. The Sun is the largest glyph (r=9, stroke 1),
+    // so it is both the realistic case (twilight altitudes) and the
+    // structural worst case (r=9 exceeds the Moon ring's ~8.25, the ISS
+    // square's 6.5, and the planet disc's 5).
+    for (let tenths = 0; tenths <= 900; tenths += 1) {
+      const altitudeDeg = -tenths / 10;
+      const svg = compose(withMarkerAt(altitudeDeg, 'sun'));
+      const glyphs = markerGlyphs(svg);
+      const nTick = texts(svg).find((t) => t.body === 'N')!;
+
+      expect(glyphs.length).toBeGreaterThan(0);
+      const labelTop = nTick.y - capHeightPx;
+      for (const glyph of glyphs) {
+        expect(glyph.cy + glyph.halfExtent).toBeLessThan(labelTop);
+      }
+    }
+  });
+
+  it('holds for every marker type, not just the Sun', () => {
+    for (const type of ['sun', 'iss', 'moon', 'planet'] as const) {
+      const svg = compose(withMarkerAt(-90, type));
+      const glyphs = markerGlyphs(svg);
+      const nTick = texts(svg).find((t) => t.body === 'N')!;
+      const labelTop = nTick.y - capHeightPx;
+
+      expect(glyphs.length).toBeGreaterThan(0);
+      for (const glyph of glyphs) {
+        expect(glyph.cy + glyph.halfExtent).toBeLessThan(labelTop);
+      }
+    }
+  });
+
+  it('keeps the below-horizon label row clear of the compass row using real metrics, not the 0.75/0.25 estimate above', () => {
+    const compassBaseline = 481;
+    const belowLabelBaseline = 497;
+    expect(belowLabelBaseline - capHeightPx).toBeGreaterThan(compassBaseline + descenderPx);
+  });
+
+  it('regression: the exact prior failure case (Sun at -32.3deg, close to a tick) now clears with real margin', () => {
+    // The old, non-metric-backed comment claimed clearance broke past
+    // -32.3deg. Using real capHeight, it actually broke earlier (-25.3deg)
+    // — this altitude is well past both, so it is the sharpest available
+    // regression check against the originally reported case.
+    const svg = compose(withMarkerAt(-32.3, 'sun'));
+    const glyphs = markerGlyphs(svg);
+    const nTick = texts(svg).find((t) => t.body === 'N')!;
+    const labelTop = nTick.y - capHeightPx;
+    for (const glyph of glyphs) {
+      expect(glyph.cy + glyph.halfExtent).toBeLessThan(labelTop);
+    }
   });
 });

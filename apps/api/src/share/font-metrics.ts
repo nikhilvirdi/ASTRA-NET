@@ -36,13 +36,29 @@
 
 import fs from 'node:fs';
 
-/** A parsed face: everything `measureTextWidth` needs and nothing else. */
+/**
+ * A parsed face: everything `measureTextWidth` needs, plus the two real
+ * vertical metrics the Horizon Band glyph/compass-label collision fix
+ * needs (`og-svg.ts`'s `COMPASS_LABEL_OFFSET` derivation, `og-svg.test.ts`'s
+ * exhaustive sweep) — read from the font file itself rather than estimated
+ * as a fraction of font size.
+ */
 export interface FontMetrics {
   unitsPerEm: number;
   /** Advance width in font units, by glyph id. */
   advanceWidths: number[];
   /** Codepoint -> glyph id, from the format-4 `cmap` subtable. */
   glyphIds: Map<number, number>;
+  /**
+   * `OS/2.sCapHeight`, in font units — the real height uppercase glyphs
+   * reach above the baseline (every label this card draws is uppercase
+   * mono text, so this is the true ink-top bound, not the more generous
+   * `hhea`/`OS/2` ascender that also budgets room for accents this font's
+   * rendered character set never uses).
+   */
+  capHeight: number;
+  /** `|OS/2.sTypoDescender|`, in font units — real ink-bottom bound below the baseline. */
+  descender: number;
 }
 
 const SFNT_HEADER_BYTES = 12;
@@ -50,6 +66,11 @@ const TABLE_RECORD_BYTES = 16;
 const HEAD_UNITS_PER_EM_OFFSET = 18;
 const HHEA_NUM_H_METRICS_OFFSET = 34;
 const CMAP_FORMAT_4 = 4;
+const OS2_VERSION_OFFSET = 0;
+const OS2_TYPO_DESCENDER_OFFSET = 70;
+const OS2_CAP_HEIGHT_OFFSET = 88;
+/** `sCapHeight`/`sxHeight` only exist from OS/2 version 2 onward. */
+const OS2_MIN_VERSION_FOR_CAP_HEIGHT = 2;
 
 interface TableRecord {
   offset: number;
@@ -147,8 +168,15 @@ export function parseFontMetrics(fontPath: string): FontMetrics {
   const hhea = tables.get('hhea');
   const hmtx = tables.get('hmtx');
   const cmap = tables.get('cmap');
-  if (head === undefined || hhea === undefined || hmtx === undefined || cmap === undefined) {
-    throw new Error(`Font is missing a required table (head/hhea/hmtx/cmap): ${fontPath}`);
+  const os2 = tables.get('OS/2');
+  if (
+    head === undefined ||
+    hhea === undefined ||
+    hmtx === undefined ||
+    cmap === undefined ||
+    os2 === undefined
+  ) {
+    throw new Error(`Font is missing a required table (head/hhea/hmtx/cmap/OS\\/2): ${fontPath}`);
   }
 
   const unitsPerEm = buffer.readUInt16BE(head.offset + HEAD_UNITS_PER_EM_OFFSET);
@@ -161,10 +189,21 @@ export function parseFontMetrics(fontPath: string): FontMetrics {
     advanceWidths.push(buffer.readUInt16BE(position));
   }
 
+  const os2Version = buffer.readUInt16BE(os2.offset + OS2_VERSION_OFFSET);
+  if (os2Version < OS2_MIN_VERSION_FOR_CAP_HEIGHT) {
+    throw new Error(
+      `Font's OS/2 table is version ${os2Version}, too old to carry sCapHeight (need >= ${OS2_MIN_VERSION_FOR_CAP_HEIGHT}): ${fontPath}`,
+    );
+  }
+  const capHeight = buffer.readInt16BE(os2.offset + OS2_CAP_HEIGHT_OFFSET);
+  const descender = Math.abs(buffer.readInt16BE(os2.offset + OS2_TYPO_DESCENDER_OFFSET));
+
   return {
     unitsPerEm,
     advanceWidths,
     glyphIds: readFormat4Cmap(buffer, cmap.offset),
+    capHeight,
+    descender,
   };
 }
 
