@@ -57,4 +57,5 @@ postgres-data/
 apps/api/scripts/BlackMarble.jpg
 
 # Throwaway debug / scratch files (never commit)
-apps/api/scratch.js
+apps/api/scratch.js
+apps/api/dist/
