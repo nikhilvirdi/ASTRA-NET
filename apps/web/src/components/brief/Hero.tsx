@@ -458,6 +458,14 @@ export default function Hero() {
     setMounted(true);
   }, []);
 
+  // Auto-trigger the planet-reveal particle ring animation after 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRingState((prev) => (prev === 'hidden' ? 'animating' : prev));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const updateScale = () => {
       if (astraRef.current && netRef.current) {
@@ -477,7 +485,8 @@ export default function Hero() {
           const nWidth = nInk.right - nInk.left;
 
           if (aWidth > 0 && nWidth > 0) {
-            const scaleX = aWidth / nWidth;
+            // Optical correction factor (~1.0% adjustment) to bring NET's right edge flush with ASTRA
+            const scaleX = (aWidth / nWidth) * 0.99;
             const translateX = aInk.left - nInk.left * scaleX;
             setNetTransform(`translateX(${translateX}px) scaleX(${scaleX})`);
           }
@@ -576,7 +585,7 @@ export default function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
-            className="mt-8 text-lg sm:text-xl md:text-2xl font-sans font-medium text-brass-300 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
+            className="mt-8 text-lg sm:text-xl md:text-2xl font-jost font-medium text-brass-400 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
             style={{
               textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.9)',
             }}

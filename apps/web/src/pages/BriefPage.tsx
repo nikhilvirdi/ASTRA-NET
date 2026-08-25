@@ -499,7 +499,7 @@ export function BriefPage(): React.ReactElement {
             {/* Connected Causal Chain (§10) */}
             <CausalChainFlow aurora={brief?.spaceWeather.data?.aurora ?? null} loading={loading} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
               {/* Solar Wind Telemetry with Visual Speed Meter */}
               <SolarWindTelemetry
                 speedKmS={brief?.spaceWeather.data?.solarLine.live.speedKmS ?? null}

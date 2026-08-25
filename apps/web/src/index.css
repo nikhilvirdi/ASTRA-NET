@@ -40,6 +40,7 @@
   /* ─ §4.2 Brass ────────────────────────────────────────────────────────── */
   /* Calibration marks, tick rules, scale numerals. Never decorative.        */
   --color-brass-300: #c9b187; /* Tick marks and scale rules on dark surfaces*/
+  --color-brass-400: #c89f56; /* Rich golden yellow accent                    */
   --color-brass-500: #9a8258; /* Secondary data labels, axis numerals.      */
   --color-brass-700: #6b5a3c; /* Brass on light surfaces (day mode).        */
 
