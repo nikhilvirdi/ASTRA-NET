@@ -31,6 +31,8 @@ export function ConfidenceTicks({
     );
   }
 
+  const normalizedBand = confidenceBand.toUpperCase() as ConfidenceBand;
+
   const factorKeys: Array<{ key: keyof typeof factors; label: string }> = [
     { key: 'lead', label: 'LEAD TIME' },
     { key: 'agreement', label: 'AGREEMENT' },
@@ -39,7 +41,7 @@ export function ConfidenceTicks({
 
   return (
     <div
-      aria-label={`Confidence level: ${confidenceBand}`}
+      aria-label={`Confidence level: ${normalizedBand}`}
       className="flex flex-col gap-3 p-4 bg-sky-950/40 border border-sky-800/50 rounded-sm"
     >
       <div className="flex justify-between items-center">
@@ -47,24 +49,28 @@ export function ConfidenceTicks({
           CAUSAL CONFIDENCE
         </span>
         <span
-          className={`font-jost text-xs px-2.5 py-0.5 rounded-sm font-semibold tracking-wide ${
-            confidenceBand === 'HIGH'
+          className={`font-jost text-xs px-2.5 py-0.5 rounded-sm font-semibold tracking-wide uppercase ${
+            normalizedBand === 'HIGH'
               ? 'text-aurora bg-aurora/15 border border-aurora/40'
-              : confidenceBand === 'MODERATE'
+              : normalizedBand === 'MODERATE'
                 ? 'text-brass-300 bg-brass-300/10 border border-brass-400/30'
                 : 'text-ember-400 bg-ember-400/15 border border-ember-400/40'
           }`}
         >
-          {confidenceBand}
+          {normalizedBand}
         </span>
       </div>
 
-      {/* 3 Factor Bars (per DESIGN_SPEC.md §7.4: Bars and verdict word, zero raw numbers) */}
+      {/* 3 Factor Bars: Each bar's fill color reflects its own factor value (DESIGN_SPEC §7.4: no numbers) */}
       <div className="flex flex-col gap-2.5 mt-1">
         {factorKeys.map(({ key, label }) => {
           const val = Math.max(0, Math.min(1, factors[key]));
           const barCount = 10;
           const filledCount = Math.round(val * barCount);
+
+          // Individual factor strength color mapping
+          const factorColor =
+            val >= 0.7 ? 'bg-aurora' : val >= 0.4 ? 'bg-brass-300' : 'bg-ember-400';
 
           return (
             <div
@@ -80,13 +86,7 @@ export function ConfidenceTicks({
                   <div
                     key={i}
                     className={`h-3 w-2.5 rounded-none transition-colors ${
-                      i < filledCount
-                        ? confidenceBand === 'HIGH'
-                          ? 'bg-aurora'
-                          : confidenceBand === 'MODERATE'
-                            ? 'bg-brass-300'
-                            : 'bg-ember-400'
-                        : 'bg-sky-900/60'
+                      i < filledCount ? factorColor : 'bg-sky-900/60'
                     }`}
                   />
                 ))}

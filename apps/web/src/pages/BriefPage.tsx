@@ -12,6 +12,8 @@ import { IssElevationGauge } from '@/components/brief/IssElevationGauge';
 import { IssTrajectoryArc } from '@/components/brief/IssTrajectoryArc';
 import { CausalChainFlow } from '@/components/brief/CausalChainFlow';
 import { SolarWindTelemetry } from '@/components/brief/SolarWindTelemetry';
+import { NeoDistanceScale } from '@/components/brief/NeoDistanceScale';
+import { NeoSizeComparison } from '@/components/brief/NeoSizeComparison';
 import { spaceWeatherUiState, formatLastSeen } from '@/lib/space-weather-status';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
@@ -488,48 +490,60 @@ export function BriefPage(): React.ReactElement {
             </div>
           </article>
 
-          {/* ── Entry 4: Near-Earth Object ───────────────────────────────────── */}
+          {/* ── Entry 4: Near-Earth Object Flyby ────────────────────────────── */}
           <article
-            className={`py-8 flex flex-col gap-4 ${brief?.neoImagery.status === 'unavailable' ? 'opacity-50' : ''}`}
+            className={`py-8 flex flex-col gap-6 ${brief?.neoImagery.status === 'unavailable' ? 'opacity-50' : ''}`}
           >
-            <div className="flex justify-between items-center">
-              <span className="type-micro text-brass-500 uppercase">NEAR-EARTH OBJECT FLYBY</span>
-              {brief?.neoImagery.status === 'unavailable' && (
-                <span className="type-micro text-ember-500 tracking-wider">SOURCE UNAVAILABLE</span>
+            <div className="flex justify-between items-baseline">
+              <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+                Near-Earth Object Flyby
+              </h2>
+              {brief?.neoImagery.status === 'unavailable' ? (
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                  HALTED
+                </span>
+              ) : (
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+                  LIVE
+                </span>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start mt-2">
-              <div>
-                <span className="type-caption text-sky-400 block mb-1">OBJECT DESIGNATION</span>
-                <span className="type-title text-sky-100 font-mono">
-                  {loading || !brief?.neoImagery.data?.neo ? '—' : brief.neoImagery.data.neo.name}
+            {loading ? (
+              <div className="p-4 bg-sky-950/30 border border-sky-800/40 rounded-sm">
+                <span className="font-jost text-sm text-sky-400 animate-pulse">
+                  Querying NASA JPL NeoWs close-approach radar...
                 </span>
               </div>
+            ) : !brief?.neoImagery.data?.neo ? (
+              <div className="p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm">
+                <span className="font-jost text-sm text-sky-300">
+                  No near-Earth asteroid flyby detected within the immediate tracking window.
+                </span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <NeoSizeComparison
+                  name={brief.neoImagery.data.neo.name}
+                  diameterKm={brief.neoImagery.data.neo.diameterKm}
+                  isPotentiallyHazardous={brief.neoImagery.data.neo.isPotentiallyHazardous}
+                  velocityKmS={brief.neoImagery.data.neo.velocityKmS}
+                />
 
-              <div>
-                <span className="type-caption text-sky-400 block mb-1">HUMAN-SCALE SIZE</span>
-                <span className="type-body text-sky-200">
-                  {loading || !brief?.neoImagery.data?.neo?.diameterKm
-                    ? '—'
-                    : `about ${(brief.neoImagery.data.neo.diameterKm * 1000).toFixed(0)}m wide (as tall as the Eiffel Tower)`}
-                </span>
+                <NeoDistanceScale
+                  missDistanceLunarDistances={brief.neoImagery.data.neo.missDistanceLunarDistances}
+                  missDistanceKm={brief.neoImagery.data.neo.missDistanceKm}
+                  isPotentiallyHazardous={brief.neoImagery.data.neo.isPotentiallyHazardous}
+                />
               </div>
-
-              <div>
-                <span className="type-caption text-sky-400 block mb-1">MISS DISTANCE</span>
-                <span className="type-title text-brass-300 font-mono">
-                  {loading || !brief?.neoImagery.data?.neo?.missDistanceLunarDistances
-                    ? '—'
-                    : `${brief.neoImagery.data.neo.missDistanceLunarDistances.toFixed(1)} Lunar Distances`}
-                </span>
-              </div>
-            </div>
+            )}
           </article>
 
           {/* ── Entry 5: Learning Moment (Serif Pull Quote) ───────────────────── */}
           <article className="py-12 flex flex-col gap-4">
-            <span className="type-micro text-brass-500 uppercase">LEARNING MOMENT</span>
+            <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+              Learning Moment
+            </h2>
             <blockquote className="type-body-l text-sky-100 italic border-l-2 border-brass-400 pl-6 my-2 max-w-[800px]">
               "
               {loading
@@ -544,7 +558,9 @@ export function BriefPage(): React.ReactElement {
         {/* ── 5. Exit Points (§10) ──────────────────────────────────────────── */}
         <footer className="pt-8 border-t-2 border-brass-500/40 flex flex-wrap justify-between items-center gap-6">
           <div className="flex flex-col gap-1">
-            <span className="type-micro text-brass-500 uppercase">EXIT POINTS</span>
+            <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+              Exit Points
+            </h2>
             <span className="type-caption text-sky-400">
               Continue observing through 3D interactive view or light-pollution search
             </span>
