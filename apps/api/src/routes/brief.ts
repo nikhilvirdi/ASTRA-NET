@@ -18,7 +18,7 @@
  */
 
 import type { Express, Request, Response } from 'express';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import {
   composeBriefForObserver,
@@ -52,32 +52,47 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
 
     const brief = await composeBriefForObserver(deps, lat, lon, now);
 
+    res.json(brief);
+
     const aurora = brief.spaceWeather.data?.aurora;
     if (
       aurora?.hasActiveCme === true &&
       aurora.cmeArrivalTime !== null &&
       aurora.confidence !== null
     ) {
-      try {
-        await deps.prisma.prediction.create({
-          data: {
-            targetTime: new Date(aurora.cmeArrivalTime),
-            predictedKp: aurora.kpPredicted,
-            confidence: aurora.confidence,
-            context: {
-              cmeActivityId: aurora.cmeActivityId,
-              confidenceBand: aurora.confidenceBand,
-              geomagneticLatitudeDeg: aurora.geomagneticLatitudeDeg,
-              leadHours: aurora.leadHours,
-              factors: aurora.factors,
-            } as Prisma.InputJsonValue,
-          },
-        });
-      } catch (error) {
-        logUnexpectedBriefError('prediction persistence', error);
-      }
-    }
+      void Promise.resolve().then(async () => {
+        try {
+          const existing = await deps.prisma.prediction.findFirst({
+            where: {
+              scored: false,
+              context: {
+                path: ['cmeActivityId'],
+                equals: aurora.cmeActivityId === null ? Prisma.JsonNull : aurora.cmeActivityId,
+              },
+            },
+          });
 
-    res.json(brief);
+          if (!existing) {
+            await deps.prisma.prediction.create({
+              data: {
+                targetTime: new Date(aurora.cmeArrivalTime!),
+                predictedKp: aurora.kpPredicted,
+                confidence: aurora.confidence!,
+                context: {
+                  cmeActivityId:
+                    aurora.cmeActivityId === null ? Prisma.JsonNull : aurora.cmeActivityId,
+                  confidenceBand: aurora.confidenceBand,
+                  geomagneticLatitudeDeg: aurora.geomagneticLatitudeDeg,
+                  leadHours: aurora.leadHours,
+                  factors: aurora.factors,
+                } as Prisma.InputJsonValue,
+              },
+            });
+          }
+        } catch (error) {
+          logUnexpectedBriefError('prediction persistence', error);
+        }
+      });
+    }
   });
 }

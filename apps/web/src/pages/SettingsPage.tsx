@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { useAppStore } from '@/store';
 import { DEFAULT_OBSERVER_LOCATION } from '@/lib/api';
-import type { UserAlertsData } from '@/store';
 
-/** SettingsPage — /settings · Location, Alerts, Local Data · local-only, browser storage · DESIGN_SPEC.md §15 */
+/** SettingsPage — /settings · Location, Local Data · local-only, browser storage · DESIGN_SPEC.md §15 */
 export function SettingsPage(): React.ReactElement {
   const location = useAppStore((s) => s.location);
   const setLocation = useAppStore((s) => s.setLocation);
-  const alerts = useAppStore((s) => s.alerts);
-  const setAlerts = useAppStore((s) => s.setAlerts);
   const clearLocalData = useAppStore((s) => s.clearLocalData);
 
   const effectiveLocation = location ?? DEFAULT_OBSERVER_LOCATION;
@@ -22,10 +19,6 @@ export function SettingsPage(): React.ReactElement {
   // Clear local data confirmation modal state
   const [showClearModal, setShowClearModal] = useState<boolean>(false);
   const [confirmText, setConfirmText] = useState<string>('');
-
-  const handleToggleAlert = (key: keyof UserAlertsData): void => {
-    setAlerts({ [key]: !alerts[key] } as Partial<UserAlertsData>);
-  };
 
   const openLocationEditor = (): void => {
     setNewLabel(effectiveLocation.name);
@@ -166,94 +159,26 @@ export function SettingsPage(): React.ReactElement {
           </p>
         </section>
 
-        {/* SECTION 2: ALERTS */}
+        {/* SECTION 2: CLEAR LOCAL DATA */}
         <section className="pt-8 space-y-6">
-          <span className="type-micro text-brass-500 uppercase font-mono tracking-widest block">
-            PERSONALIZED ALERTS
-          </span>
-
-          <div className="p-3 bg-sky-900/40 border-l-2 border-brass-300 text-xs font-mono text-sky-300">
-            Alert delivery is not active in this build — toggles persist preference state in this
-            browser for future delivery.
-          </div>
-
-          <div className="space-y-4">
-            {(
-              [
-                [
-                  'iss_pass',
-                  'ISS VISIBLE PASS ALERTS',
-                  'Notify when ISS peak altitude exceeds 30°',
-                ],
-                [
-                  'aurora',
-                  'AURORA BOREALIS ALERTS',
-                  'Notify when predicted Kp reaches local visibility threshold',
-                ],
-                [
-                  'meteor_shower',
-                  'METEOR SHOWER PEAK ALERTS',
-                  'Notify on peak night of active meteor showers',
-                ],
-                [
-                  'neo_approach',
-                  'NEAR-EARTH OBJECT ALERTS',
-                  'Notify when close-approach asteroid is within 5 lunar distances',
-                ],
-              ] as const
-            ).map(([key, label, desc]) => (
-              <div
-                key={key}
-                className="flex items-center justify-between p-4 border border-sky-800/40 bg-sky-950/40 gap-4"
-              >
-                <div>
-                  <span className="font-mono text-xs font-bold text-sky-100 block uppercase">
-                    {label}
-                  </span>
-                  <span className="type-caption text-sky-400 text-xs">{desc}</span>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={alerts[key]}
-                  aria-label={label}
-                  onClick={() => handleToggleAlert(key)}
-                  className={`w-12 h-6 min-h-[44px] min-w-[44px] rounded-full transition-colors relative cursor-pointer flex items-center justify-center ${
-                    alerts[key] ? 'bg-brass-300' : 'bg-sky-900 border border-sky-700'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-2.5 left-1 w-5 h-5 rounded-full bg-sky-950 transition-transform ${
-                      alerts[key] ? 'translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* SECTION 3: CLEAR LOCAL DATA */}
-        <section className="pt-8 space-y-6">
-          <span className="type-micro text-ember-400 uppercase font-mono tracking-widest block">
+          <span className="type-micro text-brass-300 uppercase font-mono tracking-widest block">
             YOUR DATA
           </span>
 
-          <div className="p-5 border border-ember-500/40 bg-sky-950/60 space-y-4">
+          <div className="p-5 border border-sky-700 bg-sky-950/60 space-y-4">
             <div>
-              <h3 className="font-mono text-xs font-bold text-ember-400 uppercase mb-1">
+              <h3 className="font-mono text-xs font-bold text-sky-200 uppercase mb-1">
                 CLEAR LOCAL DATA
               </h3>
-              <p className="type-body font-serif italic text-sky-300 text-sm leading-relaxed">
-                Wipes your saved location and alert preferences from this browser. It cannot be
-                undone.
+              <p className="type-body font-serif italic text-sky-400 text-sm leading-relaxed">
+                Wipes your saved location preferences from this browser. It cannot be undone.
               </p>
             </div>
 
             <button
               type="button"
               onClick={() => setShowClearModal(true)}
-              className="min-h-[44px] px-4 py-2 border border-ember-400 text-ember-400 hover:bg-ember-400/10 font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center"
+              className="min-h-[44px] px-4 py-2 border border-sky-600 text-sky-300 hover:bg-ember-400/10 hover:border-ember-400 hover:text-ember-400 font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center"
             >
               CLEAR LOCAL DATA
             </button>
@@ -269,8 +194,8 @@ export function SettingsPage(): React.ReactElement {
               CONFIRM CLEAR LOCAL DATA
             </h2>
             <p className="type-body text-sky-200 text-xs font-mono leading-relaxed">
-              This clears your saved location and alert preferences from this browser. To confirm,
-              type <strong className="text-ember-400">CLEAR</strong> below:
+              This clears your saved location preferences from this browser. To confirm, type{' '}
+              <strong className="text-ember-400">CLEAR</strong> below:
             </p>
 
             <input

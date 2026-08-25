@@ -46,10 +46,10 @@ export function ConfidenceTicks({
         <span
           className={`type-micro text-xs px-2 py-0.5 rounded font-semibold ${
             confidenceBand === 'HIGH'
-              ? 'text-emerald-400 bg-emerald-950/60'
+              ? 'text-aurora bg-aurora/20'
               : confidenceBand === 'MODERATE'
-                ? 'text-brass-300 bg-brass-950/60'
-                : 'text-amber-400 bg-amber-950/60'
+                ? 'text-brass-300 bg-brass-300/10'
+                : 'text-ember-400 bg-ember-400/20'
           }`}
         >
           {confidenceBand}

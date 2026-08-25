@@ -296,7 +296,7 @@ export interface BestSpotPayload {
   sites: BestSpotSite[];
 }
 
-export type BestSpotEventFilter = 'all' | 'aurora' | 'meteor' | 'iss';
+export type BestSpotEventFilter = 'all' | 'aurora';
 
 /**
  * Fetches candidate observation sites ranked by clarity x darkness x travel from /api/best-spot
@@ -350,89 +350,4 @@ export async function fetchAccuracy(): Promise<AccuracyPayloadData> {
   const res = await fetch('/api/accuracy');
   if (!res.ok) throw new Error(`Failed to fetch accuracy payload: ${res.status}`);
   return (await res.json()) as AccuracyPayloadData;
-}
-
-// ─── Phase 11 API Contracts (Shareable Sky Card /api/share) ──────────────────
-
-export interface ShareObserverData {
-  latDeg: number;
-  lonDeg: number;
-  label: string;
-}
-
-export interface ShareSkyData {
-  sunAltitudeDeg: number;
-  sunAzimuthDeg: number;
-  twilightPhase: 'day' | 'twilight' | 'night';
-  twilightBand: 'day' | 'civil' | 'nautical' | 'astronomical' | 'night';
-  twilightValue: number;
-  surfaceHex: string;
-}
-
-export interface ShareFactData {
-  label: string;
-  value: string;
-}
-
-export interface ShareMarkerData {
-  id: string;
-  label: string;
-  sublabel: string;
-  type: 'sun' | 'moon' | 'planet' | 'iss';
-  azimuthDeg: number;
-  altitudeDeg: number;
-}
-
-export interface ShareAvailabilityData {
-  brief: 'ok' | 'unavailable';
-  skyAnchor: 'ok' | 'unavailable';
-  iss: 'ok' | 'unavailable';
-  spaceWeather: 'ok' | 'unavailable';
-  neoImagery: 'ok' | 'unavailable';
-}
-
-export interface ShareSnapshotData {
-  schemaVersion: number;
-  id: string;
-  createdAt: string;
-  capturedAt: string;
-  observer: ShareObserverData;
-  sky: ShareSkyData;
-  headline: string;
-  facts: ShareFactData[];
-  horizon: {
-    markers: ShareMarkerData[];
-  };
-  availability: ShareAvailabilityData;
-}
-
-export interface CreateShareResponseData {
-  id: string;
-  shareUrl: string;
-  ogImageUrl: string;
-  snapshot: ShareSnapshotData;
-}
-
-/** Fetches a public share card snapshot from GET /api/share/:id */
-export async function fetchShareSnapshot(id: string): Promise<ShareSnapshotData> {
-  const res = await fetch(`/api/share/${id}`);
-  if (!res.ok) {
-    if (res.status === 404) throw new Error('NOT_FOUND');
-    throw new Error(`Failed to fetch share card: ${res.status}`);
-  }
-  return (await res.json()) as ShareSnapshotData;
-}
-
-/** Creates a share card snapshot from current observer coordinates via POST /api/share */
-export async function createShareSnapshot(
-  lat: number,
-  lon: number,
-): Promise<CreateShareResponseData> {
-  const res = await fetch('/api/share', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat, lon }),
-  });
-  if (!res.ok) throw new Error(`Failed to create share card: ${res.status}`);
-  return (await res.json()) as CreateShareResponseData;
 }

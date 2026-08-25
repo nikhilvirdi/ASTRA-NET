@@ -72,7 +72,7 @@ export function BestSpotPage(): React.ReactElement {
         {/* Event Filter Selector */}
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
           <span className="text-sky-400 uppercase text-caption mr-1">EVENT FILTER:</span>
-          {(['all', 'aurora', 'meteor', 'iss'] as BestSpotEventFilter[]).map((filter) => (
+          {(['all', 'aurora'] as BestSpotEventFilter[]).map((filter) => (
             <button
               key={filter}
               type="button"

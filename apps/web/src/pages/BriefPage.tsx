@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { twilightStateForSunAltitude } from '@astranet/shared';
-import {
-  createShareSnapshot,
-  fetchBrief,
-  DEFAULT_OBSERVER_LOCATION,
-  type DailyBrief,
-} from '@/lib/api';
+import { fetchBrief, DEFAULT_OBSERVER_LOCATION, type DailyBrief } from '@/lib/api';
 import { useAppStore } from '@/store';
 import { HorizonBand } from '@/components/brief/HorizonBand';
-import { spaceWeatherUiState } from '@/lib/space-weather-status';
+import { spaceWeatherUiState, formatLastSeen } from '@/lib/space-weather-status';
 import { LivePulse } from '@/components/common/LivePulse';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
@@ -22,11 +17,9 @@ function formatTimeShort(isoUtcString: string | null | undefined): string {
 }
 
 export function BriefPage(): React.ReactElement {
-  const navigate = useNavigate();
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [sharing, setSharing] = useState<boolean>(false);
 
   // Reactive (not `getEffectiveLocation()`'s one-shot read): the site-wide
   // location switcher below writes here, and every consumer of this store
@@ -54,22 +47,6 @@ export function BriefPage(): React.ReactElement {
     if (Number.isNaN(lat) || Number.isNaN(lon) || !labelInput.trim()) return;
     setStoreLocation({ lat, lon, name: labelInput.trim().toUpperCase() });
     setEditingLocation(false);
-  };
-
-  const handleShare = () => {
-    if (sharing) return;
-    setSharing(true);
-    createShareSnapshot(location.lat, location.lon)
-      .then((res) => {
-        navigate(`/share/${res.id}`);
-      })
-      .catch((err) => {
-        console.error('[BriefPage] Share error:', err);
-        alert('Failed to generate Shareable Sky Card.');
-      })
-      .finally(() => {
-        setSharing(false);
-      });
   };
 
   useEffect(() => {
@@ -120,6 +97,66 @@ export function BriefPage(): React.ReactElement {
         ? 'NIGHT'
         : `${twilightState.phase.toUpperCase()} TWILIGHT`;
 
+  // Compose Headline
+  let composedHeadline: React.ReactNode = 'No active aurora prediction or ISS pass expected soon.';
+  if (brief?.skyAnchor) {
+    const issPass = brief.iss.data?.nextPass;
+    const auroraStrength = brief.spaceWeather.data?.aurora?.strengthFactor;
+
+    let issText = '';
+    let issNode: React.ReactNode = null;
+    if (issPass) {
+      const timeStr = new Date(issPass.startUtc * 1000).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      issText = `The ISS crosses your sky at ${timeStr}`;
+      issNode = (
+        <>
+          The ISS crosses your sky at <span className="type-mono font-normal">{timeStr}</span>
+        </>
+      );
+    }
+
+    let auroraText = '';
+    let auroraNode: React.ReactNode = null;
+    let auroraNodeCap: React.ReactNode = null;
+    if (auroraStrength) {
+      const ratio = Math.max(2, Math.round(1 / auroraStrength));
+      auroraText = `a solar storm gives you a 1 in ${ratio} chance of aurora`;
+      auroraNode = (
+        <>
+          a solar storm gives you a <span className="type-mono font-normal">1 in {ratio}</span>{' '}
+          chance of aurora
+        </>
+      );
+      auroraNodeCap = (
+        <>
+          A solar storm gives you a <span className="type-mono font-normal">1 in {ratio}</span>{' '}
+          chance of aurora
+        </>
+      );
+    }
+
+    if (issText && auroraText) {
+      const combinedLength = issText.length + 7 + auroraText.length + 1; // " — and " + "."
+      // Display-xl max 2 lines at 900px is roughly 90-100 characters.
+      if (combinedLength > 95) {
+        composedHeadline = <>{issNode}.</>;
+      } else {
+        composedHeadline = (
+          <>
+            {issNode} — and {auroraNode}.
+          </>
+        );
+      }
+    } else if (issText) {
+      composedHeadline = <>{issNode}.</>;
+    } else if (auroraText) {
+      composedHeadline = <>{auroraNodeCap}.</>;
+    }
+  }
+
   if (error) {
     return (
       <main
@@ -153,19 +190,9 @@ export function BriefPage(): React.ReactElement {
             <span>{`${Math.abs(location.lat).toFixed(2)}°${location.lat >= 0 ? 'N' : 'S'} ${Math.abs(location.lon).toFixed(2)}°${location.lon >= 0 ? 'E' : 'W'}`}</span>
             <span>·</span>
             <span>{todayDateStr}</span>
-            <span>·</span>
-            <span>CIVIL TWILIGHT ENDS 19:48</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleShare}
-              disabled={sharing}
-              className="type-micro text-brass-300 hover:text-sky-100 transition-colors uppercase cursor-pointer border border-brass-500/40 hover:border-brass-300 min-h-[44px] px-3 py-2 flex items-center justify-center rounded"
-            >
-              {sharing ? 'CREATING CARD...' : 'SHARE SKY CARD'}
-            </button>
             <button
               type="button"
               onClick={() => (editingLocation ? setEditingLocation(false) : openLocationEditor())}
@@ -228,22 +255,7 @@ export function BriefPage(): React.ReactElement {
           </h1>
         ) : brief?.skyAnchor ? (
           <h1 className="type-display-xl text-sky-100 max-w-[900px] leading-tight">
-            The ISS crosses your sky at{' '}
-            <span className="type-mono font-normal">
-              {brief.iss.data?.nextPass
-                ? new Date(brief.iss.data.nextPass.startUtc * 1000).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '21:42'}
-            </span>{' '}
-            — and a solar storm arriving tomorrow night gives you a{' '}
-            <span className="type-mono font-normal">
-              {brief.spaceWeather.data?.aurora?.strengthFactor
-                ? `1 in ${Math.max(2, Math.round(1 / brief.spaceWeather.data.aurora.strengthFactor))}`
-                : '1 in 3'}
-            </span>{' '}
-            chance of aurora.
+            {composedHeadline}
           </h1>
         ) : (
           <h1 className="type-display-xl text-sky-100 max-w-[900px] leading-tight">
@@ -333,7 +345,10 @@ export function BriefPage(): React.ReactElement {
             </div>
             {brief?.iss.status === 'unavailable' && (
               <span className="type-micro text-ember-500 tracking-wider">
-                SOURCE UNAVAILABLE · LAST SEEN 14:20
+                {(() => {
+                  const ls = formatLastSeen(brief.iss.data?.position?.fetchedAt ?? null);
+                  return ls ? `SOURCE UNAVAILABLE · LAST SEEN ${ls}` : 'SOURCE UNAVAILABLE';
+                })()}
               </span>
             )}
           </div>
@@ -346,14 +361,12 @@ export function BriefPage(): React.ReactElement {
                 ttlSeconds={60}
               >
                 <span className="type-title font-mono text-sky-100">
-                  {loading
-                    ? '— —'
-                    : brief?.iss.data?.nextPass
-                      ? new Date(brief.iss.data.nextPass.startUtc * 1000).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '21:42'}
+                  {loading || !brief?.iss.data?.nextPass
+                    ? '—'
+                    : new Date(brief.iss.data.nextPass.startUtc * 1000).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                 </span>
               </FreshnessIndicator>
             </div>
@@ -361,18 +374,18 @@ export function BriefPage(): React.ReactElement {
             <div>
               <span className="type-caption text-sky-400 block mb-1">PEAK ALTITUDE</span>
               <span className="type-title font-mono text-sky-100">
-                {loading ? '—' : `${brief?.iss.data?.nextPass?.maxElevationDeg ?? 48}°`}
+                {loading || !brief?.iss.data?.nextPass
+                  ? '—'
+                  : `${brief.iss.data.nextPass.maxElevationDeg}°`}
               </span>
             </div>
 
             <div>
               <span className="type-caption text-sky-400 block mb-1">DURATION & BRIGHTNESS</span>
               <span className="type-body font-mono text-brass-300">
-                {loading
+                {loading || !brief?.iss.data?.nextPass
                   ? '—'
-                  : brief?.iss.data?.nextPass
-                    ? `${Math.round(brief.iss.data.nextPass.durationSeconds / 60)}m · Mag ${brief.iss.data.nextPass.magnitude}`
-                    : '4m · Mag -3.1'}
+                  : `${Math.round(brief.iss.data.nextPass.durationSeconds / 60)}m · Mag ${brief.iss.data.nextPass.magnitude}`}
               </span>
             </div>
 
@@ -416,23 +429,51 @@ export function BriefPage(): React.ReactElement {
           </div>
 
           {/* Connected Causal Chain (§10) */}
-          <div className="flex flex-wrap items-center gap-3 p-4 bg-sky-900/30 border border-sky-800/50 rounded">
-            <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-200">
-              FLARE 19 JUL
+          {brief?.spaceWeather.data?.aurora ? (
+            <div className="flex flex-wrap items-center gap-3 p-4 bg-sky-900/30 border border-sky-800/50 rounded">
+              {brief.spaceWeather.data.aurora.hasActiveCme && (
+                <>
+                  <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-200">
+                    CME DETECTED
+                  </div>
+                  <span className="type-micro text-brass-500">→</span>
+                  <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-200">
+                    {brief.spaceWeather.data.aurora.cmeArrivalTime
+                      ? `CME ARRIVING ${new Date(brief.spaceWeather.data.aurora.cmeArrivalTime).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()} ±6h`
+                      : 'CME ARRIVING (TIME UNKNOWN)'}
+                  </div>
+                  <span className="type-micro text-brass-500">→</span>
+                </>
+              )}
+              {!brief.spaceWeather.data.aurora.hasActiveCme && (
+                <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-400">
+                  NO ACTIVE SOLAR STORM
+                </div>
+              )}
+              {!brief.spaceWeather.data.aurora.hasActiveCme ? (
+                <span className="type-micro text-brass-500">→</span>
+              ) : null}
+              <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-brass-300 font-mono">
+                Kp {brief.spaceWeather.data.aurora.kpPredicted} PREDICTED
+              </div>
+              <span className="type-micro text-brass-500">→</span>
+              {brief.spaceWeather.data.aurora.visible ? (
+                <div className="px-3 py-2 bg-ember-950/80 border border-ember-700 rounded type-micro text-ember-400 font-semibold">
+                  AURORA POSSIBLE AT YOUR LATITUDE
+                </div>
+              ) : (
+                <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-400">
+                  AURORA UNLIKELY
+                </div>
+              )}
             </div>
-            <span className="type-micro text-brass-500">→</span>
-            <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-200">
-              CME ARRIVING 23 JUL ±6h
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 p-4 bg-sky-900/30 border border-sky-800/50 rounded">
+              <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-sky-400">
+                CAUSAL CHAIN UNAVAILABLE
+              </div>
             </div>
-            <span className="type-micro text-brass-500">→</span>
-            <div className="px-3 py-2 bg-sky-900 border border-sky-700 rounded type-micro text-brass-300 font-mono">
-              Kp {brief?.spaceWeather.data?.aurora?.kpPredicted ?? 6} PREDICTED
-            </div>
-            <span className="type-micro text-brass-500">→</span>
-            <div className="px-3 py-2 bg-ember-950/80 border border-ember-700 rounded type-micro text-ember-400 font-semibold">
-              AURORA POSSIBLE AT YOUR LATITUDE
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div>
@@ -444,21 +485,15 @@ export function BriefPage(): React.ReactElement {
                 <p className="type-body text-sky-100">
                   {loading
                     ? 'Loading solar wind parameters...'
-                    : (brief?.spaceWeather.data?.solarLine.headline ?? 'solar wind 420 km/s, Kp 4')}
+                    : (brief?.spaceWeather.data?.solarLine.headline ?? '—')}
                 </p>
               </FreshnessIndicator>
             </div>
 
             {/* Confidence Ticks */}
             <ConfidenceTicks
-              factors={
-                brief?.spaceWeather.data?.aurora?.factors ?? {
-                  lead: 0.8,
-                  agreement: 0.85,
-                  history: 0.6,
-                }
-              }
-              confidenceBand={brief?.spaceWeather.data?.aurora?.confidenceBand ?? 'MODERATE'}
+              factors={brief?.spaceWeather.data?.aurora?.factors ?? null}
+              confidenceBand={brief?.spaceWeather.data?.aurora?.confidenceBand ?? null}
             />
           </div>
         </article>
@@ -470,9 +505,7 @@ export function BriefPage(): React.ReactElement {
           <div className="flex justify-between items-center">
             <span className="type-micro text-brass-500 uppercase">NEAR-EARTH OBJECT FLYBY</span>
             {brief?.neoImagery.status === 'unavailable' && (
-              <span className="type-micro text-ember-500 tracking-wider">
-                SOURCE UNAVAILABLE · LAST SEEN 09:15
-              </span>
+              <span className="type-micro text-ember-500 tracking-wider">SOURCE UNAVAILABLE</span>
             )}
           </div>
 
@@ -480,29 +513,25 @@ export function BriefPage(): React.ReactElement {
             <div>
               <span className="type-caption text-sky-400 block mb-1">OBJECT DESIGNATION</span>
               <span className="type-title text-sky-100 font-mono">
-                {loading ? '—' : (brief?.neoImagery.data?.neo?.name ?? '2026 XK4')}
+                {loading || !brief?.neoImagery.data?.neo ? '—' : brief.neoImagery.data.neo.name}
               </span>
             </div>
 
             <div>
               <span className="type-caption text-sky-400 block mb-1">HUMAN-SCALE SIZE</span>
               <span className="type-body text-sky-200">
-                {loading
+                {loading || !brief?.neoImagery.data?.neo?.diameterKm
                   ? '—'
-                  : brief?.neoImagery.data?.neo?.diameterKm
-                    ? `about ${(brief.neoImagery.data.neo.diameterKm * 1000).toFixed(0)}m wide (as tall as the Eiffel Tower)`
-                    : 'about as wide as the Eiffel Tower is tall (~300m)'}
+                  : `about ${(brief.neoImagery.data.neo.diameterKm * 1000).toFixed(0)}m wide (as tall as the Eiffel Tower)`}
               </span>
             </div>
 
             <div>
               <span className="type-caption text-sky-400 block mb-1">MISS DISTANCE</span>
               <span className="type-title text-brass-300 font-mono">
-                {loading
+                {loading || !brief?.neoImagery.data?.neo?.missDistanceLunarDistances
                   ? '—'
-                  : brief?.neoImagery.data?.neo?.missDistanceLunarDistances
-                    ? `${brief.neoImagery.data.neo.missDistanceLunarDistances.toFixed(1)} Lunar Distances`
-                    : '4.2 Lunar Distances'}
+                  : `${brief.neoImagery.data.neo.missDistanceLunarDistances.toFixed(1)} Lunar Distances`}
               </span>
             </div>
           </div>

@@ -56,6 +56,22 @@ export function formatLastSeen(fetchedAt: string | null): string | null {
   return `${hh}:${mm} UTC`;
 }
 
+/** `2026-07-17T21:40:00Z` -> `4m`; null when never fetched or invalid. */
+export function formatRelativeTime(
+  fetchedAt: string | null,
+  now: Date = new Date(),
+): string | null {
+  if (fetchedAt === null) return null;
+  const at = new Date(fetchedAt);
+  if (Number.isNaN(at.getTime())) return null;
+  const diffMs = Math.max(0, now.getTime() - at.getTime());
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  return `${Math.floor(diffHours / 24)}d`;
+}
+
 export function spaceWeatherUiState(
   card: SpaceWeatherCardLike | null | undefined,
 ): SpaceWeatherUiState {

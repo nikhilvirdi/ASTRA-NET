@@ -34,17 +34,4 @@ model Cache {
 
   @@index([expiresAt])
 }
-
-/// Shareable Sky Card (WORKPLAN.md Phase 11) — one frozen, self-contained
-/// snapshot of a Brief moment, served publicly at `/share/:id`. `id` is a
-/// random URL-safe token rather than `@default(cuid())`: this row is
-/// world-readable by anyone holding the id and carries the observer's
-/// coordinates, so ids must not be enumerable.
-model ShareCard {
-  id         String   @id
-  capturedAt DateTime
-  latitude   Float
-  longitude  Float
-  snapshot   Json
-  createdAt  DateTime @default(now())
-}
+

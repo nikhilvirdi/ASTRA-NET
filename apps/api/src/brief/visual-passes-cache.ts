@@ -6,8 +6,7 @@
  * centrally, so its load is constant no matter how many people are looking.
  * `visualpasses` cannot be: it takes the observer's coordinates, so there is
  * nothing to poll *for*. It was therefore called live on every
- * `GET /api/brief` and every `POST /api/share`, and N2YO limits it to **100
- * transactions/hour** — a tenth of the 1000/hr the other endpoints get,
+ * `GET /api/brief`, and N2YO limits it to **100 transactions/hour** — a tenth of the 1000/hr the other endpoints get,
  * because N2YO's limits are per endpoint ("transaction limited by type").
  * That capped the whole product at ~100 Brief page-loads an hour.
  *

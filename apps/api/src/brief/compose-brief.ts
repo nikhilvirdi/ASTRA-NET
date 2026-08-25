@@ -4,15 +4,10 @@
  * state, fetch the observer-specific ISS next-pass from N2YO, and look up
  * the global accuracy-loop history that feeds `f_hist`.
  *
- * Extracted from `routes/brief.ts` when Phase 11 needed the identical
- * composition to freeze a share snapshot. Two routes composing a Brief two
- * slightly different ways is exactly the drift `CLAUDE.md` makes the lead
- * agent responsible for preventing — a shared card that disagreed with the
- * Brief it was shared from would undermine the whole point of the card.
- *
- * Route-specific concerns stay in their routes: `/api/brief` keeps its
- * saved-location fallback and its prediction persistence, `/api/share`
- * keeps its snapshot write. This module only produces a `DailyBrief`.
+ * Extracted from `routes/brief.ts` to keep the route thin and to allow
+ * other callsites to compose a Brief without duplicating the wiring logic.
+ * Route-specific concerns (prediction persistence, location fallback) stay
+ * in their routes; this module only produces a `DailyBrief`.
  */
 
 import type { PrismaClient } from '@prisma/client';

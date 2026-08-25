@@ -4,11 +4,10 @@ import { persist } from 'zustand/middleware';
 /**
  * ASTRANET Zustand store — global app state
  *
- * Scope: active location, alert preferences, display mode preferences.
- * There is no account system: location and alert toggles live in this
- * browser only, persisted to localStorage — not on a server. Route-local
- * data (e.g. the Brief API response) stays in component-local state, not
- * here.
+ * Scope: active location, display mode preferences.
+ * There is no account system: location lives in this browser only, persisted
+ * to localStorage — not on a server. Route-local data (e.g. the Brief API
+ * response) stays in component-local state, not here.
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -19,20 +18,6 @@ export interface UserLocation {
   name: string;
 }
 
-export interface UserAlertsData {
-  iss_pass: boolean;
-  aurora: boolean;
-  meteor_shower: boolean;
-  neo_approach: boolean;
-}
-
-const DEFAULT_ALERTS: UserAlertsData = {
-  iss_pass: false,
-  aurora: false,
-  meteor_shower: false,
-  neo_approach: false,
-};
-
 export interface AppState {
   // Location — a single client-side setting anyone can change, no account
   // required. Defaults to null (falls back to DEFAULT_OBSERVER_LOCATION,
@@ -40,12 +25,7 @@ export interface AppState {
   location: UserLocation | null;
   setLocation: (loc: UserLocation) => void;
 
-  // Alert toggle preferences — local-only. No delivery mechanism exists
-  // yet; toggles just persist the preference for future delivery.
-  alerts: UserAlertsData;
-  setAlerts: (alerts: Partial<UserAlertsData>) => void;
-
-  /** Wipes location and alert preferences from this browser. */
+  /** Wipes location preferences from this browser. */
   clearLocalData: () => void;
 
   // Display modes
@@ -67,10 +47,7 @@ export const useAppStore = create<AppState>()(
       location: null,
       setLocation: (location) => set({ location }),
 
-      alerts: DEFAULT_ALERTS,
-      setAlerts: (alerts) => set((s) => ({ alerts: { ...s.alerts, ...alerts } })),
-
-      clearLocalData: () => set({ location: null, alerts: DEFAULT_ALERTS }),
+      clearLocalData: () => set({ location: null }),
 
       redLightMode: false,
       toggleRedLightMode: () => set((s) => ({ redLightMode: !s.redLightMode })),
@@ -85,7 +62,6 @@ export const useAppStore = create<AppState>()(
       // reloading mid-auto-hide restores a stale hidden nav.
       partialize: (state) => ({
         location: state.location,
-        alerts: state.alerts,
         redLightMode: state.redLightMode,
       }),
     },

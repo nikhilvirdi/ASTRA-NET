@@ -8,6 +8,7 @@ import {
   colorTemperatureKelvin,
 } from '@astranet/shared';
 import { colorTemperatureToRGB } from '@/lib/color';
+import { isAboveHorizon } from '@/lib/semantic-zoom';
 
 interface StarFieldProps {
   observerLat: number;
@@ -121,6 +122,10 @@ export function StarField({
 
       // 1. Transform coordinates (FORMULAS.md §3).
       const horiz = equatorialToHorizontal(ra, dec, observerLat, observerLon, jd);
+      if (!isAboveHorizon(horiz.altitudeDeg)) {
+        continue;
+      }
+
       const rAlt = horiz.altitudeDeg * (Math.PI / 180);
       const rAz = horiz.azimuthDeg * (Math.PI / 180);
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { PersistentNav } from '@/components/nav/PersistentNav';
+import { Footer } from '@/components/nav/Footer';
 
 // Pages
 import { BriefPage } from '@/pages/BriefPage';
@@ -8,7 +9,7 @@ import { ExplorePage } from '@/pages/ExplorePage';
 import { BestSpotPage } from '@/pages/BestSpotPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { AccuracyPage } from '@/pages/AccuracyPage';
-import { SharePage } from '@/pages/SharePage';
+import { StatusPage } from '@/pages/StatusPage';
 
 /**
  * ASTRANET App Shell
@@ -23,13 +24,13 @@ import { SharePage } from '@/pages/SharePage';
  *   /            public  Daily Brief
  *   /explore     public  Explorable Universe (3D, full-bleed)
  *   /best-spot   public  Best-Spot-Tonight Finder
- *   /settings    public  Location, alerts, local data controls
+ *   /settings    public  Location, local data controls
  *   /accuracy    public  Track record
- *   /share/:id   public  Shareable Sky Card
+ *   /status      public  System status
  */
 export function App(): React.ReactElement {
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       {/* Skip link for keyboard navigation — §6 Quality Floor */}
       <a
         href="#main-content"
@@ -41,24 +42,28 @@ export function App(): React.ReactElement {
 
       <PersistentNav />
 
-      <Routes>
-        <Route path="/" element={<BriefPage />} />
-        <Route path="/explore" element={<ExplorePage />} />
-        <Route path="/best-spot" element={<BestSpotPage />} />
-        <Route path="/accuracy" element={<AccuracyPage />} />
-        <Route path="/share/:id" element={<SharePage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+      <div className="flex-grow flex flex-col">
+        <Routes>
+          <Route path="/" element={<BriefPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/best-spot" element={<BestSpotPage />} />
+          <Route path="/accuracy" element={<AccuracyPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/status" element={<StatusPage />} />
 
-        {/* 404 fallback */}
-        <Route
-          path="*"
-          element={
-            <main id="main-content" className="pt-12 px-8 py-16">
-              <p className="type-micro text-brass-500">PAGE NOT FOUND</p>
-            </main>
-          }
-        />
-      </Routes>
-    </>
+          {/* 404 fallback */}
+          <Route
+            path="*"
+            element={
+              <main id="main-content" className="pt-12 px-8 py-16 flex-grow">
+                <p className="type-micro text-brass-500">PAGE NOT FOUND</p>
+              </main>
+            }
+          />
+        </Routes>
+      </div>
+
+      <Footer />
+    </div>
   );
 }

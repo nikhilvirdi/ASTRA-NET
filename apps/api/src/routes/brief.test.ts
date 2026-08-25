@@ -251,6 +251,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
   beforeEach(async () => {
     resetStore();
     await cleanup();
+    await realPrisma.prediction.deleteMany({});
   });
   afterAll(async () => {
     await cleanup();
@@ -266,6 +267,9 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
 
     expect(res.status).toBe(200);
     expect(body.spaceWeather.data?.aurora?.hasActiveCme).toBe(true);
+
+    // Wait for the fire-and-forget async DB write to complete
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const stored = await realPrisma.prediction.findMany({
       where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
@@ -296,6 +300,30 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     expect(context.cmeActivityId).toBe('brief-test-cme-1');
     expect(context.confidenceBand).toBe(body.spaceWeather.data?.aurora?.confidenceBand);
     expect(context.leadHours).toBeGreaterThan(0);
+  });
+
+  it('deduplicates Predictions for the same active CME', async () => {
+    const now = new Date();
+    setActiveCmeState(now);
+
+    // First request
+    const res1 = await request(createTestApp()).get('/api/brief?lat=65&lon=-20');
+    expect(res1.status).toBe(200);
+    // Wait for fire-and-forget promise
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Second request
+    const res2 = await request(createTestApp()).get('/api/brief?lat=65&lon=-20');
+    expect(res2.status).toBe(200);
+    // Wait for fire-and-forget promise
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const stored = await realPrisma.prediction.findMany({
+      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
+    });
+    stored.forEach((row) => createdIds.push(row.id));
+
+    expect(stored).toHaveLength(1);
   });
 
   it('never persists a Prediction when there is no active CME', async () => {

@@ -17,12 +17,11 @@ import { defineWorkspace } from 'vitest/config';
  *
  * `db-serial` covers exactly the four files that both (a) write to
  * `Prediction` and (b) assert an exact global count/value derived from
- * it. Every other DB-touching file (`share/store.test.ts`,
- * `routes/share.test.ts`, `db/client.test.ts`, `cache/store.test.ts`,
- * `brief/visual-passes-cache.test.ts`) either touches a different table
- * (`ShareCard`, `Cache`) or only asserts a type/shape (`db/client.test.ts`'s
- * `resolves.toBeTypeOf('number')`), so they carry no risk of this race
- * and stay in the fully-parallel default project.
+ * it. Every other DB-touching file (`db/client.test.ts`, `cache/store.test.ts`,
+ * `brief/visual-passes-cache.test.ts`) either only asserts a type/shape
+ * (`db/client.test.ts`'s `resolves.toBeTypeOf('number')`), or touches a
+ * different table (`Cache`), so they carry no risk of this race and stay in
+ * the fully-parallel default project.
  *
  * Deliberately not using `extends` here: `include`/`exclude` overrides on
  * an extended project silently failed to replace the base config's

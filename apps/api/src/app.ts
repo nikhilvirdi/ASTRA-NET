@@ -13,7 +13,6 @@ import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerSatellitesRoute } from './routes/satellites.js';
 import { registerBestSpotRoute, type BestSpotRouteDeps } from './routes/best-spot.js';
 import { registerAccuracyRoute } from './routes/accuracy.js';
-import { registerShareRoutes, type ShareRouteDeps } from './routes/share.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -21,8 +20,6 @@ export interface CreateAppDeps {
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
   fetchOpenMeteoBatch?: BestSpotRouteDeps['fetchOpenMeteoBatch'];
   bortleAt?: BestSpotRouteDeps['bortleAt'];
-  publicApiOrigin?: ShareRouteDeps['publicApiOrigin'];
-  webOrigin?: ShareRouteDeps['webOrigin'];
 }
 
 export function createApp(deps: CreateAppDeps): Express {
@@ -37,13 +34,6 @@ export function createApp(deps: CreateAppDeps): Express {
   });
   registerBriefRoute(app, deps);
   registerAccuracyRoute(app, { prisma: deps.prisma });
-  registerShareRoutes(app, {
-    prisma: deps.prisma,
-    n2yoApiKey: deps.n2yoApiKey,
-    fetchN2yoVisualPasses: deps.fetchN2yoVisualPasses,
-    publicApiOrigin: deps.publicApiOrigin,
-    webOrigin: deps.webOrigin,
-  });
 
   return app;
 }

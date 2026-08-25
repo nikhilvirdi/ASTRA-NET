@@ -25,8 +25,7 @@
 /* ── 2. @theme — Tailwind design tokens ─────────────────────────────────── */
 @theme {
   /* ─ §4.1 Sky ramp ─────────────────────────────────────────────────────── */
-  /* Hex values are STATIC. Runtime twilight → surface wiring is DEFERRED.   */
-  /* See packages/shared twilight function (Claude Code) — PROGRESS.md gap.  */
+  /* Hex values are STATIC. Computed surface colors dynamically wired via JS. */
   --color-sky-100: #eef1f1; /* Day surface. Cool paper, not cream.        */
   --color-sky-200: #d6dcdc; /* Day secondary surface, dividers day mode.  */
   --color-sky-400: #8b9898; /* Mid-tone. Disabled, tertiary text on light.*/
@@ -179,14 +178,7 @@
     --sky-900: #111818;
     --sky-950: #0a0e0e;
 
-    /* Semantic surface slots — deliberately static, not awaiting a function.
-       The shared engine this once waited on has landed (packages/shared's
-       surfaceColorForTwilight); the runtime wiring that consumed it was
-       reverted in 41c3d7a and has not been reinstated. So --surface is
-       night, always, and the server-rendered OG card is currently the only
-       twilight-accurate surface in the product — it computes its own color
-       independently and stores it per snapshot. Re-wiring this is live work,
-       not a missing dependency. See PROGRESS.md. */
+    /* Semantic surface slots — intentionally static (product decision to always show the night theme). */
     --surface: var(--sky-900);
     --surface-secondary: var(--sky-800);
     --surface-tertiary: var(--sky-600);
