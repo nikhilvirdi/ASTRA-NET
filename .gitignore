@@ -59,3 +59,24 @@ apps/api/scripts/BlackMarble.jpg
 # Throwaway debug / scratch files (never commit)
 apps/api/scratch.js
 apps/api/dist/
+
+apps/api/dist/
+
+# Internal project docs/planning â€” not for public repo view
+ARCHITECTURE.md
+FORMULAS.md
+API_SOURCES.md
+SCHEMA.md
+DESIGN_SPEC.md
+WORKPLAN.md
+AGENTS.md
+CLAUDE.md
+DECISIONS.md
+PROGRESS.md
+NOTES.md
+TESTING.md
+
+# Scratch dump/tree files from local tooling
+docs-dump.txt
+tree.txt
+codebase-dump.txt
