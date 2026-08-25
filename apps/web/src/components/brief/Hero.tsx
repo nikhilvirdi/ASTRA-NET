@@ -11,14 +11,20 @@ function measureInkBounds(text: string, font: string): { left: number; right: nu
 
   ctx.font = font;
   const metrics = ctx.measureText(text);
-  const estWidth = metrics.width + 200;
+
+  // Extract font size to scale the padding dynamically
+  const match = font.match(/([\d.]+)px/);
+  const fontSizePx = match && match[1] ? parseFloat(match[1]) : 160;
+  const paddingX = Math.max(150, Math.ceil(fontSizePx * 1.5));
+
+  const estWidth = metrics.width + paddingX * 2;
   canvas.width = Math.ceil(estWidth);
-  canvas.height = 300;
+  canvas.height = Math.max(300, Math.ceil(fontSizePx * 2.5));
 
   ctx.font = font;
   ctx.fillStyle = 'white';
   ctx.textBaseline = 'top';
-  ctx.fillText(text, 100, 50);
+  ctx.fillText(text, paddingX, 50);
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
@@ -40,10 +46,10 @@ function measureInkBounds(text: string, font: string): { left: number; right: nu
   }
 
   if (firstCol > lastCol) return null;
-  return { left: firstCol - 100, right: lastCol - 100 };
+  return { left: firstCol - paddingX, right: lastCol - paddingX };
 }
 
-const RADIUS = 2.0;
+const RADIUS = 1.3;
 
 const RealisticMoon = ({ onClick }: { onClick?: () => void }) => {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -456,7 +462,18 @@ export default function Hero() {
     };
 
     if (document.fonts) {
-      void document.fonts.ready.then(updateScale).catch(() => {});
+      const fontStr = '400 12rem "Zen Dots"';
+      void Promise.all([document.fonts.ready, document.fonts.load(fontStr).catch(() => {})])
+        .then(() => {
+          updateScale();
+          if (!document.fonts.check(fontStr)) {
+            requestAnimationFrame(updateScale);
+            setTimeout(updateScale, 100);
+          }
+        })
+        .catch(() => {
+          updateScale();
+        });
     } else {
       updateScale();
     }
@@ -480,48 +497,22 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative w-full min-h-[100vh] md:min-h-0 md:h-[700px] bg-[#000000] overflow-hidden flex items-center justify-center">
-      {/* 3D Scene Layer */}
-      <div className="absolute inset-0 w-full h-full z-0 pointer-events-auto cursor-grab active:cursor-grabbing">
-        {mounted && (
-          <Canvas shadows camera={{ position: [0, 4, 10], fov: 45 }} dpr={[1, 2]}>
-            <Environment preset="city" />
+    <section className="relative w-full min-h-[100vh] bg-[#000000] overflow-hidden flex items-center justify-center">
+      {/* Gradient overlay to smoothly blend with the dark page content below.
+          Stays full-viewport — it's background, same color as the page
+          surface either way, so there's nothing to constrain here. */}
+      <div className="absolute inset-x-0 bottom-0 h-72 md:h-96 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent z-10 pointer-events-none" />
 
-            <ambientLight intensity={0.02} />
-            <directionalLight
-              position={[8, 5, 5]}
-              intensity={1.5}
-              color="#eef1f1"
-              castShadow
-              shadow-mapSize={[2048, 2048]}
-            />
-            <directionalLight position={[-5, -3, -5]} intensity={0.15} color="#8b9898" />
-
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
-
-            <group rotation={[Math.PI / 8, 0, 0]} position={[5, 0, 0]}>
-              <Suspense fallback={null}>
-                <RealisticMoon
-                  onClick={() => {
-                    if (ringState === 'hidden') setRingState('animating');
-                  }}
-                />
-                <ParticleRing ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
-                <AsteroidBelt ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
-              </Suspense>
-            </group>
-          </Canvas>
-        )}
-      </div>
-
-      {/* Gradient overlay to smoothly blend with the dark page content below */}
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[var(--surface)] to-transparent z-10 pointer-events-none" />
-
-      {/* Text / Foreground Layer */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 flex items-center h-full pointer-events-none mt-12">
-        <div className="flex flex-col w-full md:w-[50%] lg:w-[45%] pt-12 md:pt-0">
+      {/* Constrained content column — same max-w/padding as <main> below, so
+          the wordmark's left edge lines up with the headline's (DECISIONS.md:
+          reversal of the earlier full-bleed treatment, same call already made
+          for the Horizon Band). Wordmark + tagline + the 3D Moon scene all
+          live inside this one bounded column now, not the raw viewport. */}
+      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 h-full flex items-center">
+        {/* Text */}
+        <div className="relative flex flex-col w-full md:w-[50%] lg:w-[45%] pt-12 md:pt-0">
           <motion.h1
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }}
             className="text-sky-100 uppercase flex flex-col items-start text-left m-0 p-0"
@@ -555,6 +546,42 @@ export default function Hero() {
             What's overhead right now, from satellites to space weather to near-Earth objects, live
             and tuned to your location.
           </motion.p>
+        </div>
+
+        {/* 3D Moon scene — bounded to the remaining column width (not the
+            viewport), anchored immediately right of the wordmark. Hidden
+            below `md`: there's no room for a second column at that width,
+            and the page's own mobile strategy is already single-column. */}
+        <div className="hidden md:block relative self-stretch flex-1 cursor-grab active:cursor-grabbing">
+          {false && mounted && (
+            <Canvas shadows camera={{ position: [0, 1.4, 6.5], fov: 40 }} dpr={[1, 2]}>
+              <Environment preset="city" />
+
+              <ambientLight intensity={0.02} />
+              <directionalLight
+                position={[8, 5, 5]}
+                intensity={1.5}
+                color="#eef1f1"
+                castShadow
+                shadow-mapSize={[2048, 2048]}
+              />
+              <directionalLight position={[-5, -3, -5]} intensity={0.15} color="#8b9898" />
+
+              <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
+
+              <group rotation={[Math.PI / 8, 0, 0]} position={[0, 0, 0]}>
+                <Suspense fallback={null}>
+                  <RealisticMoon
+                    onClick={() => {
+                      if (ringState === 'hidden') setRingState('animating');
+                    }}
+                  />
+                  <ParticleRing ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
+                  <AsteroidBelt ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
+                </Suspense>
+              </group>
+            </Canvas>
+          )}
         </div>
       </div>
     </section>

@@ -28,11 +28,14 @@
   /* Hex values are STATIC. Computed surface colors dynamically wired via JS. */
   --color-sky-100: #eef1f1; /* Day surface. Cool paper, not cream.        */
   --color-sky-200: #d6dcdc; /* Day secondary surface, dividers day mode.  */
+  --color-sky-300: #b0bcbc; /* Cool muted grey-sky.                       */
   --color-sky-400: #8b9898; /* Mid-tone. Disabled, tertiary text on light.*/
+  --color-sky-500: #627070; /* Muted slate.                               */
   --color-sky-600: #3e4a4a; /* Nautical twilight surface.                 */
+  --color-sky-700: #2a3434; /* Dark slate border/surface.                 */
   --color-sky-800: #1c2424; /* Astronomical twilight surface.             */
-  --color-sky-900: #111818; /* Night surface. The deepest base.           */
-  --color-sky-950: #0a0e0e; /* Immersive/3D void. /explore only.          */
+  --color-sky-900: #000000; /* Night surface. The deepest base (pure black). */
+  --color-sky-950: #000000; /* Immersive/3D void (pure black).               */
 
   /* ─ §4.2 Brass ────────────────────────────────────────────────────────── */
   /* Calibration marks, tick rules, scale numerals. Never decorative.        */
@@ -94,6 +97,8 @@
   /* ─ Typography — font families ─────────────────────────────────────────── */
   /* Full scale lives as CSS custom properties on :root below.               */
   --font-archivo: 'Archivo', system-ui, sans-serif;
+  --font-space-grotesk: 'Space Grotesk', system-ui, sans-serif;
+  --font-jost: 'Jost', system-ui, sans-serif;
   --font-mono: 'Martian Mono', ui-monospace, SFMono-Regular, monospace;
   --font-newsreader: 'Newsreader', Georgia, serif;
 
@@ -175,13 +180,13 @@
     --sky-400: #8b9898;
     --sky-600: #3e4a4a;
     --sky-800: #1c2424;
-    --sky-900: #111818;
-    --sky-950: #0a0e0e;
+    --sky-900: #000000;
+    --sky-950: #000000;
 
-    /* Semantic surface slots — intentionally static (product decision to always show the night theme). */
+    /* Semantic surface slots — pure black #000000 base globally */
     --surface: var(--sky-900);
-    --surface-secondary: var(--sky-800);
-    --surface-tertiary: var(--sky-600);
+    --surface-secondary: #0a0a0a;
+    --surface-tertiary: #141414;
     --on-surface: var(--sky-100);
     --on-surface-muted: var(--sky-400);
   }
@@ -219,7 +224,7 @@
   }
 
   html {
-    /* §6.4: "The 2D interface never uses pure black." sky-950 only on /explore */
+    /* Pure black #000000 base background globally */
     background-color: var(--surface);
     color: var(--on-surface);
     font-family: 'Archivo', system-ui, sans-serif;
@@ -231,6 +236,12 @@
     transition: background-color var(--dur-transition) var(--ease-expo-out);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* The Horizon Band (§9) breaks out of <main>'s constrained column with a
+       `100vw` full-bleed trick, which can overhang the real viewport by the
+       scrollbar's own width and force a horizontal scrollbar into being.
+       `clip` (not `hidden`) prevents that without creating a new scroll
+       container, so it can't interfere with position:sticky elsewhere. */
+    overflow-x: clip;
   }
 
   body {
@@ -257,10 +268,10 @@
 
 /* ── 5. Semantic type utility classes (§5.3) ─────────────────────────────── */
 @layer utilities {
-  /* ── Display / proportional (Archivo) ─────────────────────────────────── */
+  /* ── Display / proportional (Space Grotesk) ────────────────────────────── */
 
   .type-display-xl {
-    font-family: 'Archivo', system-ui, sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     font-size: var(--font-size-display-xl);
     line-height: var(--line-height-display-xl);
     letter-spacing: var(--tracking-display-xl);
@@ -268,7 +279,7 @@
   }
 
   .type-display-l {
-    font-family: 'Archivo', system-ui, sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     font-size: var(--font-size-display-l);
     line-height: var(--line-height-display-l);
     letter-spacing: var(--tracking-display-l);
@@ -276,7 +287,7 @@
   }
 
   .type-display-m {
-    font-family: 'Archivo', system-ui, sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     font-size: var(--font-size-display-m);
     line-height: var(--line-height-display-m);
     letter-spacing: var(--tracking-display-m);
@@ -284,7 +295,7 @@
   }
 
   .type-title {
-    font-family: 'Archivo', system-ui, sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     font-size: var(--font-size-title);
     line-height: var(--line-height-title);
     letter-spacing: var(--tracking-title);
@@ -345,6 +356,10 @@
     font-weight: 400;
     font-variant-numeric: tabular-nums lining-nums;
   }
+
+  .font-jost {
+    font-family: 'Jost', system-ui, sans-serif;
+  }
 }
 
 /* ── 6. Layout utilities ─────────────────────────────────────────────────── */
@@ -386,6 +401,42 @@
   .backdrop-blur-atmosphere {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* §9 Horizon Band time scrubber — "styled as a brass instrument control...
+     not a generic web slider, not a stock blue-thumb range input." A plain
+     `accent-*` utility has no effect once `appearance-none` is set (that's
+     what left the old thumb on the browser's unstyled default, read as
+     "generic blue"), so the thumb/track need their own rules instead. */
+  .horizon-scrub-input {
+    outline: none;
+  }
+  .horizon-scrub-input::-webkit-slider-runnable-track {
+    height: 6px;
+    background: var(--color-sky-800);
+    border-radius: 9999px;
+  }
+  .horizon-scrub-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -4px;
+    border-radius: 9999px;
+    background: var(--color-brass-300);
+    border: 1px solid var(--color-brass-500);
+  }
+  .horizon-scrub-input::-moz-range-track {
+    height: 6px;
+    background: var(--color-sky-800);
+    border-radius: 9999px;
+  }
+  .horizon-scrub-input::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--color-brass-300);
+    border: 1px solid var(--color-brass-500);
   }
 }
 
