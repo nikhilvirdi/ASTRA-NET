@@ -36,7 +36,9 @@ export function IssElevationGauge({ maxElevationDeg }: IssElevationGaugeProps): 
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="type-caption text-sky-400 block">PEAK ALTITUDE</span>
+      <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+        PEAK ALTITUDE
+      </span>
       <div className="flex items-center gap-3">
         <div className="relative w-[96px] h-[56px]">
           <svg viewBox="0 0 100 58" className="w-full h-full overflow-visible">
@@ -85,14 +87,14 @@ export function IssElevationGauge({ maxElevationDeg }: IssElevationGaugeProps): 
             />
 
             {/* Axis labels */}
-            <text x="8" y="56" className="font-jost fill-sky-400" style={{ fontSize: '9px' }}>
+            <text x="8" y="56" className="font-sans fill-sky-400" style={{ fontSize: '9px' }}>
               0°
             </text>
             <text
               x={cx}
               y="6"
               textAnchor="middle"
-              className="font-jost fill-brass-400"
+              className="font-sans fill-brass-400"
               style={{ fontSize: '9px' }}
             >
               90°
@@ -101,8 +103,10 @@ export function IssElevationGauge({ maxElevationDeg }: IssElevationGaugeProps): 
         </div>
 
         <div className="flex flex-col">
-          <span className="type-display-m text-sky-100 font-mono">{elev.toFixed(0)}°</span>
-          <span className="font-jost text-[10px] text-brass-400/90 font-medium whitespace-nowrap">
+          <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
+            {elev.toFixed(0)}°
+          </span>
+          <span className="font-sans text-[10px] text-brass-400/90 font-medium whitespace-nowrap uppercase tracking-wide">
             {quality}
           </span>
         </div>

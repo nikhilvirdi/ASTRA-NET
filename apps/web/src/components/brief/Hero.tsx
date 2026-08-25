@@ -421,6 +421,30 @@ const AsteroidBelt = ({
   );
 };
 
+function MoonScene({
+  ringState,
+  setRingState,
+  massiveAsteroidsRef,
+}: {
+  ringState: 'hidden' | 'animating' | 'visible';
+  setRingState: (s: 'hidden' | 'animating' | 'visible') => void;
+  massiveAsteroidsRef: React.MutableRefObject<Float32Array>;
+}) {
+  return (
+    <group rotation={[Math.PI / 8, 0, 0]} position={[0, 0, 0]}>
+      <Suspense fallback={null}>
+        <RealisticMoon
+          onClick={() => {
+            if (ringState === 'hidden') setRingState('animating');
+          }}
+        />
+        <ParticleRing ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
+        <AsteroidBelt ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
+      </Suspense>
+    </group>
+  );
+}
+
 export default function Hero() {
   const [ringState, setRingState] = useState<'hidden' | 'animating' | 'visible'>('hidden');
   const massiveAsteroidsRef = useRef<Float32Array>(new Float32Array(75 * 4));
@@ -462,18 +486,7 @@ export default function Hero() {
     };
 
     if (document.fonts) {
-      const fontStr = '400 12rem "Zen Dots"';
-      void Promise.all([document.fonts.ready, document.fonts.load(fontStr).catch(() => {})])
-        .then(() => {
-          updateScale();
-          if (!document.fonts.check(fontStr)) {
-            requestAnimationFrame(updateScale);
-            setTimeout(updateScale, 100);
-          }
-        })
-        .catch(() => {
-          updateScale();
-        });
+      void document.fonts.ready.then(updateScale).catch(() => {});
     } else {
       updateScale();
     }
@@ -498,90 +511,79 @@ export default function Hero() {
 
   return (
     <section className="relative w-full min-h-[100vh] bg-[#000000] overflow-hidden flex items-center justify-center">
-      {/* Gradient overlay to smoothly blend with the dark page content below.
-          Stays full-viewport — it's background, same color as the page
-          surface either way, so there's nothing to constrain here. */}
+      {/* 3D Canvas Layer — centered full-viewport background with no particle clipping */}
+      <div className="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing">
+        {mounted && (
+          <Canvas shadows camera={{ position: [0, 0, 10], fov: 45 }} dpr={[1, 2]}>
+            <Environment preset="city" />
+
+            <ambientLight intensity={0.03} />
+            <directionalLight
+              position={[8, 5, 5]}
+              intensity={1.6}
+              color="#eef1f1"
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+            />
+            <directionalLight position={[-5, -3, -5]} intensity={0.2} color="#8b9898" />
+
+            <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
+
+            <MoonScene
+              ringState={ringState}
+              setRingState={setRingState}
+              massiveAsteroidsRef={massiveAsteroidsRef}
+            />
+          </Canvas>
+        )}
+      </div>
+
+      {/* Gradient overlay to smoothly blend with the dark page content below */}
       <div className="absolute inset-x-0 bottom-0 h-72 md:h-96 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent z-10 pointer-events-none" />
 
-      {/* Constrained content column — same max-w/padding as <main> below, so
-          the wordmark's left edge lines up with the headline's (DECISIONS.md:
-          reversal of the earlier full-bleed treatment, same call already made
-          for the Horizon Band). Wordmark + tagline + the 3D Moon scene all
-          live inside this one bounded column now, not the raw viewport. */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 h-full flex items-center">
-        {/* Text */}
-        <div className="relative flex flex-col w-full md:w-[50%] lg:w-[45%] pt-12 md:pt-0">
+      {/* Centered Overlay Content */}
+      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 min-h-[100vh] flex flex-col items-center justify-center text-center py-16 pointer-events-none">
+        <div className="relative flex flex-col items-center justify-center pointer-events-auto">
+          {/* Wordmark lockup */}
           <motion.h1
             initial={false}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }}
-            className="text-sky-100 uppercase flex flex-col items-start text-left m-0 p-0"
+            className="text-sky-100 uppercase flex flex-col items-start m-0 p-0"
             style={{
               fontFamily: "'Zen Dots', cursive",
-              textShadow: '0 10px 40px rgba(0,0,0,0.8), 0 2px 10px rgba(0,0,0,0.9)',
+              textShadow:
+                '0 12px 48px rgba(0,0,0,0.95), 0 4px 16px rgba(0,0,0,0.95), 0 0 30px rgba(0,0,0,0.9)',
             }}
           >
             <span
               ref={astraRef}
-              className="inline-block m-0 p-0 text-[3.6rem] md:text-[6rem] lg:text-[7.2rem] leading-[0.85] tracking-normal text-sky-200"
+              className="inline-block m-0 p-0 text-[4rem] sm:text-[5.8rem] md:text-[7.2rem] lg:text-[8.6rem] leading-[0.85] tracking-normal text-sky-200"
             >
               ASTRA
             </span>
             <span
               ref={netRef}
-              className="inline-block m-0 p-0 text-[6.2rem] md:text-[10.3rem] lg:text-[12.4rem] leading-[0.75] tracking-normal"
+              className="inline-block m-0 p-0 text-[6.8rem] sm:text-[9.8rem] md:text-[12.2rem] lg:text-[14.6rem] leading-[0.75] tracking-normal"
               style={{ transformOrigin: 'left', transform: netTransform }}
             >
               NET
             </span>
           </motion.h1>
 
+          {/* Centered Tagline */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
-            className="mt-6 text-xl md:text-2xl font-sans font-medium text-brass-300 max-w-lg md:max-w-xl leading-snug"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+            className="mt-8 text-lg sm:text-xl md:text-2xl font-sans font-medium text-brass-300 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
+            style={{
+              textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.9)',
+            }}
           >
             What's overhead right now, from satellites to space weather to near-Earth objects, live
             and tuned to your location.
           </motion.p>
-        </div>
-
-        {/* 3D Moon scene — bounded to the remaining column width (not the
-            viewport), anchored immediately right of the wordmark. Hidden
-            below `md`: there's no room for a second column at that width,
-            and the page's own mobile strategy is already single-column. */}
-        <div className="hidden md:block relative self-stretch flex-1 cursor-grab active:cursor-grabbing">
-          {false && mounted && (
-            <Canvas shadows camera={{ position: [0, 1.4, 6.5], fov: 40 }} dpr={[1, 2]}>
-              <Environment preset="city" />
-
-              <ambientLight intensity={0.02} />
-              <directionalLight
-                position={[8, 5, 5]}
-                intensity={1.5}
-                color="#eef1f1"
-                castShadow
-                shadow-mapSize={[2048, 2048]}
-              />
-              <directionalLight position={[-5, -3, -5]} intensity={0.15} color="#8b9898" />
-
-              <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
-
-              <group rotation={[Math.PI / 8, 0, 0]} position={[0, 0, 0]}>
-                <Suspense fallback={null}>
-                  <RealisticMoon
-                    onClick={() => {
-                      if (ringState === 'hidden') setRingState('animating');
-                    }}
-                  />
-                  <ParticleRing ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
-                  <AsteroidBelt ringState={ringState} massiveAsteroidsRef={massiveAsteroidsRef} />
-                </Suspense>
-              </group>
-            </Canvas>
-          )}
         </div>
       </div>
     </section>

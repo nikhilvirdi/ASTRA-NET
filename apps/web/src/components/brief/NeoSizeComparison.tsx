@@ -32,7 +32,9 @@ export function NeoSizeComparison({
   return (
     <div className="flex flex-col gap-2 p-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
       <div className="flex justify-between items-baseline">
-        <span className="type-caption text-sky-400 block">OBJECT & SCALE</span>
+        <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+          OBJECT & SCALE
+        </span>
         <span
           className={`font-jost text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-sm border ${
             isPotentiallyHazardous
@@ -46,15 +48,17 @@ export function NeoSizeComparison({
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col">
-          <span className="type-title text-sky-100 font-mono text-base sm:text-lg">{name}</span>
-          <span className="font-jost text-xs text-sky-300 font-medium">
+          <span className="font-sans text-xl sm:text-2xl text-sky-100 font-medium tracking-tight">
+            {name}
+          </span>
+          <span className="font-sans text-xs text-sky-300 font-normal">
             ~{meters}m wide · comparable to {comparisonLabel}
           </span>
         </div>
 
         {/* Asteroid Icon & Velocity */}
         <div className="flex flex-col items-end flex-shrink-0">
-          <div className="flex items-center gap-1.5 text-brass-300 font-mono text-xs">
+          <div className="flex items-center gap-1.5 text-brass-300 font-sans text-xs font-medium">
             <svg
               viewBox="0 0 20 20"
               className="w-4 h-4"
@@ -68,7 +72,9 @@ export function NeoSizeComparison({
             </svg>
             <span>{velocityKmS.toFixed(1)} km/s</span>
           </div>
-          <span className="font-jost text-[9px] text-sky-400">REL VELOCITY</span>
+          <span className="font-jost text-[9px] text-sky-400 font-medium uppercase">
+            REL VELOCITY
+          </span>
         </div>
       </div>
     </div>

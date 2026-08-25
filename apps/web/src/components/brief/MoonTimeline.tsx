@@ -46,8 +46,10 @@ export function MoonTimeline({
   return (
     <div className="flex flex-col gap-2 w-full">
       <div className="flex justify-between items-baseline">
-        <span className="type-caption text-sky-400 block">MOONRISE & MOONSET TIMELINE</span>
-        <span className="font-jost text-xs text-sky-400">24-HOUR WINDOW</span>
+        <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+          MOONRISE & MOONSET TIMELINE
+        </span>
+        <span className="font-jost text-xs text-sky-400 uppercase font-medium">24-HOUR WINDOW</span>
       </div>
 
       <div className="relative w-full pt-4 pb-6 px-2 bg-sky-950/40 border border-sky-800/40 rounded-sm">
@@ -79,7 +81,7 @@ export function MoonTimeline({
             style={{ left: `${nowPct}%` }}
           >
             <div className="w-2.5 h-2.5 rounded-full bg-aurora ring-2 ring-black" />
-            <span className="font-jost text-[10px] font-semibold text-aurora whitespace-nowrap mt-1">
+            <span className="font-jost text-[10px] font-semibold text-aurora whitespace-nowrap mt-1 uppercase">
               NOW
             </span>
           </div>
@@ -92,7 +94,7 @@ export function MoonTimeline({
             >
               <div className="w-2.5 h-2.5 rounded-full bg-brass-300 ring-2 ring-black flex items-center justify-center" />
               <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
-                <span className="font-jost text-[10px] font-medium text-brass-300">
+                <span className="font-sans text-[10px] font-medium text-brass-300">
                   ↑ {formatHHMM(nextRiseUtc)}
                 </span>
                 <span className="font-jost text-[8px] text-brass-500 uppercase tracking-tighter">
@@ -110,7 +112,7 @@ export function MoonTimeline({
             >
               <div className="w-2.5 h-2.5 rounded-full bg-sky-200 ring-2 ring-black flex items-center justify-center" />
               <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
-                <span className="font-jost text-[10px] font-medium text-sky-200">
+                <span className="font-sans text-[10px] font-medium text-sky-200">
                   ↓ {formatHHMM(nextSetUtc)}
                 </span>
                 <span className="font-jost text-[8px] text-sky-400 uppercase tracking-tighter">

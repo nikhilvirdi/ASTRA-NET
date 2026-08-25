@@ -16,7 +16,9 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
   return (
     <div className="flex flex-col gap-1 w-full">
-      <span className="type-caption text-sky-400 block">PASS TRAJECTORY</span>
+      <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+        PASS TRAJECTORY
+      </span>
       <div className="w-full h-[56px] border border-sky-800/60 rounded-sm flex flex-col justify-between p-1.5 relative bg-sky-950/30">
         <svg viewBox="0 0 100 42" className="w-full h-full overflow-visible">
           {/* Curved trajectory path based on actual pass altitude */}
@@ -71,7 +73,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             x="12"
             y="42"
             textAnchor="middle"
-            className="font-jost fill-sky-300"
+            className="font-sans fill-sky-300"
             style={{ fontSize: '7.5px' }}
           >
             {startLabel}
@@ -80,7 +82,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             x="50"
             y={Math.max(8, peakY - 4)}
             textAnchor="middle"
-            className="font-jost fill-brass-300 font-medium"
+            className="font-sans fill-brass-300 font-medium"
             style={{ fontSize: '8px' }}
           >
             {maxLabel}
@@ -89,7 +91,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             x="88"
             y="42"
             textAnchor="middle"
-            className="font-jost fill-sky-300"
+            className="font-sans fill-sky-300"
             style={{ fontSize: '7.5px' }}
           >
             {endLabel}

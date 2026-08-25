@@ -226,7 +226,7 @@ export function BriefPage(): React.ReactElement {
         </Suspense>
         <main
           id="main-content"
-          className="max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
+          className="w-full max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
         >
           <section aria-label="Error state">
             <h1 className="type-display-xl text-ember-400 max-w-[900px] leading-tight">
@@ -252,7 +252,7 @@ export function BriefPage(): React.ReactElement {
       </Suspense>
       <main
         id="main-content"
-        className="max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
+        className="w-full max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
       >
         {/* ── 2. The Headline (§10) ──────────────────────────────────────────── */}
         <section aria-label="Daily Brief Headline">
@@ -300,15 +300,19 @@ export function BriefPage(): React.ReactElement {
 
               {/* Twilight Phase */}
               <div>
-                <span className="type-caption text-sky-400 block mb-1">TWILIGHT PHASE</span>
-                <span className="type-title text-brass-300 uppercase tracking-wide">
+                <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
+                  TWILIGHT PHASE
+                </span>
+                <span className="font-sans text-xl sm:text-2xl text-brass-300 font-medium uppercase tracking-wide">
                   {loading ? '—' : twilightPhaseLabel}
                 </span>
               </div>
 
               {/* Darkness Status */}
               <div>
-                <span className="type-caption text-sky-400 block mb-1">DARKNESS STATUS</span>
+                <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
+                  DARKNESS STATUS
+                </span>
                 <p className="type-body text-sky-200 text-sm">
                   {loading
                     ? 'Calculating twilight boundaries...'
@@ -332,7 +336,9 @@ export function BriefPage(): React.ReactElement {
                   />
                 )}
                 <div>
-                  <span className="type-caption text-sky-400 block mb-0.5">MOON PHASE</span>
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-0.5 font-medium">
+                    MOON PHASE
+                  </span>
                   <span className="type-title text-sky-100 font-mono uppercase text-base sm:text-lg">
                     {loading || !brief?.skyAnchor.data?.moon
                       ? '—'
@@ -382,15 +388,34 @@ export function BriefPage(): React.ReactElement {
               </div>
             ) : !brief?.iss.data?.nextPass ? (
               <div className="p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <span className="font-jost text-sm text-sky-300">
+                <span className="font-sans text-sm text-sky-200">
                   No visible pass in the current 24-hour observation window.
                 </span>
                 {brief?.iss.data?.position && (
-                  <div className="flex items-center gap-4 text-xs font-mono text-sky-400">
-                    <span>LAT: {brief.iss.data.position.latitude.toFixed(1)}°</span>
-                    <span>LON: {brief.iss.data.position.longitude.toFixed(1)}°</span>
-                    <span className="text-brass-400">
-                      ALT: {brief.iss.data.position.altitude.toFixed(0)} km
+                  <div className="flex items-center gap-4 text-xs">
+                    <span>
+                      <span className="font-jost font-medium uppercase text-sky-400 mr-1">
+                        LAT:
+                      </span>
+                      <span className="font-sans text-sky-200">
+                        {brief.iss.data.position.latitude.toFixed(1)}°
+                      </span>
+                    </span>
+                    <span>
+                      <span className="font-jost font-medium uppercase text-sky-400 mr-1">
+                        LON:
+                      </span>
+                      <span className="font-sans text-sky-200">
+                        {brief.iss.data.position.longitude.toFixed(1)}°
+                      </span>
+                    </span>
+                    <span>
+                      <span className="font-jost font-medium uppercase text-brass-400 mr-1">
+                        ALT:
+                      </span>
+                      <span className="font-sans text-brass-300">
+                        {brief.iss.data.position.altitude.toFixed(0)} km
+                      </span>
                     </span>
                   </div>
                 )}
@@ -398,12 +423,14 @@ export function BriefPage(): React.ReactElement {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
                 <div>
-                  <span className="type-caption text-sky-400 block mb-1">NEXT PASS TIME</span>
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
+                    NEXT PASS TIME
+                  </span>
                   <FreshnessIndicator
                     fetchedAt={brief.iss.data.position?.fetchedAt ?? null}
                     ttlSeconds={60}
                   >
-                    <span className="type-title font-mono text-sky-100">
+                    <span className="font-sans text-2xl font-medium text-sky-100">
                       {new Date(brief.iss.data.nextPass.startUtc * 1000).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -417,11 +444,11 @@ export function BriefPage(): React.ReactElement {
                 </div>
 
                 <div>
-                  <span className="type-caption text-sky-400 block mb-1">
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
                     DURATION & BRIGHTNESS
                   </span>
                   <div className="flex flex-col gap-1.5">
-                    <span className="type-body font-mono text-brass-300">
+                    <span className="font-sans text-base font-medium text-brass-300">
                       {Math.round(brief.iss.data.nextPass.durationSeconds / 60)}m · Mag{' '}
                       {brief.iss.data.nextPass.magnitude}
                     </span>
@@ -433,7 +460,7 @@ export function BriefPage(): React.ReactElement {
                         }}
                       />
                     </div>
-                    <span className="font-jost text-[10px] text-sky-400 font-medium">
+                    <span className="font-sans text-[10px] text-sky-400/90 font-medium tracking-wide uppercase">
                       {brief.iss.data.nextPass.magnitude <= -2.5
                         ? 'EXCEPTIONAL BRIGHTNESS'
                         : brief.iss.data.nextPass.magnitude <= 0

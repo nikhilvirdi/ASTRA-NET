@@ -423,8 +423,12 @@ export function HorizonBand({
                 {/* Hover Label */}
                 {isHovered && (
                   <div className="absolute bottom-[calc(100%+44px)] left-1/2 -translate-x-1/2 whitespace-nowrap bg-sky-900 border border-brass-500/50 px-2 py-1 rounded text-xs shadow-lg z-20 pointer-events-none">
-                    <div className="type-micro font-semibold text-sky-100">{m.label}</div>
-                    <div className="type-micro text-brass-400 text-[11px]">{m.sublabel}</div>
+                    <div className="font-sans text-xs font-semibold text-sky-100 uppercase tracking-wider">
+                      {m.label}
+                    </div>
+                    <div className="font-sans text-brass-400 text-[11px] font-medium">
+                      {m.sublabel}
+                    </div>
                   </div>
                 )}
 
@@ -438,7 +442,7 @@ export function HorizonBand({
                 </div>
 
                 {/* Inline label below the glyph */}
-                <span className="type-micro text-[10px] text-brass-300 opacity-80 block text-center mt-1">
+                <span className="font-sans text-[10px] text-brass-300 font-medium tracking-wider uppercase opacity-90 block text-center mt-1">
                   {m.label}
                 </span>
               </div>

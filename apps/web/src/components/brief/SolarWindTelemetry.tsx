@@ -54,23 +54,27 @@ export function SolarWindTelemetry({
           <div className="grid grid-cols-2 gap-4 items-start">
             {/* Speed Readout */}
             <div className="flex flex-col">
-              <span className="type-caption text-sky-400 block mb-0.5">PROTON SPEED</span>
-              <span className="type-display-m text-sky-100 font-mono">
-                {speedKmS !== null ? `${Math.round(speedKmS)}` : '333'}
-                <span className="text-sm font-sans text-sky-300 ml-1">km/s</span>
+              <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-0.5 font-medium">
+                PROTON SPEED
               </span>
-              <span className="font-jost text-[10px] text-brass-400 font-medium tracking-tight mt-0.5">
+              <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
+                {speedKmS !== null ? `${Math.round(speedKmS)}` : '333'}
+                <span className="text-sm font-sans font-normal text-sky-300 ml-1">km/s</span>
+              </span>
+              <span className="font-jost text-[10px] text-brass-400 font-medium tracking-tight mt-0.5 uppercase">
                 {speedCategory}
               </span>
             </div>
 
             {/* Kp Readout */}
             <div className="flex flex-col">
-              <span className="type-caption text-sky-400 block mb-0.5">GEOMAGNETIC KP</span>
-              <span className="type-display-m text-brass-300 font-mono">
+              <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-0.5 font-medium">
+                GEOMAGNETIC KP
+              </span>
+              <span className="font-sans text-3xl sm:text-4xl text-brass-300 font-semibold tracking-tight">
                 {currentKp.toFixed(2)}
               </span>
-              <span className="font-jost text-[10px] text-sky-300 font-medium tracking-tight mt-0.5">
+              <span className="font-jost text-[10px] text-sky-300 font-medium tracking-tight mt-0.5 uppercase">
                 {kpCategory}
               </span>
             </div>
@@ -78,7 +82,7 @@ export function SolarWindTelemetry({
 
           {/* Speed Scale Visual Meter */}
           <div className="flex flex-col gap-1.5 pt-1 border-t border-sky-800/40">
-            <div className="flex justify-between text-[9px] font-mono text-sky-400">
+            <div className="flex justify-between text-[9px] font-sans text-sky-400 font-medium">
               <span>250 km/s (SLOW)</span>
               <span>450 (ELEVATED)</span>
               <span>800+ (STORM)</span>

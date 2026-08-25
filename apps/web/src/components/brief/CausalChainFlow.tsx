@@ -180,8 +180,12 @@ export function CausalChainFlow({ aurora, loading }: CausalChainFlowProps): Reac
   return (
     <div className="flex flex-col gap-2 w-full">
       <div className="flex justify-between items-baseline">
-        <span className="type-caption text-sky-400 block">CAUSAL PROPAGATION PIPELINE</span>
-        <span className="font-jost text-xs text-brass-400 font-medium">SOLAR TO LOCAL</span>
+        <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+          CAUSAL PROPAGATION PIPELINE
+        </span>
+        <span className="font-jost text-xs text-brass-400 font-medium uppercase">
+          SOLAR TO LOCAL
+        </span>
       </div>
 
       <motion.div
@@ -209,10 +213,10 @@ export function CausalChainFlow({ aurora, loading }: CausalChainFlowProps): Reac
               </div>
 
               <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-xs sm:text-sm font-semibold tracking-tight">
+                <span className="font-sans text-xs sm:text-sm font-semibold tracking-tight">
                   {stage.title}
                 </span>
-                <span className="font-jost text-[10px] text-sky-400/90 font-normal">
+                <span className="font-sans text-[10px] text-sky-400/90 font-normal">
                   {stage.detail}
                 </span>
               </div>

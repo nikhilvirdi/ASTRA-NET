@@ -27,8 +27,10 @@ export function NeoDistanceScale({
   return (
     <div className="flex flex-col gap-2 w-full">
       <div className="flex justify-between items-baseline">
-        <span className="type-caption text-sky-400 block">MISS DISTANCE SCALE</span>
-        <span className="font-mono text-xs text-brass-300">
+        <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+          MISS DISTANCE SCALE
+        </span>
+        <span className="font-sans text-xs text-brass-300 font-medium">
           {ld.toFixed(1)} LD ({(missDistanceKm / 1_000_000).toFixed(2)}M km)
         </span>
       </div>
@@ -57,7 +59,7 @@ export function NeoDistanceScale({
           >
             <div className="w-[1px] h-4 bg-sky-400/80 -translate-y-0.5" />
             <div className="w-2 h-2 rounded-full bg-sky-200 ring-2 ring-black" />
-            <span className="font-jost text-[8.5px] text-sky-300 whitespace-nowrap mt-1">
+            <span className="font-jost text-[9px] text-sky-300 whitespace-nowrap mt-1 font-medium">
               MOON (1 LD)
             </span>
           </div>
@@ -103,7 +105,7 @@ export function NeoDistanceScale({
             </div>
             <div className="absolute -top-5 flex flex-col items-center whitespace-nowrap">
               <span
-                className={`font-mono text-[9.5px] font-semibold px-1 py-0.2 rounded-sm border ${
+                className={`font-jost text-[9.5px] font-semibold uppercase px-1 py-0.5 rounded-sm border ${
                   isPotentiallyHazardous
                     ? 'text-ember-300 bg-ember-950/90 border-ember-600/60'
                     : 'text-brass-300 bg-sky-950/90 border-brass-500/40'

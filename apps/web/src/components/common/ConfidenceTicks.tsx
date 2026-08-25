@@ -23,10 +23,12 @@ export function ConfidenceTicks({
   if (!factors || !confidenceBand) {
     return (
       <div className="flex flex-col gap-2 p-4 bg-sky-950/40 border border-sky-800/50 rounded-sm">
-        <span className="font-jost text-xs text-brass-400 uppercase tracking-wider font-medium">
-          CAUSAL CONFIDENCE
+        <h3 className="font-jost text-base sm:text-lg text-white font-medium tracking-tight">
+          Causal Confidence
+        </h3>
+        <span className="font-jost text-xs text-sky-400 uppercase tracking-wider">
+          UNCALIBRATED (NO ACTIVE CME EVENT)
         </span>
-        <span className="font-jost text-xs text-sky-400">UNCALIBRATED (NO ACTIVE CME EVENT)</span>
       </div>
     );
   }
@@ -45,9 +47,9 @@ export function ConfidenceTicks({
       className="flex flex-col gap-3 p-4 bg-sky-950/40 border border-sky-800/50 rounded-sm"
     >
       <div className="flex justify-between items-center">
-        <span className="font-jost text-xs text-brass-400 uppercase tracking-wider font-medium">
-          CAUSAL CONFIDENCE
-        </span>
+        <h3 className="font-jost text-base sm:text-lg text-white font-medium tracking-tight">
+          Causal Confidence
+        </h3>
         <span
           className={`font-jost text-xs px-2.5 py-0.5 rounded-sm font-semibold tracking-wide uppercase ${
             normalizedBand === 'HIGH'

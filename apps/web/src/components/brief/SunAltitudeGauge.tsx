@@ -49,7 +49,9 @@ export function SunAltitudeGauge({
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="type-caption text-sky-400 block">SUN ALTITUDE</span>
+      <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
+        SUN ALTITUDE
+      </span>
       <div className="flex items-center gap-4">
         <div className="relative w-[120px] h-[72px]">
           <svg viewBox="0 0 120 72" className="w-full h-full overflow-visible">
@@ -103,14 +105,14 @@ export function SunAltitudeGauge({
             )}
 
             {/* Base Labels */}
-            <text x="12" y="66" className="font-jost fill-sky-400" style={{ fontSize: '9px' }}>
+            <text x="12" y="66" className="font-sans fill-sky-400" style={{ fontSize: '9px' }}>
               -90°
             </text>
             <text
               x={cx}
               y={cy - r - 8}
               textAnchor="middle"
-              className="font-jost fill-sky-200"
+              className="font-sans fill-sky-200"
               style={{ fontSize: '8px', letterSpacing: '0.04em' }}
             >
               0° HORIZON
@@ -119,7 +121,7 @@ export function SunAltitudeGauge({
               x="108"
               y="66"
               textAnchor="end"
-              className="font-jost fill-brass-400"
+              className="font-sans fill-brass-400"
               style={{ fontSize: '9px' }}
             >
               +90°
@@ -128,10 +130,10 @@ export function SunAltitudeGauge({
         </div>
 
         <div className="flex flex-col">
-          <span className="type-display-m text-sky-100 font-mono">
+          <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
             {loading ? '—' : `${alt.toFixed(1)}°`}
           </span>
-          <span className="font-jost text-xs text-brass-400/90 font-medium">
+          <span className="font-sans text-xs text-brass-400/90 font-medium uppercase tracking-wide">
             {alt >= 0
               ? 'ABOVE HORIZON'
               : alt >= -6
