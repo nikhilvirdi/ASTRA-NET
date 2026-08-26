@@ -57,11 +57,15 @@ It's explicitly **not** built for aerospace professionals or satellite operators
 
 ### Dashboard
 
-### Dashboard
-
 <img width="1890" height="1021" alt="hero" src="https://github.com/user-attachments/assets/c3bc7467-9b82-45f8-aca4-a74e16e5ad23" />
 
 This is the front door — the page you land on, and the one honest summary of tonight's sky. It opens with a single composed sentence about whatever the single most notable real thing happening in your sky is right now, then breaks that down into a series of independent, honestly-labeled sections underneath.
+
+#### Headline
+
+<img width="1502" height="277" alt="headline" src="https://github.com/user-attachments/assets/d3de6c7e-fd1c-4ebb-b75f-0926d06dcedd" />
+
+The one sentence at the top of the page, composed fresh from whatever's genuinely most notable right now — an active space weather event, an upcoming ISS pass, a close asteroid approach, or a quiet night with nothing unusual happening. It's never the same fallback sentence regardless of context; if nothing is currently active, it says so honestly instead of defaulting to a generic line.
 
 #### Horizon Band
 
