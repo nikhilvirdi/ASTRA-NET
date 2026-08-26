@@ -1,129 +1,143 @@
+<div align="center">
+
+<!-- Logo placeholder — drop the ASTRA-NET SVG wordmark here -->
+<!-- <img src="./docs/assets/astra-net-wordmark.svg" alt="ASTRA-NET" width="420" /> -->
+
 # ASTRA-NET
 
-### Adaptive Sky Telemetry and Realtime Analysis Network
+**A live, honest companion for the sky above you.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/status-active--development-blue)](<>)
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Data](https://img.shields.io/badge/data-real%20%26%20verified-brightgreen)](<>)
-[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white)](https://threejs.org/)
-[![React Three Fiber](https://img.shields.io/badge/React_Three_Fiber-black)](https://docs.pmnd.rs/react-three-fiber)
-[![Zustand](https://img.shields.io/badge/state-Zustand-orange)](https://github.com/pmndrs/zustand)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-black)](https://ui.shadcn.com/)
-[![GSAP](https://img.shields.io/badge/GSAP-88CE02?logo=greensock&logoColor=black)](https://gsap.com/)
-[![Recharts](https://img.shields.io/badge/Recharts-8884d8)](https://recharts.org/)
-[![Express](https://img.shields.io/badge/Express-black?logo=express&logoColor=white)](https://expressjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![JWT Auth](https://img.shields.io/badge/Auth-JWT-black?logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![Argon2](https://img.shields.io/badge/hashing-Argon2-blueviolet)](<>)
-[![SSE](https://img.shields.io/badge/realtime-SSE-blue)](<>)
-[![Zod](https://img.shields.io/badge/validation-Zod-3E67B1)](https://zod.dev/)
-[![CelesTrak](https://img.shields.io/badge/data-CelesTrak-lightgrey)](https://celestrak.org/)
-[![N2YO](https://img.shields.io/badge/data-N2YO-lightgrey)](https://www.n2yo.com/)
-[![NOAA SWPC](https://img.shields.io/badge/data-NOAA_SWPC-lightgrey)](https://www.swpc.noaa.gov/)
-[![NASA DONKI](https://img.shields.io/badge/data-NASA_DONKI-lightgrey)](https://ccmc.gsfc.nasa.gov/tools/DONKI/)
-[![NASA NeoWs](https://img.shields.io/badge/data-NASA_NeoWs-lightgrey)](https://api.nasa.gov/)
-[![NASA GIBS](https://img.shields.io/badge/data-NASA_GIBS-lightgrey)](https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs)
-[![JPL Horizons](https://img.shields.io/badge/data-JPL_Horizons-lightgrey)](https://ssd.jpl.nasa.gov/horizons/)
-[![Open-Meteo](https://img.shields.io/badge/data-Open--Meteo-lightgrey)](https://open-meteo.com/)
-[![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
-[![Playwright](https://img.shields.io/badge/e2e-Playwright-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
-[![ESLint](https://img.shields.io/badge/lint-ESLint-4B32C3?logo=eslint&logoColor=white)](https://eslint.org/)
-[![Prettier](https://img.shields.io/badge/code_style-Prettier-F7B93E?logo=prettier&logoColor=black)](https://prettier.io/)
-
-> A live, personalized companion for the sky above you — and the universe beyond it.
-
-ASTRANET tells you, in plain language and through a cinematic explorable 3D universe, what is actually happening in space right now — above your exact location — why it's happening, and whether it's worth going outside to see it.
-
-It is not a satellite tracker, not a space-news dashboard, and not a scientific data portal for experts. Every object shown is real and verified against genuine scientific catalogs — nothing is procedurally generated or invented to fill visual gaps.
-
-## The Problem
-
-Space-related information today is fragmented, decontextualized, and impersonal:
-
-- Satellite trackers show raw positions with no story — a dot moving, not what it means.
-- Aurora forecasting tools show a number (a Kp-index) with no context for what that number means for _you_, standing where you are.
-- Astronomy and stargazing apps assume baseline technical knowledge and lean on jargon without explanation.
-- Nothing connects cause to effect across domains — a solar flare, the geomagnetic storm it causes, and the aurora that might appear over your city tonight are treated as three unrelated facts scattered across three different tools.
-- Existing 3D universe explorers are either scientifically fake (inventing stars and objects that don't exist) or scientifically accurate but entirely passive, with nothing to _do_ and no reason to return.
-- No single platform combines real-time, personalized, causally-explained space awareness with an experience people actually want to explore rather than just read.
-
-ASTRANET closes all of these gaps at once, for one clearly defined audience.
-
-## The Vision
-
-The cosmos is presented as one connected, living system rather than a static catalog of objects. A solar flare is not an isolated fact — it's the beginning of a chain that affects satellites, which affects auroras, which affects what a specific person might see in their sky tonight. Making that chain visible and understandable, in real time, is the emotional and functional core of ASTRANET.
-
-## Five Guiding Pillars
-
-Every feature in ASTRANET is measured against these five principles:
-
-**1. Contextualization**
-Every fact is anchored to something human-scale and relatable, never left as an abstract number. "17,500 mph" means nothing; "circles Earth every 90 minutes, so it laps your city every 90 minutes" means something.
-
-**2. Visualization as Interface**
-The 3D universe _is_ the navigation. There are no traditional dashboards or menus — understanding comes from exploring and clicking, not from reading a manual.
-
-**3. Cross-Domain Synthesis**
-Cause and effect across different space domains — solar activity, satellites, geomagnetic conditions, visible sky events — are shown as one continuous, connected story, not separate silos.
-
-**4. Anthropocentric Scaling**
-Distances, sizes, and events are always tied back to a human frame of reference, never presented as pure abstraction.
-
-**5. Chronological Synchronicity**
-The platform's default state is always _now_. Live, current data is the foundation of trust — a user must always be confident that what they're looking at is happening in real time.
-
-## Who ASTRANET Is For
-
-- **The curious beginner** — fascinated by space, no technical background, wants plain language and zero required prior knowledge.
-- **The space enthusiast** — already follows launches, missions, and space news, but currently pieces information together from trackers, subreddits, and separate forecasting tools.
-- **The casual returning user** — wants a genuine reason to check back regularly, not just a one-time "wow" experience.
-
-## Who It's Not For
-
-ASTRANET is explicitly not built for scientists, aerospace engineers, or satellite operators. That audience already has professional-grade tools, and designing for them would compromise the plain-language, story-first identity that defines this product.
-
-## What ASTRANET Is Not
-
-- Not a space news aggregator or feed of articles.
-- Not a professional satellite-operations tool.
-- Not a procedural space sandbox that invents fictional stars or objects.
-- Not a static educational encyclopedia — every explanation is tied to something currently happening, not a textbook entry.
-
-## Features
-
-**Daily Brief**
-The entry point. A single, honest summary of tonight's sky: what's visible, whether anything unusual is happening — an incoming solar storm, a bright ISS pass, a meteor shower peak — and why, delivered as one clear sentence rather than a table of numbers.
-
-**Causal Explanation Engine**
-The reasoning core. Correlates live solar activity with geomagnetic forecasts and your location to produce real, confidence-rated predictions — never raw, disconnected data pretending to be an answer.
-
-**The Explorable Universe**
-A seamless cinematic journey that begins from your actual real-time night sky — your real location, real star positions — and expands outward through live satellites, the ISS, visible solar weather, and the solar system's true current positions. Every object is clickable and explains itself in one plain sentence first, with more depth available to anyone who wants to go further.
-
-**The Auroral Ring & Heliosphere Pulse**
-The aurora rendered as a living ring of light over Earth, and solar wind visualized as a visible pulse washing outward from the Sun — both driven by real, live geomagnetic and solar data.
-
-**Personal Sky Log**
-A private, running history of what you've actually seen — ISS passes caught, aurora nights witnessed, meteor showers checked — giving long-term reasons to keep returning beyond the initial novelty.
-
-**Shareable Sky Card**
-A one-tap, no-login-required shareable summary of tonight's forecast — the natural way ASTRANET spreads from one person to a friend.
-
-**Personalized Alerts & Saved Locations**
-Notifications for ISS passes, rising aurora odds, meteor shower peaks, and notable near-Earth object approaches — for any location you care about, not just where you happen to be.
-
-**Accuracy & Trust Record**
-Because ASTRANET's core promise depends on live forecasts, honesty about uncertainty is a first-class feature, not a footnote. Predictions are shown with honest confidence levels, and the platform's own track record — predicted versus what actually happened — is visible, not hidden.
-
-## Data Ethics & Privacy
-
-Because ASTRANET is inherently location-aware, its stance on user data is simple and explicit: location data is used only to personalize the experience, is never sold or shared with third parties, and users retain full control — including the ability to fully delete their saved locations and personal sky history at any time, with deletion meaning actual removal, not deactivation.
+</div>
 
 ---
+
+ASTRA-NET tells you what's actually happening in space right now, above your exact location — the ISS passing overhead, an aurora that might reach your latitude tonight, an asteroid making its closest approach, the real planets and stars visible from where you're standing.
+
+It isn't a satellite tracker, a space-news feed, or a scientific data portal for experts. It's a plain-language sky companion built on one rule that shapes every decision in the codebase: **if the data isn't real and verifiable, it doesn't appear.** No procedurally generated stars, no plausible-looking placeholder numbers when a source is down, no invented facts dressed up as insight. When something can't be fetched, the app says so, honestly, rather than quietly filling the gap.
+
+<!-- Screenshot placeholder — Daily Brief -->
+<!-- ![Daily Brief](./docs/assets/screenshot-brief.png) -->
+
+## The problem this solves
+
+Space information today is scattered and impersonal. A satellite tracker shows a dot moving with no story. An aurora forecast gives you a Kp-index number with no sense of what it means for _you_, standing where you actually are. A solar flare, the geomagnetic storm it triggers, and the aurora that might appear over your city that night are treated as three unrelated facts, sitting in three different tools, with nothing connecting them.
+
+ASTRA-NET connects that chain and shows it, in real time, in one place — the reasoning that gets you from "the Sun did something" to "here's what it means for your sky tonight."
+
+## The Causal Engine
+
+This is the reasoning core of the product, and it's the part that separates ASTRA-NET from a page that just displays a fetched number. When the app tells you an aurora might be visible tonight, that prediction is the end of a real, traceable chain:
+
+1. **Detection** — a coronal mass ejection (CME) erupts from the Sun, reported by NASA's DONKI system.
+2. **Transit** — the CME's real launch velocity runs through a physics-based drag model (Vršnak 2013) to estimate when it reaches Earth.
+3. **Geomagnetic response** — NOAA's live Kp-index is checked against how strong that CME is expected to be.
+4. **Local outcome** — the predicted Kp is compared against your actual latitude to determine whether the aurora's visibility boundary reaches you.
+
+You can see the whole chain, not just the final answer, along with how confident that answer genuinely is.
+
+<!-- Screenshot placeholder — Causal Chain / Space Weather -->
+<!-- ![Causal Chain](./docs/assets/screenshot-causal-chain.png) -->
+
+## Confidence, honestly
+
+Every prediction the app makes is quietly recorded and later scored against what actually happened. That track record feeds directly back into how confident the Causal Engine is willing to sound the next time — a rolling, unedited history, not a number chosen to look impressive.
+
+## Who this is for
+
+- **The curious beginner** — interested in space, no technical background, wants plain language and zero required prior knowledge.
+- **The space enthusiast** — already follows launches and space news, but currently pieces information together across five different tools.
+- **Anyone who just wants to know what's actually overhead tonight**, without decoding a raw Kp-index or a satellite tracker's dot.
+
+It's explicitly **not** built for aerospace professionals or satellite operators — that audience already has real operational tools, and designing for them would compromise the plain-language identity this product is built around.
+
+## The five ideas behind every decision
+
+**Contextualization.** A fact is never left as an abstract number. "17,500 mph" means nothing on its own; "circles Earth every 90 minutes, so it laps your city every 90 minutes" means something.
+
+**Visualization as interface.** In Explore, the 3D scene _is_ the navigation — there's no separate menu to learn, understanding comes from looking and clicking.
+
+**Cross-domain synthesis.** Solar activity, geomagnetic conditions, and what's actually visible in the sky are shown as one connected story, not three separate silos.
+
+**Human-scale framing.** Distances and sizes are tied back to something relatable wherever possible, not left as pure scientific notation.
+
+**The default state is always _now_.** Live data is the foundation of trust — every screen makes clear what's genuinely live versus what's a few minutes stale, never blurring the two.
+
+## What's actually in the app
+
+**Daily Brief** — the entry point. One honest, composed sentence about the single most notable real thing happening in your sky right now, followed by a full breakdown: your local horizon rendered as a real dome-arc sky view, live solar/lunar/planetary positions, the current ISS pass window, the Space Weather causal chain, and today's near-Earth object flyby if one exists.
+
+**Explore** — a full 3D, real-time sky dome. Real star positions from the HYG catalog, real planet positions from JPL Horizons rendered with real photographic textures (including Saturn's rings), the ISS and tracked satellites, and — when one is genuinely active — a real meteor shower radiant, sourced from the IMO's published shower calendar rather than invented.
+
+**Settings** — your location, set either by typing real coordinates (with proper degree/direction controls) or by using your device's actual GPS location, plus display preferences (12-hour or 24-hour time, metric or imperial units) that apply everywhere instantly. An honest, expandable breakdown of every real data source the app uses and what it actually powers. A "clear local data" control that requires you to type a confirmation before it acts, because it's genuinely irreversible.
+
+**Status** — a plain, public instrument reading of every live data source's real current health and freshness. Nothing is hidden here; if a source is stale or down, it says so.
+
+**About** — the Causal Engine explained in plain language, and the product's honesty commitments spelled out directly.
+
+<!-- Screenshot placeholder — Explore -->
+<!-- ![Explore](./docs/assets/screenshot-explore.png) -->
+
+<!-- Screenshot placeholder — Settings -->
+<!-- ![Settings](./docs/assets/screenshot-settings.png) -->
+
+## No accounts, nothing tracked
+
+There is no sign-up, no login, and no account system anywhere in this product. Your location and display preferences live only in your own browser's local storage — the server never sees them, never stores them, and has nothing to leak. There is nothing here to delete on request, because nothing personal was ever collected in the first place.
+
+## Tech stack
+
+| Layer              | Technology                                                                                                                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend framework | [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/) [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/) [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) |
+| 3D rendering       | [![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white)](https://threejs.org/) [![React Three Fiber](https://img.shields.io/badge/React_Three_Fiber-black)](https://docs.pmnd.rs/react-three-fiber)                                                                                                       |
+| Diegetic 3D text   | [![troika-three-text](https://img.shields.io/badge/troika--three--text-MSDF-informational)](https://github.com/protectwise/troika/tree/main/packages/troika-three-text)                                                                                                                                                                   |
+| State management   | [![Zustand](https://img.shields.io/badge/state-Zustand-orange)](https://github.com/pmndrs/zustand)                                                                                                                                                                                                                                        |
+| Styling            | [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)                                                                                                                                                                                                           |
+| Animation          | [![GSAP](https://img.shields.io/badge/GSAP-88CE02?logo=greensock&logoColor=black)](https://gsap.com/)                                                                                                                                                                                                                                     |
+| Backend runtime    | [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/) [![Express](https://img.shields.io/badge/Express-black?logo=express&logoColor=white)](https://expressjs.com/)                                                                                                           |
+| Database           | [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)                                                                                                  |
+| Realtime updates   | Server-Sent Events (SSE)                                                                                                                                                                                                                                                                                                                  |
+| Validation         | [![Zod](https://img.shields.io/badge/validation-Zod-3E67B1)](https://zod.dev/)                                                                                                                                                                                                                                                            |
+| Containerization   | [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)                                                                                                                                                                                                                              |
+| Testing            | [![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)                                                                                                                                                                                                                      |
+| Code quality       | [![ESLint](https://img.shields.io/badge/lint-ESLint-4B32C3?logo=eslint&logoColor=white)](https://eslint.org/) [![Prettier](https://img.shields.io/badge/code_style-Prettier-F7B93E?logo=prettier&logoColor=black)](https://prettier.io/)                                                                                                  |
+
+The whole system is TypeScript end to end, structured as a monorepo: a React frontend, an Express backend, and a shared package holding every real astronomy calculation — so the frontend and backend can never quietly disagree on a formula, because they're both importing the exact same one.
+
+## Real data, real sources
+
+Every one of these is free, and every one is called through the backend's own poller — the app fetches each source on its own schedule and fans the result out to every visitor from memory, rather than every browser tab hitting these APIs directly.
+
+| Source                                                                                                                                                         | Powers                                               | Notes                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------- |
+| [![N2YO](https://img.shields.io/badge/data-N2YO-lightgrey)](https://www.n2yo.com/)                                                                             | Live ISS position and visible pass predictions       | Keyed, free registration                                              |
+| [![NOAA SWPC](https://img.shields.io/badge/data-NOAA_SWPC-lightgrey)](https://www.swpc.noaa.gov/)                                                              | Real-time and forecasted Kp-index, solar wind speed  | Keyless                                                               |
+| [![NASA DONKI](https://img.shields.io/badge/data-NASA_DONKI-lightgrey)](https://ccmc.gsfc.nasa.gov/tools/DONKI/)                                               | Solar flares and coronal mass ejections              | Keyed, free from api.nasa.gov                                         |
+| [![NASA NeoWs](https://img.shields.io/badge/data-NASA_NeoWs-lightgrey)](https://api.nasa.gov/)                                                                 | Near-Earth object close approaches                   | Same NASA key as DONKI                                                |
+| [![NASA GIBS](https://img.shields.io/badge/data-NASA_GIBS-lightgrey)](https://www.earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs) | Live Earth imagery tiles                             | Keyless                                                               |
+| [![JPL Horizons](https://img.shields.io/badge/data-JPL_Horizons-lightgrey)](https://ssd.jpl.nasa.gov/horizons/)                                                | Real current positions of the Sun and planets        | Keyless                                                               |
+| [![CelesTrak](https://img.shields.io/badge/data-CelesTrak-lightgrey)](https://celestrak.org/)                                                                  | Satellite orbital elements, ISS fallback propagation | Keyless                                                               |
+| HYG Database                                                                                                                                                   | The real star catalog rendered in Explore            | Static dataset, self-hosted                                           |
+| International Meteor Organization                                                                                                                              | Meteor shower active windows and radiant coordinates | Static reference data, cross-checked against a published working list |
+
+Everything else — Sun and Moon position, twilight phase, star coordinates, the aurora visibility math — is computed live on real astronomical formulas, not fetched from anywhere.
+
+## Pages
+
+| Route       | What's there                                                                       |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `/`         | Daily Brief — tonight's sky, the causal chain, and every honest instrument reading |
+| `/explore`  | The real-time 3D sky                                                               |
+| `/settings` | Location, display preferences, and the full data-source breakdown                  |
+| `/status`   | Live health of every data source, publicly visible                                 |
+| `/about`    | The Causal Engine explained, and the honesty commitments behind it                 |
+
+<!-- Screenshot placeholder — Status -->
+<!-- ![Status](./docs/assets/screenshot-status.png) -->
+
+<!-- Screenshot placeholder — About -->
+<!-- ![About](./docs/assets/screenshot-about.png) -->
+
+## Built by
+
+**Nikhil Virdi** — [github.com/nikhilvirdi](https://github.com/nikhilvirdi)
