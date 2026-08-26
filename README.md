@@ -3,7 +3,7 @@
 
 <div align="center">
 
-<img width="330" alt="ASTRA-NET" src="https://github.com/user-attachments/assets/5b1dd545-852b-43ea-8135-78a6bfa1c9f0" />
+<img width="335" alt="ASTRA-NET" src="https://github.com/user-attachments/assets/5b1dd545-852b-43ea-8135-78a6bfa1c9f0" />
 
 **A live, honest companion for the sky above you.**
 
