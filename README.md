@@ -69,7 +69,7 @@ The one sentence at the top of the page, composed fresh from whatever's genuinel
 
 #### Horizon Band
 
-<img width="1877" height="1015" alt="horizon" src="https://github.com/user-attachments/assets/59dc5323-fb7d-4366-b75c-c7a605cd0d64" />
+<img width="1483" height="602" alt="horizon" src="https://github.com/user-attachments/assets/86391ec4-ced1-442a-9f6e-6a8256d25696" />
 
 A curved, dome-shaped rendering of your actual local horizon, from north around to your zenith and back down — not a flat map, an honest projection of what the sky above you actually looks like right now. The Sun, Moon, and any visible planets appear at their real computed altitude and azimuth, moving as you scrub through the day using the built-in time slider.
 
