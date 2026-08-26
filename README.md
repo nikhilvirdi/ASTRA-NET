@@ -1,9 +1,6 @@
-<img width="447" height="201" alt="ASTTRANET" src="https://github.com/user-attachments/assets/69d80488-479c-40c7-9733-ac33a7771552" /><div align="center">
+<div align="center">
 
-![Uploading ASTTR<svg width="447" height="201" viewBox="0 0 447 201" fill="none" xmlns="http://www.w3.org/2000/svg">
-
-
-# ASTRA-NET
+![ASTRA-NET](./docs/assets/astra-net-wordmark.svg)
 
 **A live, honest companion for the sky above you.**
 
