@@ -1,12 +1,20 @@
-<img width="447" height="201" alt="ASTTRANET" src="https://github.com/user-attachments/assets/5b1dd545-852b-43ea-8135-78a6bfa1c9f0" /><div align="center">
-![Uploading ASTT<svg ... > ... </svg>
-RANET.svg…]()
-**A live, honest companion for the sky above you.**
-</div>
+
+# ASTRA-NET
+
 
 ASTRA-NET tells you what's actually happening in space right now, above your exact location — the ISS passing overhead, an aurora that might reach your latitude tonight, an asteroid making its closest approach, the real planets and stars visible from where you're standing.
 
 It isn't a satellite tracker, a space-news feed, or a scientific data portal for experts. It's a plain-language sky companion built on one rule that shapes every decision in the codebase: **if the data isn't real and verifiable, it doesn't appear.** No procedurally generated stars, no plausible-looking placeholder numbers when a source is down, no invented facts dressed up as insight. When something can't be fetched, the app says so, honestly, rather than quietly filling the gap.
+
+<div align="center">
+
+<img width="300" alt="ASTRA-NET" src="https://github.com/user-attachments/assets/5b1dd545-852b-43ea-8135-78a6bfa1c9f0" />
+
+**A live, honest companion for the sky above you.**
+
+</div>
+
+---
 
 <!-- Screenshot placeholder — Daily Brief -->
 <!-- ![Daily Brief](./docs/assets/screenshot-brief.png) -->
