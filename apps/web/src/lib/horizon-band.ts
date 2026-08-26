@@ -1,8 +1,7 @@
 /**
  * Pure layout and selection logic for the Brief's Horizon Band
- * (DESIGN_SPEC.md §9). Extracted from `components/brief/HorizonBand.tsx`
- * for the same reason `phase10-helpers.ts`
- * exists: the component is `.tsx` and this project's vitest config only
+ * (DESIGN_SPEC.md §9). Extracted from `components/brief/HorizonBand.tsx`:
+ * the component is `.tsx` and this project's vitest config only
  * collects `src/**\/*.test.ts`, so logic that needs asserting has to live
  * in a DOM-free module.
  *

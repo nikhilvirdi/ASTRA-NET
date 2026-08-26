@@ -624,18 +624,10 @@ export function SettingsPage(): React.ReactElement {
             <h2 className="font-jost text-xl font-medium text-sky-100">More</h2>
           </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-6">
-            <Link
-              to="/accuracy"
-              className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
-            >
-              <span>View Accuracy Track Record</span>
-              <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
-
+          <div className="pt-2">
             <Link
               to="/status"
-              className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
+              className="type-title text-sky-100 hover:text-brass-300 transition-colors inline-flex items-center gap-2 group"
             >
               <span>System Status</span>
               <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>

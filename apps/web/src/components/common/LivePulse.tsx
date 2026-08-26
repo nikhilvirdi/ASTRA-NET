@@ -10,13 +10,11 @@ interface LivePulseProps {
 export function LivePulse({ label = 'LIVE', active = true }: LivePulseProps): React.ReactElement {
   return (
     <span
-      className="inline-flex items-center gap-1.5 type-micro text-brass-500 text-[11px]"
+      className="inline-flex items-center gap-1.5 font-jost text-xs font-semibold tracking-wider text-aurora"
       aria-label={`${label} indicator`}
     >
       <span
-        className={`w-1.5 h-1.5 rounded-full ${
-          active ? 'bg-ember-600 animate-pulse' : 'bg-sky-600'
-        }`}
+        className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-aurora animate-pulse' : 'bg-sky-600'}`}
       />
       {label}
     </span>

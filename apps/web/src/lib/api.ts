@@ -234,37 +234,3 @@ export async function fetchBrief(lat: number, lon: number): Promise<DailyBrief> 
   }
   return (await res.json()) as DailyBrief;
 }
-
-// ─── Accuracy (/api/accuracy) ─────────────────────────────────────────────────
-
-export interface AccuracyPointData {
-  targetTime: string;
-  predictedKp: number;
-  actualKp: number;
-  hit: boolean;
-}
-
-export interface AccuracyHitRateData {
-  hits: number;
-  trials: number;
-  rate: number;
-  rawRate: number | null;
-  prior: {
-    hits: number;
-    trials: number;
-  };
-}
-
-export interface AccuracyPayloadData {
-  generatedAt: string;
-  series: AccuracyPointData[];
-  hitRate: AccuracyHitRateData;
-  empty: boolean;
-}
-
-/** Fetches public accuracy & track record data from GET /api/accuracy */
-export async function fetchAccuracy(): Promise<AccuracyPayloadData> {
-  const res = await fetch('/api/accuracy');
-  if (!res.ok) throw new Error(`Failed to fetch accuracy payload: ${res.status}`);
-  return (await res.json()) as AccuracyPayloadData;
-}

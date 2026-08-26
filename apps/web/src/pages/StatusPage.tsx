@@ -61,19 +61,21 @@ export function StatusPage(): React.ReactElement {
   }, []);
 
   return (
-    <main id="main-content" className="pt-24 px-8 pb-32 max-w-2xl mx-auto space-y-12">
-      <header className="space-y-4">
-        <h1 className="type-title text-brass-300 font-mono tracking-widest uppercase">
-          SYSTEM STATUS
+    <main id="main-content" className="pt-24 px-8 pb-32 max-w-2xl mx-auto space-y-10">
+      <header className="space-y-2">
+        <h1 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          System Status
         </h1>
         <p className="type-body text-sky-200">Live poller source health and telemetry freshness.</p>
       </header>
 
-      <section className="space-y-4 border-t border-sky-900/50 pt-8">
+      <section className="space-y-4 border-t border-sky-800/40 pt-6">
         {!health ? (
-          <div className="type-micro text-sky-400">LOADING...</div>
+          <div className="font-jost text-xs uppercase tracking-wider text-sky-400 animate-pulse">
+            LOADING...
+          </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col divide-y divide-sky-800/30">
             {Object.entries(health.sources).map(([key, source]) => {
               const label = SOURCE_LABELS[key] || key.toUpperCase();
               const isHealthy = source.healthy;
@@ -81,18 +83,18 @@ export function StatusPage(): React.ReactElement {
               const statusText = relTime ? `UPDATED ${relTime.toUpperCase()} AGO` : 'UNAVAILABLE';
 
               return (
-                <div
-                  key={key}
-                  className={`flex items-center justify-between font-mono text-xs ${
-                    isHealthy ? 'text-sky-100' : 'text-sky-400 opacity-50'
-                  }`}
-                >
-                  <span className="tracking-widest uppercase">{label}</span>
+                <div key={key} className="flex items-center justify-between py-3">
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-200 font-medium">
+                    {label}
+                  </span>
                   <div className="flex items-center">
                     {isHealthy ? (
                       <LivePulse label="LIVE" active={true} />
                     ) : (
-                      <span className="text-sky-400 tracking-wider">● {statusText}</span>
+                      <span className="inline-flex items-center gap-1.5 font-jost text-xs tracking-wider text-sky-400 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                        {statusText}
+                      </span>
                     )}
                   </div>
                 </div>

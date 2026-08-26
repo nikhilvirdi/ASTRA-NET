@@ -42,7 +42,6 @@ import { defineWorkspace } from 'vitest/config';
  */
 const DB_SERIAL_FILES = [
   'src/routes/brief.test.ts',
-  'src/routes/accuracy.test.ts',
   'src/predictions/accuracy.test.ts',
   'src/predictions/history.test.ts',
 ];

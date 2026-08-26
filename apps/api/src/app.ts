@@ -11,7 +11,6 @@ import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerSatellitesRoute } from './routes/satellites.js';
-import { registerAccuracyRoute } from './routes/accuracy.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
@@ -26,7 +25,6 @@ export function createApp(deps: CreateAppDeps): Express {
   registerStreamRoute(app);
   registerSatellitesRoute(app);
   registerBriefRoute(app, deps);
-  registerAccuracyRoute(app, { prisma: deps.prisma });
 
   return app;
 }

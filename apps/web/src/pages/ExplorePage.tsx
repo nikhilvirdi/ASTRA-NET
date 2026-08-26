@@ -268,19 +268,19 @@ export function ExplorePage(): React.ReactElement {
             <circle cx={selectedPos.x} cy={selectedPos.y} r="4" fill="#C9B187" />
           </svg>
 
-          {/* Info Panel Container (max 380px wide, backdrop blur, static 2-part card) */}
+          {/* Info Panel Container (tightened static 2-part card, white border) */}
           <div
             style={{ left: `${panelX}px`, top: `${panelY}px` }}
-            className="absolute z-30 max-w-[380px] w-[calc(100vw-40px)] backdrop-blur-md bg-sky-950/90 border border-brass-300/40 p-5 rounded-none shadow-2xl transition-all duration-300"
+            className="absolute z-30 max-w-[320px] w-[calc(100vw-32px)] backdrop-blur-md bg-sky-950/95 border border-white/50 p-3 sm:p-3.5 rounded-none shadow-2xl transition-all duration-300"
           >
-            <div className="flex items-center justify-between border-b border-sky-600/40 pb-2 mb-3">
-              <span className="font-jost text-base font-semibold text-brass-300 uppercase tracking-wider">
+            <div className="flex items-center justify-between border-b border-white/20 pb-1.5 mb-2">
+              <span className="font-jost text-sm font-semibold text-brass-300 uppercase tracking-wider">
                 {selectedObject.name}
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedObject(null)}
-                className="text-sky-400 hover:text-sky-100 text-sm font-mono leading-none min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
+                className="text-sky-400 hover:text-white text-xs font-mono leading-none w-6 h-6 flex items-center justify-center cursor-pointer"
                 aria-label="Close celestial object details"
               >
                 ✕
@@ -288,10 +288,12 @@ export function ExplorePage(): React.ReactElement {
             </div>
 
             {/* One-sentence story (Archivo body text) */}
-            <p className="type-body text-sky-100 mb-3 leading-relaxed">{selectedObject.sentence}</p>
+            <p className="type-body text-xs text-sky-100 mb-2 leading-relaxed">
+              {selectedObject.sentence}
+            </p>
 
             {/* Coordinate Readout / Measurements (Martian Mono) */}
-            <p className="font-mono text-caption text-brass-300 bg-sky-900/60 p-2 border-l-2 border-brass-300">
+            <p className="font-mono text-[11px] text-brass-300 bg-sky-900/60 px-2 py-1 border-l-2 border-brass-300">
               {selectedObject.measurements}
             </p>
           </div>

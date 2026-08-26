@@ -7,7 +7,6 @@ import { Footer } from '@/components/nav/Footer';
 import { BriefPage } from '@/pages/BriefPage';
 import { ExplorePage } from '@/pages/ExplorePage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { AccuracyPage } from '@/pages/AccuracyPage';
 import { StatusPage } from '@/pages/StatusPage';
 
 /**
@@ -23,7 +22,6 @@ import { StatusPage } from '@/pages/StatusPage';
  *   /            public  Daily Brief
  *   /explore     public  Explorable Universe (3D, full-bleed)
  *   /settings    public  Location, local data controls
- *   /accuracy    public  Track record
  *   /status      public  System status
  */
 export function App(): React.ReactElement {
@@ -44,7 +42,6 @@ export function App(): React.ReactElement {
         <Routes>
           <Route path="/" element={<BriefPage />} />
           <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/accuracy" element={<AccuracyPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/status" element={<StatusPage />} />
 

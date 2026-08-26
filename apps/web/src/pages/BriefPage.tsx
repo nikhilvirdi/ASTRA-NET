@@ -347,9 +347,7 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 2: ISS Pass ────────────────────────────────────────────── */}
-          <article
-            className={`py-8 flex flex-col gap-6 ${brief?.iss.status === 'unavailable' ? 'opacity-50' : ''}`}
-          >
+          <article className="py-8 flex flex-col gap-6">
             <div className="flex justify-between items-baseline">
               <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
                 ISS Visible Pass
@@ -463,9 +461,7 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 3: Space Weather ──────────────────────────────────────── */}
-          <article
-            className={`py-8 flex flex-col gap-6 ${spaceWeatherUi.dimmed ? 'opacity-50' : ''}`}
-          >
+          <article className="py-8 flex flex-col gap-6">
             <div className="flex justify-between items-baseline">
               <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
                 Space Weather
@@ -503,9 +499,7 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 4: Near-Earth Object Flyby ────────────────────────────── */}
-          <article
-            className={`py-8 flex flex-col gap-6 ${brief?.neoImagery.status === 'unavailable' ? 'opacity-50' : ''}`}
-          >
+          <article className="py-8 flex flex-col gap-6">
             <div className="flex justify-between items-baseline">
               <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
                 Near-Earth Object Flyby
