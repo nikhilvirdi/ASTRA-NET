@@ -17,6 +17,9 @@ import { NeoSizeComparison } from '@/components/brief/NeoSizeComparison';
 import { spaceWeatherUiState, formatLastSeen } from '@/lib/space-weather-status';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
+import { formatTime, formatDistance } from '@/lib/format-preferences';
+import { selectHeadline } from '@/lib/brief-headline';
+import { LEARNING_MOMENT_BUCKET_MS, selectLearningMoment } from '@/lib/learning-moments';
 
 const Hero = lazy(() => import('@/components/brief/Hero'));
 
@@ -117,6 +120,8 @@ export function BriefPage(): React.ReactElement {
   // location switcher below writes here, and every consumer of this store
   // slot — this page, Explore, Best-Spot — needs to re-render when it does.
   const storeLocation = useAppStore((s) => s.location);
+  const timeFormat = useAppStore((s) => s.timeFormat);
+  const units = useAppStore((s) => s.units);
   const location = storeLocation ?? DEFAULT_OBSERVER_LOCATION;
 
   useEffect(() => {
@@ -158,65 +163,48 @@ export function BriefPage(): React.ReactElement {
         ? 'NIGHT'
         : `${twilightState.phase.toUpperCase()} TWILIGHT`;
 
-  // Compose Headline
-  let composedHeadline: React.ReactNode = 'No active aurora prediction or ISS pass expected soon.';
-  if (brief?.skyAnchor) {
-    const issPass = brief.iss.data?.nextPass;
-    const auroraStrength = brief.spaceWeather.data?.aurora?.strengthFactor;
+  // Headline + Learning Moment, both from the same survey of what is actually
+  // happening. selectHeadline walks every real category the brief carries in a
+  // fixed priority order (space weather > ISS pass > close NEO > well-placed
+  // planet > peak Moon phase > quiet), and the note then follows whatever that
+  // found, so the two can never describe different nights.
+  //
+  // `now` is bucketed to 10 minutes rather than taken live: it feeds the ISS
+  // pass window, the NEO "today" comparison and the note's rotation index, none
+  // of which change second to second. It is held as a bucket index rather than
+  // a Date so that setting it to the same number is a no-op React bails on —
+  // this re-renders only when the bucket genuinely rolls over. It does have to
+  // tick, though: a clock frozen at mount would leave the note static for the
+  // whole session, which is the behaviour being fixed.
+  const [nowBucket, setNowBucket] = useState(() =>
+    Math.floor(Date.now() / LEARNING_MOMENT_BUCKET_MS),
+  );
+  useEffect(() => {
+    const id = setInterval(
+      () => setNowBucket(Math.floor(Date.now() / LEARNING_MOMENT_BUCKET_MS)),
+      60_000,
+    );
+    return () => clearInterval(id);
+  }, []);
+  const nowBucketed = useMemo(() => new Date(nowBucket * LEARNING_MOMENT_BUCKET_MS), [nowBucket]);
+  const headline = useMemo(
+    () => selectHeadline(brief, nowBucketed, (date) => formatTime(date, timeFormat)),
+    [brief, nowBucketed, timeFormat],
+  );
+  const learningMoment = useMemo(
+    () => selectLearningMoment(headline.kind, nowBucketed),
+    [headline.kind, nowBucketed],
+  );
 
-    let issText = '';
-    let issNode: React.ReactNode = null;
-    if (issPass) {
-      const timeStr = new Date(issPass.startUtc * 1000).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      issText = `The ISS crosses your sky at ${timeStr}`;
-      issNode = (
-        <>
-          The ISS crosses your sky at <span className="type-mono font-normal">{timeStr}</span>
-        </>
-      );
-    }
-
-    let auroraText = '';
-    let auroraNode: React.ReactNode = null;
-    let auroraNodeCap: React.ReactNode = null;
-    if (auroraStrength) {
-      const ratio = Math.max(2, Math.round(1 / auroraStrength));
-      auroraText = `a solar storm gives you a 1 in ${ratio} chance of aurora`;
-      auroraNode = (
-        <>
-          a solar storm gives you a <span className="type-mono font-normal">1 in {ratio}</span>{' '}
-          chance of aurora
-        </>
-      );
-      auroraNodeCap = (
-        <>
-          A solar storm gives you a <span className="type-mono font-normal">1 in {ratio}</span>{' '}
-          chance of aurora
-        </>
-      );
-    }
-
-    if (issText && auroraText) {
-      const combinedLength = issText.length + 7 + auroraText.length + 1; // " — and " + "."
-      // Display-xl max 2 lines at 900px is roughly 90-100 characters.
-      if (combinedLength > 95) {
-        composedHeadline = <>{issNode}.</>;
-      } else {
-        composedHeadline = (
-          <>
-            {issNode} — and {auroraNode}.
-          </>
-        );
-      }
-    } else if (issText) {
-      composedHeadline = <>{issNode}.</>;
-    } else if (auroraText) {
-      composedHeadline = <>{auroraNodeCap}.</>;
-    }
-  }
+  const composedHeadline: React.ReactNode = (
+    <>
+      {headline.lead}
+      {headline.emphasis !== null && (
+        <span className="type-mono font-normal">{headline.emphasis}</span>
+      )}
+      {headline.tail}
+    </>
+  );
 
   if (error) {
     return (
@@ -414,7 +402,7 @@ export function BriefPage(): React.ReactElement {
                         ALT:
                       </span>
                       <span className="font-sans text-brass-300">
-                        {brief.iss.data.position.altitude.toFixed(0)} km
+                        {formatDistance(brief.iss.data.position.altitude, units)}
                       </span>
                     </span>
                   </div>
@@ -431,10 +419,7 @@ export function BriefPage(): React.ReactElement {
                     ttlSeconds={60}
                   >
                     <span className="font-sans text-2xl font-medium text-sky-100">
-                      {new Date(brief.iss.data.nextPass.startUtc * 1000).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatTime(new Date(brief.iss.data.nextPass.startUtc * 1000), timeFormat)}
                     </span>
                   </FreshnessIndicator>
                 </div>
@@ -572,12 +557,7 @@ export function BriefPage(): React.ReactElement {
               Learning Moment
             </h2>
             <blockquote className="type-body-l text-sky-100 italic border-l-2 border-brass-400 pl-6 my-2 max-w-[800px]">
-              "
-              {loading
-                ? 'Loading astronomical note...'
-                : brief?.learningMoment ||
-                  'The atmosphere acts as a giant lens and protective shield. When energetic solar particles collide with atmospheric oxygen and nitrogen atoms, they excite electrons into higher energy orbits. As those electrons relax back, they emit the glowing greens and purples of aurora.'}
-              "
+              "{loading ? 'Loading astronomical note...' : learningMoment.text}"
             </blockquote>
           </article>
         </div>

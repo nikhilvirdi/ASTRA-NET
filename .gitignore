@@ -60,25 +60,29 @@ apps/api/scripts/BlackMarble.jpg
 apps/api/scratch.js
 apps/api/dist/
 
-apps/api/dist/
-
-# Internal project docs/planning â€” not for public repo view
+# Internal project docs/planning — not for public repo view
 ARCHITECTURE.md
 FORMULAS.md
 API_SOURCES.md
 SCHEMA.md
 DESIGN_SPEC.md
-WORKPLAN.md
 AGENTS.md
 CLAUDE.md
 DECISIONS.md
 PROGRESS.md
 NOTES.md
-TESTING.md
 
-# Scratch dump/tree files from local tooling
+# Scratch dump/tree/font-audit files from local tooling (never commit)
 docs-dump.txt
 tree.txt
 codebase-dump.txt
 hero-moon-reference.tsx
 codebase.txt
+explore-dump.txt
+full-tree.txt
+fontname.txt
+fontname2.txt
+fontcheck2.txt
+terminalOutput.txt
+astranet_hero.svg
+astranet_logo.svg

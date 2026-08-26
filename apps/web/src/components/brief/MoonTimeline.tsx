@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppStore } from '@/store';
+import { formatTime } from '@/lib/format-preferences';
 
 interface MoonTimelineProps {
   nextRiseUtc: string | null | undefined;
@@ -6,18 +8,12 @@ interface MoonTimelineProps {
   loading?: boolean;
 }
 
-function formatHHMM(isoUtc: string | null | undefined): string {
-  if (!isoUtc) return '—';
-  const d = new Date(isoUtc);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
 export function MoonTimeline({
   nextRiseUtc,
   nextSetUtc,
   loading,
 }: MoonTimelineProps): React.ReactElement {
+  const timeFormat = useAppStore((s) => s.timeFormat);
   const now = new Date();
   const startMs = now.getTime() - 6 * 3600 * 1000;
   const totalMs = 24 * 3600 * 1000;
@@ -95,7 +91,7 @@ export function MoonTimeline({
               <div className="w-2.5 h-2.5 rounded-full bg-brass-300 ring-2 ring-black flex items-center justify-center" />
               <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
                 <span className="font-sans text-[10px] font-medium text-brass-300">
-                  ↑ {formatHHMM(nextRiseUtc)}
+                  ↑ {formatTime(nextRiseUtc, timeFormat)}
                 </span>
                 <span className="font-jost text-[8px] text-brass-500 uppercase tracking-tighter">
                   MOONRISE
@@ -113,7 +109,7 @@ export function MoonTimeline({
               <div className="w-2.5 h-2.5 rounded-full bg-sky-200 ring-2 ring-black flex items-center justify-center" />
               <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
                 <span className="font-sans text-[10px] font-medium text-sky-200">
-                  ↓ {formatHHMM(nextSetUtc)}
+                  ↓ {formatTime(nextSetUtc, timeFormat)}
                 </span>
                 <span className="font-jost text-[8px] text-sky-400 uppercase tracking-tighter">
                   MOONSET

@@ -1,5 +1,5 @@
 /**
- * Explore page interaction helpers — Cursor Gravity (§11) & Three-Depth Hold.
+ * Explore page interaction helpers — Cursor Gravity (§11) & Object Cycling.
  * Pure functions extracted for unit testing (DESIGN_SPEC.md §11).
  */
 
@@ -9,31 +9,6 @@ export interface GravityTarget {
   altitudeDeg: number;
   screenX: number;
   screenY: number;
-}
-
-/** Hold thresholds in milliseconds for progressive depth disclosure (§11). */
-export const DEPTH_HOLD_THRESHOLDS_MS = {
-  depth2: 500,
-  depth3: 1000,
-} as const;
-
-export type PanelDepth = 1 | 2 | 3;
-
-/**
- * Advances depth level by 1, clamped at maximum Depth 3.
- */
-export function nextDepth(current: PanelDepth): PanelDepth {
-  if (current >= 3) return 3;
-  return (current + 1) as PanelDepth;
-}
-
-/**
- * Clamps any numeric depth value to valid PanelDepth [1, 3].
- */
-export function clampDepth(depth: number): PanelDepth {
-  if (depth <= 1) return 1;
-  if (depth >= 3) return 3;
-  return 2;
 }
 
 /**

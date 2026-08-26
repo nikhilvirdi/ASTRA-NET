@@ -28,6 +28,15 @@ export interface AppState {
   /** Wipes location preferences from this browser. */
   clearLocalData: () => void;
 
+  // Preferences
+  /** Time Format — 12-hour vs 24-hour display. Default: '24h'. */
+  timeFormat: '12h' | '24h';
+  setTimeFormat: (timeFormat: '12h' | '24h') => void;
+
+  /** Units — Metric vs Imperial measurement system. Default: 'metric'. */
+  units: 'metric' | 'imperial';
+  setUnits: (units: 'metric' | 'imperial') => void;
+
   // Display modes
   /** Red Light Mode — §4.5. Toggleable in /settings; auto-suggested at solar < -18°. */
   redLightMode: boolean;
@@ -47,7 +56,13 @@ export const useAppStore = create<AppState>()(
       location: null,
       setLocation: (location) => set({ location }),
 
-      clearLocalData: () => set({ location: null }),
+      clearLocalData: () => set({ location: null, timeFormat: '24h', units: 'metric' }),
+
+      timeFormat: '24h',
+      setTimeFormat: (timeFormat) => set({ timeFormat }),
+
+      units: 'metric',
+      setUnits: (units) => set({ units }),
 
       redLightMode: false,
       toggleRedLightMode: () => set((s) => ({ redLightMode: !s.redLightMode })),
@@ -63,6 +78,8 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         location: state.location,
         redLightMode: state.redLightMode,
+        timeFormat: state.timeFormat,
+        units: state.units,
       }),
     },
   ),

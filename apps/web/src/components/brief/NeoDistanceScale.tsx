@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppStore } from '@/store';
+import { formatMillionsDistance } from '@/lib/format-preferences';
 
 interface NeoDistanceScaleProps {
   missDistanceLunarDistances: number;
@@ -20,6 +22,7 @@ export function NeoDistanceScale({
   missDistanceKm,
   isPotentiallyHazardous,
 }: NeoDistanceScaleProps): React.ReactElement {
+  const units = useAppStore((s) => s.units);
   const ld = missDistanceLunarDistances;
   const neoPct = Math.max(2, Math.min(98, ldToPercent(ld)));
   const moonPct = ldToPercent(1); // approx 19.3%
@@ -31,7 +34,7 @@ export function NeoDistanceScale({
           MISS DISTANCE SCALE
         </span>
         <span className="font-sans text-xs text-brass-300 font-medium">
-          {ld.toFixed(1)} LD ({(missDistanceKm / 1_000_000).toFixed(2)}M km)
+          {ld.toFixed(1)} LD ({formatMillionsDistance(missDistanceKm, units, 2)})
         </span>
       </div>
 

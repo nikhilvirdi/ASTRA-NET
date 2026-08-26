@@ -1,6 +1,8 @@
 import React from 'react';
+import { useAppStore } from '@/store';
 import type { BestSpotSite } from '@/lib/api';
 import { calculateFactorTicks } from '@/lib/best-spot-helpers';
+import { formatDistance } from '@/lib/format-preferences';
 
 export { calculateFactorTicks };
 
@@ -38,6 +40,7 @@ export function ScoreBreakdown({
   site,
   clarityAvailable,
 }: ScoreBreakdownProps): React.ReactElement {
+  const units = useAppStore((s) => s.units);
   const { clarity, darkness, travel, aurora } = site;
 
   return (
@@ -80,7 +83,9 @@ export function ScoreBreakdown({
           </span>
           <RenderTickBar factor={travel.factor} colorClass="text-sky-200" />
         </div>
-        <span className="text-caption text-sky-300">{travel.distanceKm.toFixed(0)} km</span>
+        <span className="text-caption text-sky-300">
+          {formatDistance(travel.distanceKm, units)}
+        </span>
       </div>
 
       {/* 4. OPTIONAL AURORA BAR (if event=aurora active) */}

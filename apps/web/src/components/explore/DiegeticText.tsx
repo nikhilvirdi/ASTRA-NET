@@ -18,6 +18,7 @@ import { useDiegeticTextStore } from './diegeticTextStore';
 
 /** Self-hosted static TTF — same face the DOM loads from Google Fonts. */
 export const DIEGETIC_FONT_URL = '/fonts/MartianMono-Regular.ttf';
+export const JOST_BOLD_FONT_URL = '/fonts/Jost-Bold.ttf';
 
 interface DiegeticTextProps {
   text: string;
@@ -25,6 +26,8 @@ interface DiegeticTextProps {
   position: [number, number, number];
   /** Em-height in scene units. */
   fontSize: number;
+  /** Custom font URL override (defaults to DIEGETIC_FONT_URL). */
+  fontUrl?: string;
   /** CSS token name; defaults to the mono-label brass. */
   colorToken?: string;
   /** Fallback hex for the token (non-browser environments). */
@@ -39,6 +42,7 @@ export function DiegeticText({
   text,
   position,
   fontSize,
+  fontUrl = DIEGETIC_FONT_URL,
   colorToken = '--color-brass-300',
   colorFallback = '#c9b187',
   letterSpacing = 0.08,
@@ -51,7 +55,7 @@ export function DiegeticText({
   // previous layout until the new one is ready, so there's no flash.
   useEffect(() => {
     mesh.text = text;
-    mesh.font = DIEGETIC_FONT_URL;
+    mesh.font = fontUrl;
     mesh.fontSize = fontSize;
     mesh.color = cssColorToken(colorToken, colorFallback);
     mesh.anchorX = 'center';
@@ -72,6 +76,7 @@ export function DiegeticText({
     mesh,
     text,
     fontSize,
+    fontUrl,
     colorToken,
     colorFallback,
     letterSpacing,

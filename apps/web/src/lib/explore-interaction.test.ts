@@ -2,47 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateCycleIndex,
   calculateTouchPinchDistance,
-  clampDepth,
   computeGravityBias,
   computeOrbitDropState,
   computePinchZoomFov,
-  DEPTH_HOLD_THRESHOLDS_MS,
   filterVisibleCardinalMarks,
   findGravityTarget,
   GROUND_SKY_ANCHOR_STATE,
   hasCardinalMarksChanged,
   hasScreenPosChanged,
-  nextDepth,
   ORBIT_VANTAGE_STATE,
   type CardinalMarkInput,
 } from './explore-interaction';
 import type { GravityTarget } from '@/components/explore/CameraController';
 
 describe('explore-interaction', () => {
-  describe('Three-Depth Hold Logic', () => {
-    it('defines 500ms and 1000ms thresholds for Depth 2 and Depth 3', () => {
-      expect(DEPTH_HOLD_THRESHOLDS_MS.depth2).toBe(500);
-      expect(DEPTH_HOLD_THRESHOLDS_MS.depth3).toBe(1000);
-    });
-
-    it('advances depth sequentially from 1 to 2 to 3', () => {
-      expect(nextDepth(1)).toBe(2);
-      expect(nextDepth(2)).toBe(3);
-    });
-
-    it('clamps nextDepth at Depth 3 maximum', () => {
-      expect(nextDepth(3)).toBe(3);
-    });
-
-    it('clamps arbitrary numbers to valid PanelDepth [1, 3]', () => {
-      expect(clampDepth(0)).toBe(1);
-      expect(clampDepth(1)).toBe(1);
-      expect(clampDepth(2)).toBe(2);
-      expect(clampDepth(3)).toBe(3);
-      expect(clampDepth(5)).toBe(3);
-    });
-  });
-
   describe('Cursor Gravity Logic (40px magnetic radius & 60ms ease)', () => {
     const targets: GravityTarget[] = [
       { id: 'iss', azimuthDeg: 120, altitudeDeg: 40, screenX: 500, screenY: 300 },

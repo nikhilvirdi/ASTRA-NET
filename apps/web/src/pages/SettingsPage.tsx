@@ -1,45 +1,234 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { DEFAULT_OBSERVER_LOCATION } from '@/lib/api';
+
+interface DataSourceInfo {
+  id: string;
+  category: string;
+  source: string;
+  summary: string;
+  details: string;
+  isComputation?: boolean;
+}
+
+const DATA_SOURCES: DataSourceInfo[] = [
+  {
+    id: 'iss',
+    category: 'ISS POSITION & PASSES',
+    source: 'N2YO API',
+    summary: 'Live space station coordinates, visible pass predictions, and overfly look-angles.',
+    details:
+      "Combines real-time orbital positions (polled every 30–60s) with 5-minute cached visible pass predictions for your coordinates. Pass visibility requires 3 concurrent astronomical conditions: elevation ≥ 10°, observer in civil darkness (Sun elevation < -6°), and the space station remaining in direct sunlight outside Earth's shadow cone. Falls back to client-side SGP4/satellite.js propagation from CelesTrak two-line element sets if N2YO is unreachable.",
+  },
+  {
+    id: 'solar-wind',
+    category: 'SOLAR WIND & KP INDEX',
+    source: 'NOAA SWPC',
+    summary:
+      'Real-time solar wind plasma parameters, geomagnetic disturbance index, and 3-day forecasts.',
+    details:
+      'Ingests 1-minute real-time solar wind (RTSW) plasma measurements (proton bulk speed, density, temperature) and 1-minute estimated planetary Kp indices from NOAA SWPC satellites at the Sun-Earth L1 Lagrange point. Powers the Heliosphere Pulse gauge, auroral oval equatorward boundary calculations (λ_b = 66° - 2 × Kp), and feeds 3-day geomagnetic storm forecasts.',
+  },
+  {
+    id: 'donki',
+    category: 'SOLAR FLARES & CMES',
+    source: 'NASA DONKI',
+    summary: 'Space weather disturbance events and physics-based solar transit timeline.',
+    details:
+      'Evaluates solar eruptions and coronal mass ejections detected by NASA/ESA solar observatories. When a CME is Earth-directed, its initial launch velocity is fed into an analytical Drag-Based Model (Vršnak 2013). The model solves for aerodynamic deceleration against ambient solar wind to project transit time across 1 AU and estimate arrival windows at Earth.',
+  },
+  {
+    id: 'neows',
+    category: 'NEAR-EARTH OBJECTS',
+    source: 'NASA NeoWs',
+    summary:
+      'Close-approach asteroid tracking, miss distance scales, and landmark size comparisons.',
+    details:
+      'Monitors daily close approaches of asteroids and comets passing within 20 Lunar Distances (LD) of Earth (~7.68M km). Evaluates estimated diameter ranges, relative velocity (km/s), and close-approach epoch, benchmarking physical scale against architectural and geographic landmarks.',
+  },
+  {
+    id: 'gibs',
+    category: 'SKY & EARTH IMAGERY',
+    source: 'NASA GIBS',
+    summary: 'Real-time satellite cloud cover and Earth observation imagery.',
+    details:
+      "Streams true-color satellite imagery tiles from NASA's Global Imagery Browse Services (GIBS) Earthdata Web Map Tile Service (WMTS), updated continuously from Terra and Aqua MODIS / VIIRS polar-orbiting satellites, with static high-resolution composite fallbacks.",
+  },
+  {
+    id: 'horizons',
+    category: 'PLANETARY POSITIONS',
+    source: 'JPL Horizons',
+    summary: 'High-precision solar system ephemerides for planets and major celestial bodies.',
+    details:
+      "Computes true heliocentric and geocentric positions for the Sun, Mercury, Venus, Mars, Jupiter, and Saturn using NASA Jet Propulsion Laboratory's Horizons ephemeris computation system. Ephemerides are predictable and cached across multi-hour intervals.",
+  },
+  {
+    id: 'celestial-math',
+    category: 'LOCAL SKY DOME & ASTRONOMY',
+    source: 'Pure Local Computation',
+    isComputation: true,
+    summary: 'Sun/Moon coordinates, twilight transitions, sidereal time, and 3D stellar backdrop.',
+    details:
+      'Executed entirely in pure client-side mathematical engines with zero network roundtrips. Implements Meeus low-precision solar algorithms (≥ 0.01° precision), Julian Day time-offsets (d_UT1), Local Sidereal Time (LST), and spherical trigonometry transformations converting Right Ascension/Declination into local Altitude/Azimuth. Maps 120,000+ stars from the HYG catalog with parallax-derived 3D Cartesian coordinates and Ballesteros blackbody color temperature calculations.',
+  },
+];
+
+/** Format decimal lat/lon with correct N/S and E/W direction letters (negative longitude = West). */
+function formatCoordinates(lat: number, lon: number): string {
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const lonDir = lon >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lon).toFixed(4)}°${lonDir}`;
+}
 
 /** SettingsPage — /settings · Location, Local Data · local-only, browser storage · DESIGN_SPEC.md §15 */
 export function SettingsPage(): React.ReactElement {
   const location = useAppStore((s) => s.location);
   const setLocation = useAppStore((s) => s.setLocation);
   const clearLocalData = useAppStore((s) => s.clearLocalData);
+  const timeFormat = useAppStore((s) => s.timeFormat);
+  const setTimeFormat = useAppStore((s) => s.setTimeFormat);
+  const units = useAppStore((s) => s.units);
+  const setUnits = useAppStore((s) => s.setUnits);
 
   const effectiveLocation = location ?? DEFAULT_OBSERVER_LOCATION;
 
-  // Location edit form state
-  const [editingLocation, setEditingLocation] = useState<boolean>(false);
-  const [newLabel, setNewLabel] = useState<string>(effectiveLocation.name);
-  const [newLat, setNewLat] = useState<string>(String(effectiveLocation.lat));
-  const [newLon, setNewLon] = useState<string>(String(effectiveLocation.lon));
+  // Manual Coordinate Entry State
+  const [latInput, setLatInput] = useState<string>(() =>
+    Math.abs(effectiveLocation.lat).toFixed(4),
+  );
+  const [latDir, setLatDir] = useState<'N' | 'S'>(() => (effectiveLocation.lat >= 0 ? 'N' : 'S'));
+  const [lonInput, setLonInput] = useState<string>(() =>
+    Math.abs(effectiveLocation.lon).toFixed(4),
+  );
+  const [lonDir, setLonDir] = useState<'E' | 'W'>(() => (effectiveLocation.lon >= 0 ? 'E' : 'W'));
+  const [coordError, setCoordError] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+
+  // Geolocation State
+  const [geoLoading, setGeoLoading] = useState<boolean>(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   // Clear local data confirmation modal state
   const [showClearModal, setShowClearModal] = useState<boolean>(false);
   const [confirmText, setConfirmText] = useState<string>('');
 
-  const openLocationEditor = (): void => {
-    setNewLabel(effectiveLocation.name);
-    setNewLat(String(effectiveLocation.lat));
-    setNewLon(String(effectiveLocation.lon));
-    setEditingLocation(true);
+  // Collapsible state for About the Data items
+  const [openDataSources, setOpenDataSources] = useState<Record<string, boolean>>({});
+
+  const toggleDataSource = (id: string): void => {
+    setOpenDataSources((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
-  const handleSaveLocation = (e: React.FormEvent): void => {
-    e.preventDefault();
-    const lat = parseFloat(newLat);
-    const lon = parseFloat(newLon);
-    if (isNaN(lat) || isNaN(lon) || !newLabel.trim()) return;
+  const handleApplyCoordinates = (e?: React.FormEvent): void => {
+    if (e) e.preventDefault();
+    setCoordError(null);
+    setSaveFeedback(null);
 
-    setLocation({ lat, lon, name: newLabel.trim().toUpperCase() });
-    setEditingLocation(false);
+    const trimmedLat = latInput.trim();
+    const trimmedLon = lonInput.trim();
+
+    if (!trimmedLat) {
+      setCoordError('Please enter a latitude degree value.');
+      return;
+    }
+    if (!trimmedLon) {
+      setCoordError('Please enter a longitude degree value.');
+      return;
+    }
+
+    const numLat = Number(trimmedLat);
+    if (Number.isNaN(numLat) || numLat < 0 || numLat > 90) {
+      setCoordError('Latitude must be a valid number between 0° and 90°.');
+      return;
+    }
+
+    const numLon = Number(trimmedLon);
+    if (Number.isNaN(numLon) || numLon < 0 || numLon > 180) {
+      setCoordError('Longitude must be a valid number between 0° and 180°.');
+      return;
+    }
+
+    const signedLat = latDir === 'S' ? -numLat : numLat;
+    const signedLon = lonDir === 'W' ? -numLon : numLon;
+
+    const formattedName = `${numLat.toFixed(4)}°${latDir}, ${numLon.toFixed(4)}°${lonDir}`;
+    setLocation({
+      lat: signedLat,
+      lon: signedLon,
+      name: formattedName,
+    });
+
+    setSaveFeedback('Location updated successfully.');
+  };
+
+  const handleUseCurrentLocation = (): void => {
+    if (!('geolocation' in navigator)) {
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setGeoLoading(true);
+    setGeoError(null);
+    setCoordError(null);
+    setSaveFeedback(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoLoading(false);
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const newLatDir = lat >= 0 ? 'N' : 'S';
+        const newLonDir = lon >= 0 ? 'E' : 'W';
+        const absLat = Math.abs(lat);
+        const absLon = Math.abs(lon);
+
+        setLocation({
+          lat,
+          lon,
+          name: 'Current Location',
+        });
+
+        setLatInput(absLat.toFixed(4));
+        setLatDir(newLatDir);
+        setLonInput(absLon.toFixed(4));
+        setLonDir(newLonDir);
+      },
+      (err) => {
+        setGeoLoading(false);
+        if (err.code === 1) {
+          setGeoError(
+            'Location permission was denied. Please allow location access in your browser settings.',
+          );
+        } else if (err.code === 2) {
+          setGeoError('Location is unavailable on this device right now.');
+        } else if (err.code === 3) {
+          setGeoError('Location request timed out. Please try again.');
+        } else {
+          setGeoError("Couldn't access your location — check your browser's location permission.");
+        }
+      },
+      {
+        timeout: 10000,
+        enableHighAccuracy: false,
+      },
+    );
   };
 
   const handleResetLocation = (): void => {
     setLocation(DEFAULT_OBSERVER_LOCATION);
-    setEditingLocation(false);
+    const defaultLat = DEFAULT_OBSERVER_LOCATION.lat;
+    const defaultLon = DEFAULT_OBSERVER_LOCATION.lon;
+    setLatInput(Math.abs(defaultLat).toFixed(4));
+    setLatDir(defaultLat >= 0 ? 'N' : 'S');
+    setLonInput(Math.abs(defaultLon).toFixed(4));
+    setLonDir(defaultLon >= 0 ? 'E' : 'W');
+    setCoordError(null);
+    setGeoError(null);
+    setSaveFeedback(null);
   };
 
   const handleClearLocalDataConfirm = (): void => {
@@ -55,132 +244,422 @@ export function SettingsPage(): React.ReactElement {
       className="pt-16 pb-24 px-4 sm:px-8 max-w-3xl mx-auto flex flex-col min-h-screen"
       aria-label="Settings"
     >
-      <div className="border-b border-sky-800/40 pb-6 mb-10">
-        <span className="type-micro text-brass-500 uppercase tracking-widest block mb-1">
-          PREFERENCES
-        </span>
-        <h1 className="type-display-l text-sky-100 font-serif">Settings</h1>
-      </div>
+      {/* Header */}
+      <header className="border-b border-sky-800/40 pb-6 mb-10">
+        <h1 className="type-display-l text-sky-100">Settings</h1>
+      </header>
 
-      <div className="divide-y divide-sky-800/40 space-y-12">
+      <div className="divide-y divide-sky-800/40 space-y-10">
         {/* SECTION 1: LOCATION */}
-        <section className="pt-8 first:pt-0 space-y-6">
-          <span className="type-micro text-brass-500 uppercase font-mono tracking-widest">
-            LOCATION
-          </span>
-
-          <div className="p-4 border border-brass-300 bg-sky-950/80 flex items-center justify-between">
-            <div>
-              <span className="font-mono text-sm font-bold text-sky-100 uppercase">
-                {effectiveLocation.name}
-              </span>
-              <span className="type-micro font-mono text-sky-400 block mt-1">
-                {effectiveLocation.lat.toFixed(4)}°N, {effectiveLocation.lon.toFixed(4)}°E
-              </span>
-            </div>
-            {!editingLocation && (
-              <button
-                type="button"
-                onClick={openLocationEditor}
-                className="type-micro text-sky-300 hover:text-brass-300 underline cursor-pointer font-mono text-xs min-h-[44px] px-3 py-2 flex items-center justify-center"
-              >
-                CHANGE
-              </button>
-            )}
+        <section className="pt-10 first:pt-0 space-y-6">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">Location</h2>
+            <p className="type-body text-sm text-sky-300 mt-1 leading-relaxed">
+              This location applies across the Daily Brief, Explore, and Best Spot. Saved locally to
+              this browser only.
+            </p>
           </div>
 
-          {editingLocation && (
-            <form
-              onSubmit={handleSaveLocation}
-              className="p-4 border border-sky-800/40 bg-sky-900/20 space-y-3"
-            >
-              <span className="type-micro text-sky-300 font-mono block uppercase">
-                SET CURRENT LOCATION
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input
-                  type="text"
-                  aria-label="Location label"
-                  placeholder="Label (e.g. Home)"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  className="bg-sky-900 border border-sky-700 text-sky-100 p-3 font-mono text-xs min-h-[44px]"
-                  required
-                />
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="Latitude"
-                  placeholder="Latitude (e.g. 28.6139)"
-                  value={newLat}
-                  onChange={(e) => setNewLat(e.target.value)}
-                  className="bg-sky-900 border border-sky-700 text-sky-100 p-3 font-mono text-xs min-h-[44px]"
-                  required
-                />
-                <input
-                  type="number"
-                  step="any"
-                  aria-label="Longitude"
-                  placeholder="Longitude (e.g. 77.2090)"
-                  value={newLon}
-                  onChange={(e) => setNewLon(e.target.value)}
-                  className="bg-sky-900 border border-sky-700 text-sky-100 p-3 font-mono text-xs min-h-[44px]"
-                  required
-                />
+          {/* Current Location Display */}
+          <div className="py-2">
+            <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+              CURRENT LOCATION
+            </span>
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <div>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {effectiveLocation.name}
+                </span>
+                <span className="type-body text-sm text-sky-300 block mt-0.5 font-mono">
+                  {formatCoordinates(effectiveLocation.lat, effectiveLocation.lon)}
+                </span>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="submit"
-                  className="min-h-[44px] px-4 py-2 border border-brass-300/60 text-brass-300 hover:bg-brass-300/10 font-mono text-xs uppercase cursor-pointer flex items-center justify-center"
-                >
-                  SAVE LOCATION
-                </button>
+              {location !== null && (
                 <button
                   type="button"
                   onClick={handleResetLocation}
-                  className="min-h-[44px] px-4 py-2 border border-sky-700 text-sky-300 hover:text-sky-100 font-mono text-xs uppercase cursor-pointer flex items-center justify-center"
+                  className="font-jost text-xs text-sky-400 hover:text-sky-200 transition-colors cursor-pointer py-1"
                 >
-                  RESET TO DEFAULT
+                  Reset to Default
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingLocation(false)}
-                  className="min-h-[44px] px-4 py-2 text-sky-400 hover:text-sky-200 font-mono text-xs uppercase cursor-pointer flex items-center justify-center"
+              )}
+            </div>
+          </div>
+
+          {/* Manual Coordinate Entry Form */}
+          <form onSubmit={handleApplyCoordinates} className="space-y-4 pt-2">
+            <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block">
+              SET COORDINATES MANUALLY
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Latitude */}
+              <div>
+                <label
+                  htmlFor="latitude-input"
+                  className="font-jost text-xs text-sky-300 block mb-1.5"
                 >
-                  CANCEL
-                </button>
+                  Latitude (0° – 90°)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="latitude-input"
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="90"
+                    value={latInput}
+                    onChange={(e) => {
+                      setLatInput(e.target.value);
+                      if (coordError) setCoordError(null);
+                    }}
+                    placeholder="40.7128"
+                    className="w-full bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
+                  />
+                  <div
+                    role="group"
+                    aria-label="Latitude hemisphere"
+                    className="inline-flex rounded-sm border border-sky-800 bg-sky-950/80 p-0.5 shrink-0 min-h-[44px] items-center"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={latDir === 'N'}
+                      onClick={() => setLatDir('N')}
+                      className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                        latDir === 'N'
+                          ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                          : 'text-sky-400 hover:text-sky-200'
+                      }`}
+                    >
+                      N
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={latDir === 'S'}
+                      onClick={() => setLatDir('S')}
+                      className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                        latDir === 'S'
+                          ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                          : 'text-sky-400 hover:text-sky-200'
+                      }`}
+                    >
+                      S
+                    </button>
+                  </div>
+                </div>
               </div>
-            </form>
-          )}
 
-          <p className="type-caption text-sky-400 text-xs font-mono leading-relaxed">
-            This location applies across the Daily Brief, Explore, and Best Spot. No account needed
-            — it's saved to this browser only.
-          </p>
-        </section>
-
-        {/* SECTION 2: CLEAR LOCAL DATA */}
-        <section className="pt-8 space-y-6">
-          <span className="type-micro text-brass-300 uppercase font-mono tracking-widest block">
-            YOUR DATA
-          </span>
-
-          <div className="p-5 border border-sky-700 bg-sky-950/60 space-y-4">
-            <div>
-              <h3 className="font-mono text-xs font-bold text-sky-200 uppercase mb-1">
-                CLEAR LOCAL DATA
-              </h3>
-              <p className="type-body font-serif italic text-sky-400 text-sm leading-relaxed">
-                Wipes your saved location preferences from this browser. It cannot be undone.
-              </p>
+              {/* Longitude */}
+              <div>
+                <label
+                  htmlFor="longitude-input"
+                  className="font-jost text-xs text-sky-300 block mb-1.5"
+                >
+                  Longitude (0° – 180°)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="longitude-input"
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="180"
+                    value={lonInput}
+                    onChange={(e) => {
+                      setLonInput(e.target.value);
+                      if (coordError) setCoordError(null);
+                    }}
+                    placeholder="74.0060"
+                    className="w-full bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
+                  />
+                  <div
+                    role="group"
+                    aria-label="Longitude hemisphere"
+                    className="inline-flex rounded-sm border border-sky-800 bg-sky-950/80 p-0.5 shrink-0 min-h-[44px] items-center"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={lonDir === 'E'}
+                      onClick={() => setLonDir('E')}
+                      className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                        lonDir === 'E'
+                          ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                          : 'text-sky-400 hover:text-sky-200'
+                      }`}
+                    >
+                      E
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={lonDir === 'W'}
+                      onClick={() => setLonDir('W')}
+                      className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                        lonDir === 'W'
+                          ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                          : 'text-sky-400 hover:text-sky-200'
+                      }`}
+                    >
+                      W
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            {coordError && <p className="type-body text-sm text-ember-400 mt-1.5">{coordError}</p>}
+
+            {saveFeedback && (
+              <p className="type-body text-sm text-brass-300 mt-1.5">{saveFeedback}</p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                type="submit"
+                className="font-jost text-sm font-semibold px-5 py-2 bg-brass-400 text-sky-950 hover:bg-brass-300 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center shadow-sm"
+              >
+                Apply Location
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUseCurrentLocation}
+                disabled={geoLoading}
+                className="font-jost text-sm font-medium px-4 py-2 border border-brass-400/60 text-brass-300 hover:bg-brass-400/10 hover:border-brass-400 disabled:opacity-50 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center gap-2"
+              >
+                {geoLoading ? (
+                  <>
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-brass-400/30 border-t-brass-400 rounded-full animate-spin" />
+                    <span>Detecting location...</span>
+                  </>
+                ) : (
+                  <span>Use my current location</span>
+                )}
+              </button>
+            </div>
+
+            {geoError && (
+              <p className="type-body text-sm text-ember-400 mt-2 leading-relaxed">{geoError}</p>
+            )}
+          </form>
+        </section>
+
+        {/* SECTION 2: PREFERENCES */}
+        <section className="pt-10 space-y-6">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">Preferences</h2>
+          </div>
+
+          <div className="divide-y divide-sky-800/30">
+            {/* Time Format */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+              <div>
+                <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+                  TIME FORMAT
+                </span>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {timeFormat === '24h' ? '24-Hour (14:30)' : '12-Hour (2:30 PM)'}
+                </span>
+                <span className="type-body text-xs text-sky-300 block mt-0.5">
+                  Controls timestamps for the ISS pass, moonrise/set, and observation windows.
+                </span>
+              </div>
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <span
+                  className={`font-jost text-xs uppercase tracking-wider transition-colors ${
+                    timeFormat === '24h' ? 'text-sky-100 font-semibold' : 'text-sky-500'
+                  }`}
+                >
+                  24H
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={timeFormat === '12h'}
+                  aria-label="Toggle 12-hour or 24-hour time format"
+                  onClick={() => setTimeFormat(timeFormat === '24h' ? '12h' : '24h')}
+                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:border-brass-400 p-0.5 ${
+                    timeFormat === '12h'
+                      ? 'bg-brass-500/30 border-brass-400/70'
+                      : 'bg-sky-950/80 border-sky-800'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                      timeFormat === '12h'
+                        ? 'translate-x-7 bg-brass-400 ring-1 ring-brass-200'
+                        : 'translate-x-0 bg-sky-600 ring-1 ring-sky-400'
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`font-jost text-xs uppercase tracking-wider transition-colors ${
+                    timeFormat === '12h' ? 'text-brass-300 font-semibold' : 'text-sky-500'
+                  }`}
+                >
+                  12H
+                </span>
+              </div>
+            </div>
+
+            {/* Units */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+              <div>
+                <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+                  UNITS
+                </span>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {units === 'metric' ? 'Metric (km, m, km/s)' : 'Imperial (mi, ft, mi/s)'}
+                </span>
+                <span className="type-body text-xs text-sky-300 block mt-0.5">
+                  Controls altitude, asteroid distance/size, and solar wind telemetry units.
+                </span>
+              </div>
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <span
+                  className={`font-jost text-xs uppercase tracking-wider transition-colors ${
+                    units === 'metric' ? 'text-sky-100 font-semibold' : 'text-sky-500'
+                  }`}
+                >
+                  METRIC
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={units === 'imperial'}
+                  aria-label="Toggle metric or imperial units"
+                  onClick={() => setUnits(units === 'metric' ? 'imperial' : 'metric')}
+                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:border-brass-400 p-0.5 ${
+                    units === 'imperial'
+                      ? 'bg-brass-500/30 border-brass-400/70'
+                      : 'bg-sky-950/80 border-sky-800'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                      units === 'imperial'
+                        ? 'translate-x-7 bg-brass-400 ring-1 ring-brass-200'
+                        : 'translate-x-0 bg-sky-600 ring-1 ring-sky-400'
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`font-jost text-xs uppercase tracking-wider transition-colors ${
+                    units === 'imperial' ? 'text-brass-300 font-semibold' : 'text-sky-500'
+                  }`}
+                >
+                  IMPERIAL
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 3: ABOUT THE DATA */}
+        <section className="pt-10 space-y-6">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">About the Data</h2>
+            <p className="type-body text-sm text-sky-300 mt-1 leading-relaxed">
+              Every data feed, astronomical calculation, and space weather model powering ASTRANET.
+            </p>
+          </div>
+
+          <div className="divide-y divide-sky-800/30 border-y border-sky-800/30">
+            {DATA_SOURCES.map((item) => {
+              const isOpen = !!openDataSources[item.id];
+              return (
+                <div key={item.id} className="py-3.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleDataSource(item.id)}
+                    aria-expanded={isOpen}
+                    className="w-full text-left flex items-start justify-between gap-4 group cursor-pointer focus:outline-none"
+                  >
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider">
+                          {item.category}
+                        </span>
+                        <span className="text-sky-600 text-xs">·</span>
+                        <span className="font-jost text-xs text-sky-400 font-medium">
+                          {item.source}
+                        </span>
+                      </div>
+                      <span className="type-body text-sm font-medium text-sky-100 group-hover:text-brass-300 transition-colors">
+                        {item.summary}
+                      </span>
+                    </div>
+                    <div className="pt-1 shrink-0">
+                      <svg
+                        viewBox="0 0 20 20"
+                        className={`w-4 h-4 text-sky-400 transition-transform duration-200 ${
+                          isOpen ? 'rotate-180 text-brass-400' : 'group-hover:text-sky-200'
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M6 8l4 4 4-4" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="pt-3 pb-1 pr-6">
+                      <p className="type-body text-sm text-sky-200/90 leading-relaxed">
+                        {item.details}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* SECTION 4: MORE */}
+        <section className="pt-10 space-y-4">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">More</h2>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-6">
+            <Link
+              to="/accuracy"
+              className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
+            >
+              <span>View Accuracy Track Record</span>
+              <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+
+            <Link
+              to="/status"
+              className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
+            >
+              <span>System Status</span>
+              <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* SECTION 5: YOUR DATA */}
+        <section className="pt-10 space-y-4">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">Your Data</h2>
+            <p className="type-body text-sm text-sky-300 mt-1 leading-relaxed">
+              Wipes your saved location preferences and reset state from this browser. This action
+              cannot be undone.
+            </p>
+          </div>
+
+          <div className="pt-2">
             <button
               type="button"
               onClick={() => setShowClearModal(true)}
-              className="min-h-[44px] px-4 py-2 border border-sky-600 text-sky-300 hover:bg-ember-400/10 hover:border-ember-400 hover:text-ember-400 font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center"
+              className="font-jost text-sm px-4 py-2.5 border border-ember-500/60 text-ember-400 hover:bg-ember-500/10 hover:border-ember-400 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
             >
-              CLEAR LOCAL DATA
+              Clear Local Data
             </button>
           </div>
         </section>
@@ -189,13 +668,13 @@ export function SettingsPage(): React.ReactElement {
       {/* Confirmation Step Modal before clearing local data */}
       {showClearModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-sky-950/90 backdrop-blur-sm p-4">
-          <div className="max-w-md w-full border border-ember-400 bg-sky-950 p-6 space-y-4 shadow-2xl">
-            <h2 className="type-title font-mono text-ember-400 uppercase font-bold">
-              CONFIRM CLEAR LOCAL DATA
+          <div className="max-w-md w-full border border-ember-500/60 bg-sky-950 p-6 space-y-4 rounded-sm shadow-2xl">
+            <h2 className="font-jost text-lg font-medium text-ember-400">
+              Confirm Clear Local Data
             </h2>
-            <p className="type-body text-sky-200 text-xs font-mono leading-relaxed">
-              This clears your saved location preferences from this browser. To confirm, type{' '}
-              <strong className="text-ember-400">CLEAR</strong> below:
+            <p className="type-body text-sm text-sky-200 leading-relaxed">
+              This will wipe all saved preferences from this browser. To confirm, type{' '}
+              <strong className="text-ember-400 font-semibold">CLEAR</strong> below:
             </p>
 
             <input
@@ -204,27 +683,27 @@ export function SettingsPage(): React.ReactElement {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type CLEAR to confirm"
-              className="w-full bg-sky-900 border border-ember-400/60 text-sky-100 p-3 font-mono text-xs uppercase min-h-[44px]"
+              className="w-full bg-sky-900 border border-ember-500/50 text-sky-100 px-3 py-2 type-body text-sm uppercase rounded-sm focus:border-ember-400 focus:outline-none min-h-[44px]"
             />
 
-            <div className="flex items-center justify-end gap-3 pt-2 font-mono text-xs">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowClearModal(false);
                   setConfirmText('');
                 }}
-                className="min-h-[44px] px-4 py-2 border border-sky-700 text-sky-300 hover:text-sky-100 cursor-pointer flex items-center justify-center"
+                className="font-jost text-sm px-4 py-2 border border-sky-800 text-sky-300 hover:text-sky-100 cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
               >
-                CANCEL
+                Cancel
               </button>
               <button
                 type="button"
                 disabled={confirmText.trim().toUpperCase() !== 'CLEAR'}
                 onClick={handleClearLocalDataConfirm}
-                className="min-h-[44px] px-4 py-2 bg-ember-600 text-sky-100 font-bold uppercase tracking-wider disabled:opacity-40 cursor-pointer hover:bg-ember-500 flex items-center justify-center"
+                className="font-jost text-sm px-4 py-2 bg-ember-600 text-sky-100 font-medium disabled:opacity-40 cursor-pointer hover:bg-ember-500 transition-colors rounded-sm min-h-[44px] flex items-center justify-center"
               >
-                CONFIRM CLEAR
+                Clear Data
               </button>
             </div>
           </div>

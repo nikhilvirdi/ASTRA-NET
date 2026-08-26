@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppStore } from '@/store';
+import { formatLength, formatSpeed, getNeoComparisonLabel } from '@/lib/format-preferences';
 
 interface NeoSizeComparisonProps {
   diameterKm: number | null;
@@ -13,21 +15,9 @@ export function NeoSizeComparison({
   isPotentiallyHazardous,
   velocityKmS,
 }: NeoSizeComparisonProps): React.ReactElement {
+  const units = useAppStore((s) => s.units);
   const meters = diameterKm ? Math.round(diameterKm * 1000) : 300;
-
-  // Comparison landmark based on size
-  let comparisonLabel = 'Eiffel Tower (300m)';
-  if (meters < 50) {
-    comparisonLabel = 'Blue Whale (30m)';
-  } else if (meters < 150) {
-    comparisonLabel = 'Statue of Liberty (93m)';
-  } else if (meters < 450) {
-    comparisonLabel = 'Eiffel Tower (300m)';
-  } else if (meters < 900) {
-    comparisonLabel = 'Burj Khalifa (830m)';
-  } else {
-    comparisonLabel = `${(meters / 1000).toFixed(1)}km Mountain Scale`;
-  }
+  const comparisonLabel = getNeoComparisonLabel(meters, units);
 
   return (
     <div className="flex flex-col gap-2 p-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
@@ -52,7 +42,7 @@ export function NeoSizeComparison({
             {name}
           </span>
           <span className="font-sans text-xs text-sky-300 font-normal">
-            ~{meters}m wide · comparable to {comparisonLabel}
+            ~{formatLength(meters, units)} wide · comparable to {comparisonLabel}
           </span>
         </div>
 
@@ -70,7 +60,7 @@ export function NeoSizeComparison({
               <circle cx="8" cy="8" r="1" fill="currentColor" />
               <circle cx="12" cy="12" r="1.5" fill="currentColor" />
             </svg>
-            <span>{velocityKmS.toFixed(1)} km/s</span>
+            <span>{formatSpeed(velocityKmS, units, 'km/s', 1)}</span>
           </div>
           <span className="font-jost text-[9px] text-sky-400 font-medium uppercase">
             REL VELOCITY

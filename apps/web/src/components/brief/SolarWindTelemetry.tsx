@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppStore } from '@/store';
+import { KM_TO_MI } from '@/lib/format-preferences';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 
 interface SolarWindTelemetryProps {
@@ -16,6 +18,7 @@ export function SolarWindTelemetry({
   fetchedAt,
   loading,
 }: SolarWindTelemetryProps): React.ReactElement {
+  const units = useAppStore((s) => s.units);
   const currentSpeed = speedKmS ?? 333;
   const currentKp = kp ?? forecastKp ?? 1.33;
 
@@ -58,8 +61,12 @@ export function SolarWindTelemetry({
                 PROTON SPEED
               </span>
               <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
-                {speedKmS !== null ? `${Math.round(speedKmS)}` : '333'}
-                <span className="text-sm font-sans font-normal text-sky-300 ml-1">km/s</span>
+                {units === 'imperial'
+                  ? `${Math.round(currentSpeed * KM_TO_MI)}`
+                  : `${Math.round(currentSpeed)}`}
+                <span className="text-sm font-sans font-normal text-sky-300 ml-1">
+                  {units === 'imperial' ? 'mi/s' : 'km/s'}
+                </span>
               </span>
               <span className="font-jost text-[10px] text-brass-400 font-medium tracking-tight mt-0.5 uppercase">
                 {speedCategory}
@@ -83,9 +90,9 @@ export function SolarWindTelemetry({
           {/* Speed Scale Visual Meter */}
           <div className="flex flex-col gap-1.5 pt-1 border-t border-sky-800/40">
             <div className="flex justify-between text-[9px] font-sans text-sky-400 font-medium">
-              <span>250 km/s (SLOW)</span>
-              <span>450 (ELEVATED)</span>
-              <span>800+ (STORM)</span>
+              <span>{units === 'imperial' ? '155 mi/s (SLOW)' : '250 km/s (SLOW)'}</span>
+              <span>{units === 'imperial' ? '280 (ELEVATED)' : '450 (ELEVATED)'}</span>
+              <span>{units === 'imperial' ? '500+ (STORM)' : '800+ (STORM)'}</span>
             </div>
             <div className="relative w-full h-2 bg-sky-950 rounded-full border border-sky-800/50 overflow-visible">
               {/* Zones */}

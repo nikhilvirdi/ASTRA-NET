@@ -7,7 +7,7 @@ import fixture from './__fixtures__/open_meteo.json';
 const NOW = new Date('2026-07-14T20:00:00.000Z');
 
 describe('OpenMeteo schemas', () => {
-  it('validates fixture', () => {
+  it('validates forecast fixture', () => {
     const result = OpenMeteoResponseSchema.safeParse(fixture);
     expect(result.success).toBe(true);
   });
