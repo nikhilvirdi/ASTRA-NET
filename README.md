@@ -1,6 +1,13 @@
 
 # ASTRA-NET
 
+<div align="center">
+
+<img width="330" alt="ASTRA-NET" src="https://github.com/user-attachments/assets/5b1dd545-852b-43ea-8135-78a6bfa1c9f0" />
+
+**A live, honest companion for the sky above you.**
+
+</div>
 
 ASTRA-NET tells you what's actually happening in space right now, above your exact location — the ISS passing overhead, an aurora that might reach your latitude tonight, an asteroid making its closest approach, the real planets and stars visible from where you're standing.
 
