@@ -88,7 +88,7 @@ export function PersistentNav(): React.ReactElement | null {
         className="flex items-center transition-opacity hover:opacity-80"
         style={{ transitionDuration: 'var(--dur-micro)' }}
       >
-        <img src="/logo.png" alt="ASTRANET" className="h-7 w-auto object-contain" />
+        <img src="/logo.svg" alt="ASTRANET" className="h-7 w-auto object-contain" />
       </NavLink>
 
       {/* Primary nav links */}

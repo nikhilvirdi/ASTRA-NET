@@ -10,7 +10,7 @@ export function Footer(): React.ReactElement | null {
   return (
     <footer className="w-full border-t border-brass-500/30 bg-transparent h-12 flex items-center justify-between px-8 mt-auto">
       <div className="flex items-center opacity-70">
-        <img src="/logo.png" alt="ASTRANET" className="h-4 w-auto object-contain grayscale" />
+        <img src="/logo.svg" alt="ASTRANET" className="h-4 w-auto object-contain grayscale" />
       </div>
       <NavLink
         to="/status"

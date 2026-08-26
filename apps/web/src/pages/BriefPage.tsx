@@ -229,13 +229,13 @@ export function BriefPage(): React.ReactElement {
           className="w-full max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
         >
           <section aria-label="Error state">
-            <h1 className="type-display-xl text-ember-400 max-w-[900px] leading-tight">
+            <h1 className="type-display-l text-ember-400 max-w-[900px] leading-tight">
               Telemetry Failure
             </h1>
-            <p className="type-body-l text-sky-200 mt-4 max-w-[600px]">{error}</p>
+            <p className="type-body text-sky-300 mt-4 max-w-[600px]">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-8 px-4 py-2 border border-brass-500 text-brass-500 hover:bg-brass-500/10 transition-colors type-micro rounded cursor-pointer"
+              className="mt-8 min-h-[44px] px-4 py-2 border border-brass-300/60 text-brass-300 hover:bg-brass-300/10 transition-colors font-jost text-xs uppercase cursor-pointer rounded flex items-center justify-center"
             >
               RETRY CONNECTION
             </button>

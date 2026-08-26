@@ -11,6 +11,8 @@
   },
   "scripts": {
     "prepare": "husky",
+    "dev:api": "npm run dev --workspace=@astranet/api",
+    "dev:web": "npm run dev --workspace=@astranet/web",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -26,15 +26,23 @@ import { fetchCelestrakTle } from './clients/celestrak/index.js';
 try {
   process.loadEnvFile();
 } catch {
-  // No .env file found relative to cwd — fine when env vars are injected directly.
+  try {
+    process.loadEnvFile('../../.env');
+  } catch {
+    try {
+      process.loadEnvFile('../.env');
+    } catch {
+      // No .env file found relative to cwd — fine when env vars are injected directly.
+    }
+  }
 }
 
 function requireEnv(name: string): string {
   const value = process.env[name];
-  if (value === undefined || value === '') {
+  if (value === undefined || value.trim() === '') {
     throw new Error(`Missing required environment variable: ${name}`);
   }
-  return value;
+  return value.trim();
 }
 
 const nasaApiKey = requireEnv('NASA_API_KEY');

@@ -4,51 +4,6 @@ import { OrbitControls, useTexture, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
 
-function measureInkBounds(text: string, font: string): { left: number; right: number } | null {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-
-  ctx.font = font;
-  const metrics = ctx.measureText(text);
-
-  // Extract font size to scale the padding dynamically
-  const match = font.match(/([\d.]+)px/);
-  const fontSizePx = match && match[1] ? parseFloat(match[1]) : 160;
-  const paddingX = Math.max(150, Math.ceil(fontSizePx * 1.5));
-
-  const estWidth = metrics.width + paddingX * 2;
-  canvas.width = Math.ceil(estWidth);
-  canvas.height = Math.max(300, Math.ceil(fontSizePx * 2.5));
-
-  ctx.font = font;
-  ctx.fillStyle = 'white';
-  ctx.textBaseline = 'top';
-  ctx.fillText(text, paddingX, 50);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  const w = canvas.width;
-  const h = canvas.height;
-
-  let firstCol = w;
-  let lastCol = -1;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const alpha = data[(y * w + x) * 4 + 3];
-      if (alpha !== undefined && alpha > 0) {
-        // Check alpha channel
-        if (x < firstCol) firstCol = x;
-        if (x > lastCol) lastCol = x;
-      }
-    }
-  }
-
-  if (firstCol > lastCol) return null;
-  return { left: firstCol - paddingX, right: lastCol - paddingX };
-}
-
 const RADIUS = 1.3;
 
 const RealisticMoon = ({ onClick }: { onClick?: () => void }) => {
@@ -450,10 +405,6 @@ export default function Hero() {
   const massiveAsteroidsRef = useRef<Float32Array>(new Float32Array(75 * 4));
   const [mounted, setMounted] = useState(false);
 
-  const astraRef = useRef<HTMLSpanElement>(null);
-  const netRef = useRef<HTMLSpanElement>(null);
-  const [netTransform, setNetTransform] = useState('translateX(0px) scaleX(1)');
-
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -464,58 +415,6 @@ export default function Hero() {
       setRingState((prev) => (prev === 'hidden' ? 'animating' : prev));
     }, 1000);
     return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const updateScale = () => {
-      if (astraRef.current && netRef.current) {
-        netRef.current.style.transform = 'translateX(0px) scaleX(1)';
-
-        const aStyle = window.getComputedStyle(astraRef.current);
-        const aFont = `${aStyle.fontWeight} ${aStyle.fontSize} ${aStyle.fontFamily}`;
-
-        const nStyle = window.getComputedStyle(netRef.current);
-        const nFont = `${nStyle.fontWeight} ${nStyle.fontSize} ${nStyle.fontFamily}`;
-
-        const aInk = measureInkBounds('ASTRA', aFont);
-        const nInk = measureInkBounds('NET', nFont);
-
-        if (aInk && nInk) {
-          const aWidth = aInk.right - aInk.left;
-          const nWidth = nInk.right - nInk.left;
-
-          if (aWidth > 0 && nWidth > 0) {
-            // Optical correction factor (~1.0% adjustment) to bring NET's right edge flush with ASTRA
-            const scaleX = (aWidth / nWidth) * 0.99;
-            const translateX = aInk.left - nInk.left * scaleX;
-            setNetTransform(`translateX(${translateX}px) scaleX(${scaleX})`);
-          }
-        }
-      }
-    };
-
-    if (document.fonts) {
-      void document.fonts.ready.then(updateScale).catch(() => {});
-    } else {
-      updateScale();
-    }
-
-    const observer = new ResizeObserver(() => {
-      updateScale();
-    });
-
-    if (astraRef.current) {
-      observer.observe(astraRef.current);
-    }
-    if (netRef.current) {
-      observer.observe(netRef.current);
-    }
-
-    window.addEventListener('resize', updateScale);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateScale);
-    };
   }, []);
 
   return (
@@ -553,45 +452,31 @@ export default function Hero() {
       {/* Centered Overlay Content */}
       <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 min-h-[100vh] flex flex-col items-center justify-center text-center py-16 pointer-events-none">
         <div className="relative flex flex-col items-center justify-center pointer-events-auto">
-          {/* Wordmark lockup */}
-          <motion.h1
+          {/* Wordmark lockup (pre-aligned SVG asset) */}
+          <motion.div
             initial={false}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }}
-            className="text-sky-100 uppercase flex flex-col items-start m-0 p-0"
-            style={{
-              fontFamily: "'Zen Dots', cursive",
-              textShadow:
-                '0 12px 48px rgba(0,0,0,0.95), 0 4px 16px rgba(0,0,0,0.95), 0 0 30px rgba(0,0,0,0.9)',
-            }}
+            className="flex flex-col items-center justify-center m-0 p-0"
           >
-            <span
-              ref={astraRef}
-              className="inline-block m-0 p-0 text-[4rem] sm:text-[5.8rem] md:text-[7.2rem] lg:text-[8.6rem] leading-[0.85] tracking-normal text-sky-200"
-            >
-              ASTRA
-            </span>
-            <span
-              ref={netRef}
-              className="inline-block m-0 p-0 text-[6.8rem] sm:text-[9.8rem] md:text-[12.2rem] lg:text-[14.6rem] leading-[0.75] tracking-normal"
-              style={{ transformOrigin: 'left', transform: netTransform }}
-            >
-              NET
-            </span>
-          </motion.h1>
+            <img
+              src="/astra-net-wordmark.svg"
+              alt="ASTRA NET"
+              className="w-[280px] sm:w-[420px] md:w-[560px] lg:w-[680px] max-w-full h-auto drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)] select-none pointer-events-none"
+            />
+          </motion.div>
 
           {/* Centered Tagline */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
-            className="mt-8 text-lg sm:text-xl md:text-2xl font-jost font-medium text-brass-400 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
+            className="mt-8 text-[22px] sm:text-[24px] md:text-[28px] font-jost font-medium text-sky-200 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
             style={{
               textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.9)',
             }}
           >
-            What's overhead right now, from satellites to space weather to near-Earth objects, live
-            and tuned to your location.
+            What's overhead, right now.
           </motion.p>
         </div>
       </div>
