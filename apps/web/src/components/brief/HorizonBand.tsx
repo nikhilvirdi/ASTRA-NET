@@ -21,7 +21,7 @@ export interface HorizonBandMarker {
   id: string;
   label: string;
   sublabel: string;
-  type: 'iss' | 'sun' | 'jupiter' | 'neo' | 'aurora' | 'moon' | 'planet';
+  type: 'iss' | 'sun' | 'jupiter' | 'saturn' | 'neo' | 'aurora' | 'moon' | 'planet';
   azimuthDeg: number;
   altitudeDeg: number;
   colorClass?: string;
@@ -39,7 +39,7 @@ interface MarkerItem {
   id: string;
   label: string;
   sublabel: string;
-  type: 'iss' | 'sun' | 'jupiter' | 'neo' | 'aurora' | 'moon' | 'planet';
+  type: 'iss' | 'sun' | 'jupiter' | 'saturn' | 'neo' | 'aurora' | 'moon' | 'planet';
   azimuthDeg: number;
   altitudeDeg: number;
   colorClass: string;
@@ -118,11 +118,26 @@ function ObjectGlyph({
         </svg>
       );
     case 'jupiter':
+      return (
+        <svg {...common}>
+          <circle cx="10" cy="10" r="5" />
+          <line x1="5.5" y1="7.5" x2="14.5" y2="7.5" />
+          <line x1="5" y1="10" x2="15" y2="10" />
+          <line x1="5.5" y1="12.5" x2="14.5" y2="12.5" />
+          <circle cx="12.2" cy="11.2" r="0.75" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'saturn':
+      return (
+        <svg {...common}>
+          <circle cx="10" cy="10" r="4" />
+          <ellipse cx="10" cy="10" rx="8.5" ry="2.5" transform="rotate(-20 10 10)" />
+        </svg>
+      );
     case 'planet':
       return (
         <svg {...common}>
           <circle cx="10" cy="10" r="4.5" />
-          <ellipse cx="10" cy="10" rx="9" ry="2.5" transform="rotate(-20 10 10)" />
         </svg>
       );
     case 'neo':
