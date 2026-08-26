@@ -7,6 +7,7 @@
  * whole table.
  */
 
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createPrismaClient } from '../db/client.js';
@@ -42,7 +43,9 @@ async function createTestPrediction(data: {
   hit?: boolean;
   actualKp?: number;
 }): Promise<void> {
-  const prediction = await prisma.prediction.create({ data: { targetTime: NOW, ...data } });
+  const prediction = await prisma.prediction.create({
+    data: { targetTime: NOW, cmeActivityId: randomUUID(), ...data },
+  });
   createdIds.push(prediction.id);
 }
 

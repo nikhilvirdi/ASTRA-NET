@@ -48,6 +48,7 @@ function requireEnv(name: string): string {
 const nasaApiKey = requireEnv('NASA_API_KEY');
 const n2yoApiKey = requireEnv('N2YO_API_KEY');
 const databaseUrl = requireEnv('DATABASE_URL');
+const webOrigin = requireEnv('WEB_ORIGIN');
 const port = Number(process.env.PORT ?? 3000);
 
 /**
@@ -81,6 +82,7 @@ startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob });
 const app = createApp({
   n2yoApiKey,
   prisma,
+  webOrigin,
 });
 app.listen(port, () => {
   console.warn(`[api] listening on port ${port}`);

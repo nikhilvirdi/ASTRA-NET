@@ -21,7 +21,8 @@ import { AuroralRing } from '@/components/explore/AuroralRing';
 import { HeliospherePulse } from '@/components/explore/HeliospherePulse';
 import { CardinalMarks } from '@/components/explore/CardinalMarks';
 import { DiegeticTextMirror } from '@/components/explore/DiegeticTextMirror';
-import { OpeningSequence, hasSeenOpeningSequence } from '@/components/explore/OpeningSequence';
+import { OpeningSequence } from '@/components/explore/OpeningSequence';
+import { hasSeenOpeningSequence } from '@/lib/opening-sequence';
 import { useSpaceWeather } from '@/hooks/useSpaceWeather';
 import { calculateCycleIndex } from '@/lib/explore-interaction';
 

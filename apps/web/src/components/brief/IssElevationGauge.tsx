@@ -46,7 +46,7 @@ export function IssElevationGauge({ maxElevationDeg }: IssElevationGaugeProps): 
             <path
               d={describeArc(cx, cy, r, 180, 90)}
               fill="none"
-              stroke="#1c2424"
+              stroke="var(--color-sky-800)"
               strokeWidth="6"
             />
 
@@ -82,7 +82,7 @@ export function IssElevationGauge({ maxElevationDeg }: IssElevationGaugeProps): 
               cy={needlePos.y}
               r="3.5"
               fill="var(--color-brass-300)"
-              stroke="#000000"
+              stroke="var(--color-sky-950)"
               strokeWidth="1.5"
             />
 

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { PersistentNav } from '@/components/nav/PersistentNav';
-import { Footer } from '@/components/nav/Footer';
 
 // Pages
 import { BriefPage } from '@/pages/BriefPage';
 import { ExplorePage } from '@/pages/ExplorePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { StatusPage } from '@/pages/StatusPage';
+import { AboutPage } from '@/pages/AboutPage';
 
 /**
  * ASTRANET App Shell
@@ -23,10 +23,11 @@ import { StatusPage } from '@/pages/StatusPage';
  *   /explore     public  Explorable Universe (3D, full-bleed)
  *   /settings    public  Location, local data controls
  *   /status      public  System status
+ *   /about       public  About & Causal Engine explanation
  */
 export function App(): React.ReactElement {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-sky-950 text-white">
       {/* Skip link for keyboard navigation — §6 Quality Floor */}
       <a
         href="#main-content"
@@ -44,6 +45,7 @@ export function App(): React.ReactElement {
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/status" element={<StatusPage />} />
+          <Route path="/about" element={<AboutPage />} />
 
           {/* 404 fallback */}
           <Route
@@ -56,8 +58,6 @@ export function App(): React.ReactElement {
           />
         </Routes>
       </div>
-
-      <Footer />
     </div>
   );
 }

@@ -53,7 +53,7 @@ const PULSE_PERIOD_MAX_S = 20;
 const PULSE_PERIOD_MIN_S = 4;
 
 /** Map live wind speed onto a wash period inside the ambient band. */
-export function pulsePeriodSeconds(speedKmS: number): number {
+function pulsePeriodSeconds(speedKmS: number): number {
   const t = clamp(
     (speedKmS - WIND_SPEED_MIN_KMS) / (WIND_SPEED_MAX_KMS - WIND_SPEED_MIN_KMS),
     0,

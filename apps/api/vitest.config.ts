@@ -15,6 +15,7 @@ export default defineConfig({
         'src/cache/**/*.ts',
         'src/predictions/**/*.ts',
         'src/util/**/*.ts',
+        'src/lib/**/*.ts',
         'src/app.ts',
       ],
       exclude: [
@@ -28,6 +29,7 @@ export default defineConfig({
         'src/cache/**/*.test.ts',
         'src/predictions/**/*.test.ts',
         'src/util/**/*.test.ts',
+        'src/lib/**/*.test.ts',
       ],
       thresholds: {
         lines: 80,

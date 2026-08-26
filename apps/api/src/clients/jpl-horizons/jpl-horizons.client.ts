@@ -7,10 +7,7 @@
 
 import { HorizonsData, HorizonsRaDecData, HorizonsRaDecEntry } from './jpl-horizons.types.js';
 import { HorizonsRaDecEntrySchema, HorizonsResponseSchema } from './jpl-horizons.schemas.js';
-
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_ATTEMPTS = 3;
-const INITIAL_BACKOFF_MS = 500;
+import { fetchWithRetry } from '../../lib/fetch-with-retry.js';
 
 export interface FetchHorizonsParams {
   command: string; // e.g. '499' for Mars
@@ -23,45 +20,6 @@ export interface FetchHorizonsParams {
   csvFormat?: 'YES' | 'NO';
   quantities?: string; // e.g. '1' (astrometric RA/Dec) — OBSERVER tables only
   angFormat?: 'HMS' | 'DEG';
-}
-
-async function fetchWithRetry(
-  url: string,
-  timeoutMs: number = FETCH_TIMEOUT_MS,
-  maxAttempts: number = MAX_ATTEMPTS,
-  initialBackoffMs: number = INITIAL_BACKOFF_MS,
-): Promise<unknown> {
-  let lastError: unknown;
-  let backoff = initialBackoffMs;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          throw new Error(`HTTP ${response.status} for ${url} — not retrying (client error)`);
-        }
-        throw new Error(`HTTP ${response.status} for ${url}`);
-      }
-
-      return await response.json();
-    } catch (err) {
-      lastError = err;
-      const is4xx = err instanceof Error && err.message.includes('not retrying');
-      if (is4xx || attempt === maxAttempts) break;
-
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff *= 2;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  throw lastError;
 }
 
 /**

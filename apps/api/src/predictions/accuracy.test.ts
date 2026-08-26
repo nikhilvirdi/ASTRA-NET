@@ -11,6 +11,7 @@
  * isolation.
  */
 
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { historyFactor } from '@astranet/shared';
@@ -54,8 +55,12 @@ async function createTestPrediction(data: {
   scored?: boolean;
   hit?: boolean;
   actualKp?: number;
+  /** Defaults to a fresh random id — `Prediction.cmeActivityId` is unique, and most call sites don't care about a specific value. */
+  cmeActivityId?: string;
 }): Promise<{ id: string }> {
-  const prediction = await prisma.prediction.create({ data });
+  const prediction = await prisma.prediction.create({
+    data: { ...data, cmeActivityId: data.cmeActivityId ?? randomUUID() },
+  });
   createdIds.push(prediction.id);
   return prediction;
 }

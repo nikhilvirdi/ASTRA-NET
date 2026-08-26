@@ -13,16 +13,25 @@ datasource db {
 /// row is written for every qualifying Brief view (any observer, any
 /// caller) rather than being scoped to who happened to be looking.
 model Prediction {
-  id           String    @id @default(cuid())
-  madeAt       DateTime  @default(now())
-  targetTime   DateTime
-  predictedKp  Float
-  confidence   Float
-  context      Json      @default("{}")
-  actualKp     Float?
-  scored       Boolean   @default(false)
-  hit          Boolean?
-  createdAt    DateTime  @default(now())
+  id             String    @id @default(cuid())
+  madeAt         DateTime  @default(now())
+  targetTime     DateTime
+  predictedKp    Float
+  confidence     Float
+  /// DONKI's `activityId` for the CME driving this prediction. A real,
+  /// indexed, unique column rather than a JSONB path lookup: promoting it
+  /// out of `context` gives the brief route's create-if-absent write a real
+  /// DB-level uniqueness guarantee (race-safe insert, not a check-then-act)
+  /// and replaces an unindexed JSONB-path scan with a real index. Every
+  /// Prediction row is created only when an active CME's `activityId` is a
+  /// real non-null string (see `routes/brief.ts`'s `hasActiveCme` guard),
+  /// so this is required, not optional.
+  cmeActivityId  String    @unique
+  context        Json      @default("{}")
+  actualKp       Float?
+  scored         Boolean   @default(false)
+  hit            Boolean?
+  createdAt      DateTime  @default(now())
 
   @@index([scored, targetTime])
 }

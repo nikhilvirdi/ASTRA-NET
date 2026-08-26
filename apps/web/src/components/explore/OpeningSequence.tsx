@@ -27,24 +27,7 @@ import { DUR_REDUCED_MOTION_FADE, EASE_CINEMATIC, OPENING_SEQUENCE } from '@/lib
  * the user straight into the scene without mounting this at all.
  */
 
-const VISITED_KEY = 'astranet:explore:visited';
-
-export function hasSeenOpeningSequence(): boolean {
-  try {
-    return window.localStorage.getItem(VISITED_KEY) !== null;
-  } catch {
-    // Storage unavailable (privacy mode) — play the sequence; it degrades fine.
-    return false;
-  }
-}
-
-function markOpeningSequenceSeen(): void {
-  try {
-    window.localStorage.setItem(VISITED_KEY, new Date().toISOString());
-  } catch {
-    // Best effort only.
-  }
-}
+import { markOpeningSequenceSeen } from '@/lib/opening-sequence';
 
 interface OpeningSequenceProps {
   /** The single centered mono line: `34.08°N 74.80°E · 21:04 LOCAL`. */

@@ -154,14 +154,18 @@ export function BriefPage(): React.ReactElement {
   const spaceWeatherUi = spaceWeatherUiState(brief?.spaceWeather ?? null);
 
   // Twilight state calculation
-  const sunAltDeg = brief?.skyAnchor.data?.sunAltitudeDeg ?? -14.2;
-  const twilightState = twilightStateForSunAltitude(sunAltDeg);
+  const sunAltDeg = brief?.skyAnchor.data?.sunAltitudeDeg;
   const twilightPhaseLabel =
-    twilightState.phase === 'day'
-      ? 'DAYLIGHT'
-      : twilightState.phase === 'night'
-        ? 'NIGHT'
-        : `${twilightState.phase.toUpperCase()} TWILIGHT`;
+    sunAltDeg != null
+      ? (() => {
+          const state = twilightStateForSunAltitude(sunAltDeg);
+          return state.phase === 'day'
+            ? 'DAYLIGHT'
+            : state.phase === 'night'
+              ? 'NIGHT'
+              : `${state.phase.toUpperCase()} TWILIGHT`;
+        })()
+      : '—';
 
   // Headline + Learning Moment, both from the same survey of what is actually
   // happening. selectHeadline walks every real category the brief carries in a
@@ -214,7 +218,7 @@ export function BriefPage(): React.ReactElement {
         </Suspense>
         <main
           id="main-content"
-          className="w-full max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
+          className="w-full max-w-[1200px] mx-auto pt-16 px-8 pb-24 flex flex-col gap-12"
         >
           <section aria-label="Error state">
             <h1 className="type-display-l text-ember-400 max-w-[900px] leading-tight">
@@ -240,7 +244,7 @@ export function BriefPage(): React.ReactElement {
       </Suspense>
       <main
         id="main-content"
-        className="w-full max-w-[1200px] mx-auto pt-8 px-8 pb-24 flex flex-col gap-12"
+        className="w-full max-w-[1200px] mx-auto pt-16 px-8 pb-24 flex flex-col gap-12"
       >
         {/* ── 2. The Headline (§10) ──────────────────────────────────────────── */}
         <section aria-label="Daily Brief Headline">
@@ -273,7 +277,7 @@ export function BriefPage(): React.ReactElement {
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
                   LIVE
                 </span>
               )}
@@ -360,7 +364,7 @@ export function BriefPage(): React.ReactElement {
                   })()}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
                   LIVE
                 </span>
               )}
@@ -471,7 +475,7 @@ export function BriefPage(): React.ReactElement {
                   {spaceWeatherUi.notice}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
                   LIVE
                 </span>
               )}
@@ -509,7 +513,7 @@ export function BriefPage(): React.ReactElement {
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
                   LIVE
                 </span>
               )}

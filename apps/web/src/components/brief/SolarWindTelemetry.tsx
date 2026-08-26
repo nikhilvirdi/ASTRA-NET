@@ -19,21 +19,32 @@ export function SolarWindTelemetry({
   loading,
 }: SolarWindTelemetryProps): React.ReactElement {
   const units = useAppStore((s) => s.units);
-  const currentSpeed = speedKmS ?? 333;
-  const currentKp = kp ?? forecastKp ?? 1.33;
+  const currentSpeed = speedKmS;
+  const currentKp = kp ?? forecastKp;
 
   // Calculate position along 250 km/s to 800 km/s range
-  const speedPct = Math.max(0, Math.min(100, ((currentSpeed - 250) / (800 - 250)) * 100));
+  const speedPct =
+    currentSpeed !== null
+      ? Math.max(0, Math.min(100, ((currentSpeed - 250) / (800 - 250)) * 100))
+      : null;
 
   const speedCategory =
-    currentSpeed >= 600
-      ? 'STORM SPEED STREAM'
-      : currentSpeed >= 450
-        ? 'ELEVATED STREAM'
-        : 'NOMINAL SOLAR WIND';
+    currentSpeed !== null
+      ? currentSpeed >= 600
+        ? 'STORM SPEED STREAM'
+        : currentSpeed >= 450
+          ? 'ELEVATED STREAM'
+          : 'NOMINAL SOLAR WIND'
+      : null;
 
   const kpCategory =
-    currentKp >= 5 ? 'GEOMAGNETIC STORM' : currentKp >= 4 ? 'ACTIVE / UNSETTLED' : 'QUIET / STABLE';
+    currentKp !== null
+      ? currentKp >= 5
+        ? 'GEOMAGNETIC STORM'
+        : currentKp >= 4
+          ? 'ACTIVE / UNSETTLED'
+          : 'QUIET / STABLE'
+      : null;
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-sky-950/40 border border-sky-800/50 rounded-sm">
@@ -61,16 +72,24 @@ export function SolarWindTelemetry({
                 PROTON SPEED
               </span>
               <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
-                {units === 'imperial'
-                  ? `${Math.round(currentSpeed * KM_TO_MI)}`
-                  : `${Math.round(currentSpeed)}`}
-                <span className="text-sm font-sans font-normal text-sky-300 ml-1">
-                  {units === 'imperial' ? 'mi/s' : 'km/s'}
+                {currentSpeed !== null ? (
+                  <>
+                    {units === 'imperial'
+                      ? `${Math.round(currentSpeed * KM_TO_MI)}`
+                      : `${Math.round(currentSpeed)}`}
+                    <span className="text-sm font-sans font-normal text-sky-300 ml-1">
+                      {units === 'imperial' ? 'mi/s' : 'km/s'}
+                    </span>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </span>
+              {speedCategory && (
+                <span className="font-jost text-[10px] text-brass-400 font-medium tracking-tight mt-0.5 uppercase">
+                  {speedCategory}
                 </span>
-              </span>
-              <span className="font-jost text-[10px] text-brass-400 font-medium tracking-tight mt-0.5 uppercase">
-                {speedCategory}
-              </span>
+              )}
             </div>
 
             {/* Kp Readout */}
@@ -79,11 +98,13 @@ export function SolarWindTelemetry({
                 GEOMAGNETIC KP
               </span>
               <span className="font-sans text-3xl sm:text-4xl text-brass-300 font-semibold tracking-tight">
-                {currentKp.toFixed(2)}
+                {currentKp !== null ? currentKp.toFixed(1) : '—'}
               </span>
-              <span className="font-jost text-[10px] text-sky-300 font-medium tracking-tight mt-0.5 uppercase">
-                {kpCategory}
-              </span>
+              {kpCategory && (
+                <span className="font-jost text-[10px] text-sky-300 font-medium tracking-tight mt-0.5 uppercase">
+                  {kpCategory}
+                </span>
+              )}
             </div>
           </div>
 
@@ -103,12 +124,14 @@ export function SolarWindTelemetry({
               </div>
 
               {/* Needle Indicator */}
-              <div
-                className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
-                style={{ left: `${speedPct}%` }}
-              >
-                <div className="w-3 h-3 rounded-full bg-brass-300 ring-2 ring-black shadow-sm" />
-              </div>
+              {speedPct !== null && (
+                <div
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ left: `${speedPct}%` }}
+                >
+                  <div className="w-3 h-3 rounded-full bg-brass-300 ring-2 ring-black" />
+                </div>
+              )}
             </div>
           </div>
         </div>

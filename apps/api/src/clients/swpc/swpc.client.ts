@@ -41,6 +41,7 @@ import {
   SolarWindEntrySchema,
   SolarWindRawResponseSchema,
 } from './swpc.schemas.js';
+import { fetchWithRetry } from '../../lib/fetch-with-retry.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -55,70 +56,6 @@ const ENDPOINTS = {
   solarWind: `${BASE}/products/geospace/propagated-solar-wind-1-hour.json`,
   rtswPlasma: `${BASE}/json/rtsw/rtsw_wind_1m.json`,
 } as const;
-
-/** Timeout per individual fetch attempt, in milliseconds. */
-const FETCH_TIMEOUT_MS = 10_000;
-
-/** Maximum number of total attempts per product (1 initial + N retries). */
-const MAX_ATTEMPTS = 3;
-
-/** Initial backoff delay before first retry, in milliseconds. */
-const INITIAL_BACKOFF_MS = 500;
-
-// ---------------------------------------------------------------------------
-// Low-level fetch helper with timeout + exponential backoff
-// ---------------------------------------------------------------------------
-
-/**
- * Fetches a URL with a per-request timeout and exponential-backoff retry.
- * Returns the parsed JSON body on success.
- * Throws on final failure (caller catches per-product).
- *
- * @param url - The URL to fetch.
- * @param timeoutMs - Per-attempt timeout in ms.
- * @param maxAttempts - Total attempts (1 + retries).
- * @param initialBackoffMs - First retry delay; doubles each attempt.
- */
-async function fetchWithRetry(
-  url: string,
-  timeoutMs: number = FETCH_TIMEOUT_MS,
-  maxAttempts: number = MAX_ATTEMPTS,
-  initialBackoffMs: number = INITIAL_BACKOFF_MS,
-): Promise<unknown> {
-  let lastError: unknown;
-  let backoff = initialBackoffMs;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-
-      if (!response.ok) {
-        // 4xx are not retried (client errors — URL is wrong)
-        if (response.status >= 400 && response.status < 500) {
-          throw new Error(`HTTP ${response.status} for ${url} — not retrying (client error)`);
-        }
-        // 5xx: log and retry
-        throw new Error(`HTTP ${response.status} for ${url}`);
-      }
-
-      return await response.json();
-    } catch (err) {
-      lastError = err;
-      const is4xx = err instanceof Error && err.message.includes('not retrying');
-      if (is4xx || attempt === maxAttempts) break;
-
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff *= 2;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  throw lastError;
-}
 
 // ---------------------------------------------------------------------------
 // Per-product parsers

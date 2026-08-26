@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { cssColorToken } from '@/lib/color';
 
 export function SkyDome(): React.ReactElement {
+  const horizonColor = useMemo(() => cssColorToken('--color-sky-600', '#3e4a4a'), []);
+
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]}>
       {/* 
@@ -9,10 +12,16 @@ export function SkyDome(): React.ReactElement {
       */}
       <ringGeometry args={[998, 1000, 128]} />
       {/* 
-        Color sky-600 (#3E4A4A) at 40% opacity 
+        Color sky-600 (--color-sky-600) at 40% opacity 
         to match the "hairline rules" specification for depth
       */}
-      <meshBasicMaterial color="#3E4A4A" transparent opacity={0.4} side={2} depthWrite={false} />
+      <meshBasicMaterial
+        color={horizonColor}
+        transparent
+        opacity={0.4}
+        side={2}
+        depthWrite={false}
+      />
     </mesh>
   );
 }

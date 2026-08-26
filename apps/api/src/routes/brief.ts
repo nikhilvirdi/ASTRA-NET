@@ -58,38 +58,38 @@ export function registerBriefRoute(app: Express, deps: BriefRouteDeps): void {
     if (
       aurora?.hasActiveCme === true &&
       aurora.cmeArrivalTime !== null &&
-      aurora.confidence !== null
+      aurora.confidence !== null &&
+      aurora.cmeActivityId !== null
     ) {
+      const cmeActivityId = aurora.cmeActivityId;
       void Promise.resolve().then(async () => {
         try {
-          const existing = await deps.prisma.prediction.findFirst({
-            where: {
-              scored: false,
+          // A single atomic INSERT guarded by `Prediction.cmeActivityId`'s
+          // real unique constraint (see prisma/schema.prisma) — race-safe
+          // by construction, unlike the find-then-create this replaced.
+          // Two near-simultaneous requests for the same active CME both
+          // attempt this insert; the database allows exactly one to
+          // succeed and rejects the other with a P2002 unique-constraint
+          // violation, which is the expected "someone else already
+          // recorded this CME" outcome, not an error.
+          await deps.prisma.prediction.create({
+            data: {
+              cmeActivityId,
+              targetTime: new Date(aurora.cmeArrivalTime!),
+              predictedKp: aurora.kpPredicted,
+              confidence: aurora.confidence!,
               context: {
-                path: ['cmeActivityId'],
-                equals: aurora.cmeActivityId === null ? Prisma.JsonNull : aurora.cmeActivityId,
-              },
+                confidenceBand: aurora.confidenceBand,
+                geomagneticLatitudeDeg: aurora.geomagneticLatitudeDeg,
+                leadHours: aurora.leadHours,
+                factors: aurora.factors,
+              } as Prisma.InputJsonValue,
             },
           });
-
-          if (!existing) {
-            await deps.prisma.prediction.create({
-              data: {
-                targetTime: new Date(aurora.cmeArrivalTime!),
-                predictedKp: aurora.kpPredicted,
-                confidence: aurora.confidence!,
-                context: {
-                  cmeActivityId:
-                    aurora.cmeActivityId === null ? Prisma.JsonNull : aurora.cmeActivityId,
-                  confidenceBand: aurora.confidenceBand,
-                  geomagneticLatitudeDeg: aurora.geomagneticLatitudeDeg,
-                  leadHours: aurora.leadHours,
-                  factors: aurora.factors,
-                } as Prisma.InputJsonValue,
-              },
-            });
-          }
         } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return;
+          }
           logUnexpectedBriefError('prediction persistence', error);
         }
       });

@@ -348,9 +348,31 @@ function monthDayKey(month: number, day: number): number {
 }
 
 /**
- * Is `date` inside the shower's activity window? Both ends are inclusive —
- * the IMO quotes windows as whole days ("Jul 17-Aug 24"), so a date landing
- * exactly on either boundary is an active night.
+ * The observer's local calendar (month, day) at `utcDate`, derived from
+ * longitude via mean solar time (UTC + observerLonEastDeg/15 hours) —
+ * deliberately not `Date.prototype.getMonth`/`getDate`, which read the
+ * *executing browser's* own timezone, not the observer's chosen location.
+ * This app has no timezone/political-boundary database, only lat/lon, so
+ * mean solar time — the same "15deg of longitude = 1 hour" relationship
+ * FORMULAS.md's Local Sidereal Time already uses for star positions — is
+ * the honest, computable-from-what-we-have local-date approximation. It
+ * can disagree with a real civil clock by up to ~30min within one
+ * standard timezone, but that's far inside a single calendar day.
+ */
+function localCalendarDate(
+  utcDate: Date,
+  observerLonEastDeg: number,
+): { month: number; day: number } {
+  const localMs = utcDate.getTime() + (observerLonEastDeg / 15) * 3_600_000;
+  const local = new Date(localMs);
+  return { month: local.getUTCMonth() + 1, day: local.getUTCDate() };
+}
+
+/**
+ * Is `date` inside the shower's activity window, for an observer at
+ * `observerLonEastDeg`? Both ends are inclusive — the IMO quotes windows
+ * as whole days ("Jul 17-Aug 24"), so a date landing exactly on either
+ * boundary is an active night.
  *
  * Windows that wrap the year end (the Quadrantids run Dec 28 - Jan 12) are
  * matched as "on or after the start, OR on or before the end". Comparison is
@@ -358,18 +380,24 @@ function monthDayKey(month: number, day: number): number {
  * instead would shift every window by one day across a leap boundary.
  *
  * The observer's *local* calendar date is what counts — a shower is a
- * property of tonight where you are standing, not of UTC.
+ * property of tonight where you are standing, not of UTC, and not of
+ * wherever the browser rendering this happens to physically be.
  */
-export function isShowerActive(shower: MeteorShower, date: Date): boolean {
-  const today = monthDayKey(date.getMonth() + 1, date.getDate());
+export function isShowerActive(
+  shower: MeteorShower,
+  date: Date,
+  observerLonEastDeg: number,
+): boolean {
+  const { month, day } = localCalendarDate(date, observerLonEastDeg);
+  const today = monthDayKey(month, day);
   const start = monthDayKey(shower.activeStart.month, shower.activeStart.day);
   const end = monthDayKey(shower.activeEnd.month, shower.activeEnd.day);
   return start <= end ? today >= start && today <= end : today >= start || today <= end;
 }
 
-/** Every shower whose activity window contains `date`, in table order. */
-export function activeShowers(date: Date): MeteorShower[] {
-  return METEOR_SHOWERS.filter((s) => isShowerActive(s, date));
+/** Every shower whose activity window contains `date` at the observer's location, in table order. */
+export function activeShowers(date: Date, observerLonEastDeg: number): MeteorShower[] {
+  return METEOR_SHOWERS.filter((s) => isShowerActive(s, date, observerLonEastDeg));
 }
 
 /** ZHR as a sortable number; 'variable' sorts as a modest but non-zero rate. */
@@ -397,7 +425,7 @@ export function visibleShowerRadiant(
   const jd = julianDay(date);
   let best: ShowerRadiant | null = null;
 
-  for (const shower of activeShowers(date)) {
+  for (const shower of activeShowers(date, observerLonEastDeg)) {
     const horiz = equatorialToHorizontal(
       shower.radiantRaDeg,
       shower.radiantDecDeg,

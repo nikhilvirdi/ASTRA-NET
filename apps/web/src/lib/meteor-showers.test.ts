@@ -16,8 +16,20 @@ const showerByCode = (code: string): MeteorShower => {
   return s;
 };
 
-/** Local-time Date, since the activity window is judged on the observer's calendar date. */
-const localDate = (y: number, m: number, d: number, h = 22): Date => new Date(y, m - 1, d, h, 0, 0);
+/**
+ * A UTC-based Date standing in for "this local calendar day/hour for an
+ * observer at longitude 0 (Greenwich)" — built via `Date.UTC`, not the
+ * `new Date(y, m-1, d, h)` local-timezone constructor, so these tests are
+ * deterministic regardless of the machine/CI runner's own `TZ`. At
+ * longitude 0, mean solar time equals UTC exactly (see
+ * `localCalendarDate`'s `lonEastDeg/15` offset), so pairing this helper's
+ * output with `GREENWICH_LON` below reproduces the pre-fix tests' original
+ * intent exactly.
+ */
+const localDate = (y: number, m: number, d: number, h = 22): Date =>
+  new Date(Date.UTC(y, m - 1, d, h, 0, 0));
+
+const GREENWICH_LON = 0;
 
 describe('METEOR_SHOWERS table', () => {
   it('has unique IAU codes', () => {
@@ -37,7 +49,9 @@ describe('METEOR_SHOWERS table', () => {
   it('places every peak inside its own activity window', () => {
     for (const s of METEOR_SHOWERS) {
       const peakDate = localDate(2026, s.peak.month, s.peak.day);
-      expect(isShowerActive(s, peakDate), `${s.code} peak outside its window`).toBe(true);
+      expect(isShowerActive(s, peakDate, GREENWICH_LON), `${s.code} peak outside its window`).toBe(
+        true,
+      );
     }
   });
 
@@ -57,20 +71,20 @@ describe('isShowerActive — window boundaries', () => {
   const per = showerByCode('PER'); // Jul 17 - Aug 24
 
   it('is active on the first day of the window', () => {
-    expect(isShowerActive(per, localDate(2026, 7, 17))).toBe(true);
+    expect(isShowerActive(per, localDate(2026, 7, 17), GREENWICH_LON)).toBe(true);
   });
 
   it('is active on the last day of the window', () => {
-    expect(isShowerActive(per, localDate(2026, 8, 24))).toBe(true);
+    expect(isShowerActive(per, localDate(2026, 8, 24), GREENWICH_LON)).toBe(true);
   });
 
   it('is inactive the day before it opens and the day after it closes', () => {
-    expect(isShowerActive(per, localDate(2026, 7, 16))).toBe(false);
-    expect(isShowerActive(per, localDate(2026, 8, 25))).toBe(false);
+    expect(isShowerActive(per, localDate(2026, 7, 16), GREENWICH_LON)).toBe(false);
+    expect(isShowerActive(per, localDate(2026, 8, 25), GREENWICH_LON)).toBe(false);
   });
 
   it('is active mid-window', () => {
-    expect(isShowerActive(per, localDate(2026, 8, 12))).toBe(true);
+    expect(isShowerActive(per, localDate(2026, 8, 12), GREENWICH_LON)).toBe(true);
   });
 });
 
@@ -78,22 +92,22 @@ describe('isShowerActive — windows that wrap the year end', () => {
   const qua = showerByCode('QUA'); // Dec 28 - Jan 12
 
   it('is active on both boundary days, either side of New Year', () => {
-    expect(isShowerActive(qua, localDate(2026, 12, 28))).toBe(true);
-    expect(isShowerActive(qua, localDate(2027, 1, 12))).toBe(true);
+    expect(isShowerActive(qua, localDate(2026, 12, 28), GREENWICH_LON)).toBe(true);
+    expect(isShowerActive(qua, localDate(2027, 1, 12), GREENWICH_LON)).toBe(true);
   });
 
   it('is active across the year boundary itself', () => {
-    expect(isShowerActive(qua, localDate(2026, 12, 31))).toBe(true);
-    expect(isShowerActive(qua, localDate(2027, 1, 1))).toBe(true);
+    expect(isShowerActive(qua, localDate(2026, 12, 31), GREENWICH_LON)).toBe(true);
+    expect(isShowerActive(qua, localDate(2027, 1, 1), GREENWICH_LON)).toBe(true);
   });
 
   it('is inactive just outside either end', () => {
-    expect(isShowerActive(qua, localDate(2026, 12, 27))).toBe(false);
-    expect(isShowerActive(qua, localDate(2027, 1, 13))).toBe(false);
+    expect(isShowerActive(qua, localDate(2026, 12, 27), GREENWICH_LON)).toBe(false);
+    expect(isShowerActive(qua, localDate(2027, 1, 13), GREENWICH_LON)).toBe(false);
   });
 
   it('is inactive in the middle of the year', () => {
-    expect(isShowerActive(qua, localDate(2026, 6, 15))).toBe(false);
+    expect(isShowerActive(qua, localDate(2026, 6, 15), GREENWICH_LON)).toBe(false);
   });
 });
 
@@ -104,21 +118,57 @@ describe('isShowerActive — leap-year handling', () => {
   it('treats Feb 28 identically in a leap and a non-leap year', () => {
     // Day-of-year arithmetic would shift this window by a day across a leap
     // boundary; month/day comparison does not.
-    expect(isShowerActive(ace, localDate(2024, 2, 20))).toBe(true); // leap year
-    expect(isShowerActive(ace, localDate(2026, 2, 20))).toBe(true); // common year
-    expect(isShowerActive(ace, localDate(2024, 2, 21))).toBe(false);
-    expect(isShowerActive(ace, localDate(2026, 2, 21))).toBe(false);
+    expect(isShowerActive(ace, localDate(2024, 2, 20), GREENWICH_LON)).toBe(true); // leap year
+    expect(isShowerActive(ace, localDate(2026, 2, 20), GREENWICH_LON)).toBe(true); // common year
+    expect(isShowerActive(ace, localDate(2024, 2, 21), GREENWICH_LON)).toBe(false);
+    expect(isShowerActive(ace, localDate(2026, 2, 21), GREENWICH_LON)).toBe(false);
   });
 
   it('handles Feb 29 itself', () => {
-    expect(isShowerActive(ace, localDate(2024, 2, 29))).toBe(false);
-    expect(isShowerActive(sta, localDate(2024, 2, 29))).toBe(false);
+    expect(isShowerActive(ace, localDate(2024, 2, 29), GREENWICH_LON)).toBe(false);
+    expect(isShowerActive(sta, localDate(2024, 2, 29), GREENWICH_LON)).toBe(false);
+  });
+});
+
+describe("isShowerActive — judged on the observer's longitude, not a machine timezone", () => {
+  const per = showerByCode('PER'); // Jul 17 - Aug 24
+
+  // A real-world stand-in for "India" (~77.2E, e.g. Delhi) and "the US West
+  // Coast" (~-122.4E, e.g. San Francisco) — chosen only for a longitude
+  // offset large enough (>5h either side of UTC) that a single real instant
+  // straddles a different local calendar day at each, which is exactly the
+  // scenario the pre-fix bug got wrong: `date.getMonth()/getDate()` read
+  // whichever timezone the *browser* happened to be running in, never the
+  // *observer's chosen location* — so a US-based browser viewing an
+  // Indian sky (or vice versa) could judge a shower's activity window
+  // against the wrong calendar day near a boundary.
+  const DELHI_LON = 77.2;
+  const SAN_FRANCISCO_LON = -122.4;
+
+  it('rolls the local date forward past a UTC-day boundary for an observer east of Greenwich', () => {
+    // 2026-07-16T23:00:00Z: still Jul 16 at Greenwich (PER not yet active —
+    // its window opens Jul 17), but Jul 16 23:00 + 77.2/15h (~5h09m) lands
+    // at Jul 17 ~04:09 local for an observer near Delhi — the window's
+    // first active day.
+    const instant = new Date('2026-07-16T23:00:00Z');
+    expect(isShowerActive(per, instant, GREENWICH_LON)).toBe(false);
+    expect(isShowerActive(per, instant, DELHI_LON)).toBe(true);
+  });
+
+  it('holds the local date back before a UTC-day boundary for an observer west of Greenwich', () => {
+    // 2026-07-17T02:00:00Z: already Jul 17 at Greenwich (PER's first active
+    // day), but Jul 17 02:00 - 122.4/15h (~8h10m) lands at Jul 16 ~17:50
+    // local for an observer near San Francisco — the day *before* the
+    // window opens.
+    const instant = new Date('2026-07-17T02:00:00Z');
+    expect(isShowerActive(per, instant, GREENWICH_LON)).toBe(true);
+    expect(isShowerActive(per, instant, SAN_FRANCISCO_LON)).toBe(false);
   });
 });
 
 describe('activeShowers', () => {
   it('returns the overlapping late-July trio', () => {
-    const codes = activeShowers(localDate(2026, 7, 30)).map((s) => s.code);
+    const codes = activeShowers(localDate(2026, 7, 30), GREENWICH_LON).map((s) => s.code);
     expect(codes).toContain('PER');
     expect(codes).toContain('SDA');
     expect(codes).toContain('CAP');
@@ -126,7 +176,17 @@ describe('activeShowers', () => {
 
   it('returns nothing on a genuinely quiet date', () => {
     // Mar 15: every window in the table is closed.
-    expect(activeShowers(localDate(2026, 3, 15))).toEqual([]);
+    expect(activeShowers(localDate(2026, 3, 15), GREENWICH_LON)).toEqual([]);
+  });
+
+  it('threads the observer longitude through to the same day-boundary result as isShowerActive', () => {
+    // The same real instant as the isShowerActive day-boundary test above,
+    // exercised through the higher-level function `visibleShowerRadiant`
+    // (meteor-showers.ts's one real external caller, in CelestialMarkers.tsx)
+    // actually calls.
+    const instant = new Date('2026-07-16T23:00:00Z');
+    expect(activeShowers(instant, 0).map((s) => s.code)).not.toContain('PER');
+    expect(activeShowers(instant, 77.2).map((s) => s.code)).toContain('PER');
   });
 });
 

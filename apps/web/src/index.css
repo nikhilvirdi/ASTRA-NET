@@ -34,8 +34,8 @@
   --color-sky-600: #3e4a4a; /* Nautical twilight surface.                 */
   --color-sky-700: #2a3434; /* Dark slate border/surface.                 */
   --color-sky-800: #1c2424; /* Astronomical twilight surface.             */
-  --color-sky-900: #000000; /* Night surface. The deepest base (pure black). */
-  --color-sky-950: #000000; /* Immersive/3D void (pure black).               */
+  --color-sky-900: #111818; /* Night surface. The deepest base.             */
+  --color-sky-950: #0a0e0e; /* Immersive/3D void.                             */
 
   /* ─ §4.2 Brass ────────────────────────────────────────────────────────── */
   /* Calibration marks, tick rules, scale numerals. Never decorative.        */
@@ -181,11 +181,11 @@
     --sky-400: #8b9898;
     --sky-600: #3e4a4a;
     --sky-800: #1c2424;
-    --sky-900: #000000;
-    --sky-950: #000000;
+    --sky-900: #111818;
+    --sky-950: #0a0e0e;
 
-    /* Semantic surface slots — pure black #000000 base globally */
-    --surface: var(--sky-900);
+    /* Semantic surface slots — pure dark base globally */
+    --surface: var(--sky-950);
     --surface-secondary: #0a0a0a;
     --surface-tertiary: #141414;
     --on-surface: var(--sky-100);

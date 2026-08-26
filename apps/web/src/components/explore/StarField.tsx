@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
   julianDay,
   equatorialToHorizontal,
+  localSiderealTimeDeg,
   starPointSize,
   starBrightness,
   colorTemperatureKelvin,
+  degToRad,
+  mod,
 } from '@astranet/shared';
 import { colorTemperatureToRGB } from '@/lib/color';
 
@@ -50,12 +53,58 @@ const fragmentShader = `
   }
 `;
 
+/**
+ * Earth's rotation axis, expressed in this component's local horizontal
+ * Cartesian frame (X=East, Y=Up, Z=South — see the position formulas below).
+ * The celestial pole always sits at azimuth 0 (due north) and altitude equal
+ * to the observer's latitude: negative (below the horizon) south of the
+ * equator, where it's the *south* celestial pole — diametrically opposite,
+ * at azimuth 180 and altitude -latitude — that is actually visible.
+ */
+function celestialPoleAxis(observerLatDeg: number): THREE.Vector3 {
+  const latRad = degToRad(observerLatDeg);
+  return new THREE.Vector3(0, Math.sin(latRad), -Math.cos(latRad));
+}
+
+/**
+ * How far the whole sky has rigidly rotated about `celestialPoleAxis`
+ * between `referenceTime` (when a star field was built) and `currentTime`.
+ *
+ * Exact, not an approximation: FORMULAS.md §3's alt/az transform depends on
+ * time only through the hour angle H = LST - RA, and rotations about a
+ * fixed axis compose by simple angle addition — so advancing every star by
+ * the change in LST reproduces the full per-star `equatorialToHorizontal`
+ * recomputation exactly. Verified empirically against that function across
+ * four observers (both hemispheres, near-equator) and spans from 30 minutes
+ * to 25 hours (crossing the 360deg LST wraparound): 0.000000deg of angular
+ * error in every case (see `starfield-rotation.test.ts`).
+ *
+ * Negative sign: Earth's prograde rotation carries the sky face east to
+ * west across the local sky, the opposite sense from a positive
+ * right-hand-rule rotation about this axis.
+ */
+function siderealRotationAngleRad(referenceTime: Date, currentTime: Date): number {
+  const deltaLstDeg = mod(
+    localSiderealTimeDeg(julianDay(currentTime), 0) -
+      localSiderealTimeDeg(julianDay(referenceTime), 0),
+    360,
+  );
+  return -degToRad(deltaLstDeg);
+}
+
+interface BuiltStarField {
+  geometry: THREE.BufferGeometry;
+  /** The instant the geometry's positions were computed for — the epoch `siderealRotationAngleRad` measures forward from. */
+  referenceTime: Date;
+}
+
 export function StarField({
   observerLat,
   observerLon,
   currentTime,
 }: StarFieldProps): React.ReactElement | null {
   const [buffer, setBuffer] = useState<Float32Array | null>(null);
+  const pointsRef = useRef<THREE.Points>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -71,7 +120,17 @@ export function StarField({
     };
   }, []);
 
-  const geometry = useMemo(() => {
+  // Built once per star catalog + observer location — deliberately NOT
+  // rebuilt on every `currentTime` tick. The sky's apparent motion between
+  // ticks is a single rigid rotation about Earth's axis (see
+  // `siderealRotationAngleRad` above), not a change in any star's position
+  // relative to any other, so recomputing all ~8,900 alt/az transforms from
+  // scratch every 60s was both wasted CPU work and — because a freshly
+  // constructed `THREE.BufferGeometry` replaced the old one on every tick
+  // via the `geometry` prop, which bypasses R3F's automatic disposal of
+  // declaratively-nested children — a GPU buffer leak. The rotation effect
+  // below advances the whole field forward from `referenceTime` instead.
+  const built = useMemo<BuiltStarField | null>(() => {
     if (!buffer) return null;
 
     const starCount = Math.floor(buffer.length / 5);
@@ -152,13 +211,39 @@ export function StarField({
     geo.setAttribute('color', new THREE.BufferAttribute(colors.subarray(0, w * 3), 3));
     geo.setAttribute('size', new THREE.BufferAttribute(sizes.subarray(0, w), 1));
     geo.setAttribute('brightness', new THREE.BufferAttribute(brightnesses.subarray(0, w), 1));
-    return geo;
-  }, [buffer, observerLat, observerLon, currentTime]);
+    return { geometry: geo, referenceTime: currentTime };
+    // `currentTime` is intentionally excluded below: it seeds `referenceTime`
+    // once, at build time, but must never trigger a rebuild — that's exactly
+    // the leak/perf bug this fixes. Only a genuinely new star catalog or
+    // observer location should reconstruct the geometry.
+  }, [buffer, observerLat, observerLon]);
 
-  if (!geometry) return null;
+  // Dispose the previous geometry's GPU buffers before replacing/unmounting.
+  // R3F's automatic disposal only manages declaratively-nested children; a
+  // pre-built BufferGeometry passed via the `geometry` prop bypasses that.
+  // This effect's cleanup closes over the specific `built` value from the
+  // render that scheduled it, so it disposes exactly the geometry being
+  // replaced — never the new one.
+  useEffect(() => {
+    return () => {
+      built?.geometry.dispose();
+    };
+  }, [built]);
+
+  // Advances the whole field to its position at `currentTime` by rotating
+  // the point cloud rigidly about Earth's axis, rather than recomputing
+  // every star (see `siderealRotationAngleRad` above).
+  useEffect(() => {
+    if (!built || !pointsRef.current) return;
+    const axis = celestialPoleAxis(observerLat);
+    const angleRad = siderealRotationAngleRad(built.referenceTime, currentTime);
+    pointsRef.current.setRotationFromAxisAngle(axis, angleRad);
+  }, [built, observerLat, currentTime]);
+
+  if (!built) return null;
 
   return (
-    <points geometry={geometry}>
+    <points ref={pointsRef} geometry={built.geometry}>
       <shaderMaterial
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}

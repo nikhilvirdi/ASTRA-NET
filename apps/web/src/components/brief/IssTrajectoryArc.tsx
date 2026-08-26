@@ -10,9 +10,9 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
   // Map elevation to peak height: 90° peaks at y=10, 10° peaks at y=30
   const peakY = 38 - (elev / 90) * 26;
 
-  const startLabel = pass.startAzimuthCompass || 'SW';
+  const startLabel = pass.startAzimuthCompass || '—';
   const maxLabel = pass.maxAzimuthCompass ? `${pass.maxAzimuthCompass} ${elev}°` : `${elev}°`;
-  const endLabel = pass.endAzimuthCompass || 'NE';
+  const endLabel = pass.endAzimuthCompass || '—';
 
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -44,7 +44,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             cy="36"
             r="2.5"
             fill="var(--color-sky-300)"
-            stroke="#000"
+            stroke="var(--color-sky-950)"
             strokeWidth="1"
           />
 
@@ -54,7 +54,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             cy={peakY}
             r="3.5"
             fill="var(--color-brass-300)"
-            stroke="#000"
+            stroke="var(--color-sky-950)"
             strokeWidth="1"
           />
 
@@ -64,7 +64,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             cy="36"
             r="2.5"
             fill="var(--color-sky-300)"
-            stroke="#000"
+            stroke="var(--color-sky-950)"
             strokeWidth="1"
           />
 

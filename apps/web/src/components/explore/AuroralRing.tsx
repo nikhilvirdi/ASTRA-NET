@@ -99,7 +99,7 @@ const fragmentShader = `
  * australis toward its antipode. Placement math for rendering only; the
  * visibility physics stays in the shared §7 engine.
  */
-export function bearingToGeomagneticPoleRad(observerLat: number, observerLon: number): number {
+function bearingToGeomagneticPoleRad(observerLat: number, observerLon: number): number {
   const northern = geomagneticLatitudeDeg(observerLat, observerLon) >= 0;
   const poleLat = northern ? GEOMAG_POLE_LAT_DEG : -GEOMAG_POLE_LAT_DEG;
   const poleLon = northern ? GEOMAG_POLE_LON_DEG : GEOMAG_POLE_LON_DEG + 180;

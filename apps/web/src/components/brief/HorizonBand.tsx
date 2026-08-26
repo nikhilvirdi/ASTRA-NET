@@ -268,6 +268,27 @@ export function HorizonBand({
       });
     }
 
+    // 4. Moon — the Sky Anchor card already computes its real alt/az
+    // (same source as Jupiter's), so it belongs on the Band at its real
+    // position too, per DESIGN_SPEC.md §9's "every marker is at its real
+    // position, always." Same brass treatment as Jupiter: neither has a
+    // dedicated DESIGN_SPEC.md §4.4 phenomenon color, and the crescent
+    // glyph (vs. Jupiter's ringed circle) already differentiates them by
+    // shape, per §8.3's "no information by hue alone."
+    const moon = brief?.skyAnchor?.data?.moon ?? null;
+    if (moon && belongsOnBand(moon.altitudeDeg)) {
+      list.push({
+        id: 'moon',
+        label: 'MOON',
+        sublabel: formatAltitude(moon.altitudeDeg),
+        type: 'moon',
+        azimuthDeg: moon.azimuthDeg,
+        altitudeDeg: moon.altitudeDeg,
+        colorClass: 'text-brass-300',
+        available: true,
+      });
+    }
+
     return list;
   }, [effectiveTime, brief, customMarkers]);
 
@@ -325,7 +346,7 @@ export function HorizonBand({
               HALTED
             </span>
           ) : (
-            <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora">
+            <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
               {scrubHours === 0 ? 'LIVE' : `${scrubHours > 0 ? '+' : ''}${scrubHours.toFixed(1)}h`}
             </span>
           ))}

@@ -23,8 +23,8 @@ export function SunAltitudeGauge({
   altitudeDeg,
   loading,
 }: SunAltitudeGaugeProps): React.ReactElement {
-  const alt = altitudeDeg ?? -14.2;
-  const clampedAlt = Math.max(-90, Math.min(90, alt));
+  const isUnavailable = loading || altitudeDeg === null || altitudeDeg === undefined;
+  const clampedAlt = altitudeDeg != null ? Math.max(-90, Math.min(90, altitudeDeg)) : null;
 
   const cx = 60;
   const cy = 52;
@@ -32,8 +32,8 @@ export function SunAltitudeGauge({
 
   // Gauge angles: 180° is left (-90° nadir), 90° is top (0° horizon), 0° is right (+90° zenith)
   // Mapping alt [-90..+90] to angle: angle = 90 - alt
-  const needleAngle = 90 - clampedAlt;
-  const needlePos = polarToCartesian(cx, cy, r, needleAngle);
+  const needleAngle = clampedAlt !== null ? 90 - clampedAlt : null;
+  const needlePos = needleAngle !== null ? polarToCartesian(cx, cy, r, needleAngle) : null;
 
   // Twilight zones:
   // Night: -90 to -18 (angles 180 to 108)
@@ -64,11 +64,11 @@ export function SunAltitudeGauge({
             />
 
             {/* Zone bands */}
-            <path d={nightArc} fill="none" stroke="#141414" strokeWidth="5" />
-            <path d={astroArc} fill="none" stroke="#1c2424" strokeWidth="5" />
-            <path d={nautArc} fill="none" stroke="#3e4a4a" strokeWidth="5" />
-            <path d={civilArc} fill="none" stroke="#8b9898" strokeWidth="5" />
-            <path d={dayArc} fill="none" stroke="#c9b187" strokeWidth="5" />
+            <path d={nightArc} fill="none" stroke="var(--color-sky-900)" strokeWidth="5" />
+            <path d={astroArc} fill="none" stroke="var(--color-sky-800)" strokeWidth="5" />
+            <path d={nautArc} fill="none" stroke="var(--color-sky-600)" strokeWidth="5" />
+            <path d={civilArc} fill="none" stroke="var(--color-sky-400)" strokeWidth="5" />
+            <path d={dayArc} fill="none" stroke="var(--color-brass-300)" strokeWidth="5" />
 
             {/* 0° Horizon Tick Mark */}
             <line
@@ -81,7 +81,7 @@ export function SunAltitudeGauge({
             />
 
             {/* Needle / Marker */}
-            {!loading && (
+            {!isUnavailable && needlePos && (
               <>
                 <line
                   x1={cx}
@@ -98,7 +98,7 @@ export function SunAltitudeGauge({
                   cy={needlePos.y}
                   r="4"
                   fill="var(--color-brass-300)"
-                  stroke="#000000"
+                  stroke="var(--color-sky-950)"
                   strokeWidth="1.5"
                 />
               </>
@@ -131,18 +131,20 @@ export function SunAltitudeGauge({
 
         <div className="flex flex-col">
           <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
-            {loading ? '—' : `${alt.toFixed(1)}°`}
+            {isUnavailable || altitudeDeg == null ? '—' : `${altitudeDeg.toFixed(1)}°`}
           </span>
           <span className="font-sans text-xs text-brass-400/90 font-medium uppercase tracking-wide">
-            {alt >= 0
-              ? 'ABOVE HORIZON'
-              : alt >= -6
-                ? 'CIVIL TWILIGHT'
-                : alt >= -12
-                  ? 'NAUTICAL TWILIGHT'
-                  : alt >= -18
-                    ? 'ASTRO TWILIGHT'
-                    : 'ASTRONOMICAL NIGHT'}
+            {isUnavailable || altitudeDeg == null
+              ? '—'
+              : altitudeDeg >= 0
+                ? 'ABOVE HORIZON'
+                : altitudeDeg >= -6
+                  ? 'CIVIL TWILIGHT'
+                  : altitudeDeg >= -12
+                    ? 'NAUTICAL TWILIGHT'
+                    : altitudeDeg >= -18
+                      ? 'ASTRO TWILIGHT'
+                      : 'ASTRONOMICAL NIGHT'}
           </span>
         </div>
       </div>

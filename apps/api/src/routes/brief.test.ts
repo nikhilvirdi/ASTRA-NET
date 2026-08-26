@@ -272,7 +272,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const stored = await realPrisma.prediction.findMany({
-      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
+      where: { cmeActivityId: 'brief-test-cme-1' },
     });
     stored.forEach((row) => createdIds.push(row.id));
     expect(stored).toHaveLength(1);
@@ -288,21 +288,20 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     expect(auroraCard).toBeDefined();
     // An active CME is what makes this row persistable at all, so confidence must be present.
     expect(auroraCard!.confidence).not.toBeNull();
+    expect(stored[0]?.cmeActivityId).toBe('brief-test-cme-1');
     expect(stored[0]?.predictedKp).toBeCloseTo(auroraCard!.kpPredicted, 12);
     expect(stored[0]?.confidence).toBeCloseTo(auroraCard!.confidence!, 12);
     expect(stored[0]?.scored).toBe(false);
     expect(stored[0]?.actualKp).toBeNull();
     const context = stored[0]?.context as {
-      cmeActivityId: string;
       confidenceBand: string;
       leadHours: number;
     };
-    expect(context.cmeActivityId).toBe('brief-test-cme-1');
     expect(context.confidenceBand).toBe(body.spaceWeather.data?.aurora?.confidenceBand);
     expect(context.leadHours).toBeGreaterThan(0);
   });
 
-  it('deduplicates Predictions for the same active CME', async () => {
+  it('deduplicates Predictions for the same active CME across sequential requests', async () => {
     const now = new Date();
     setActiveCmeState(now);
 
@@ -319,7 +318,39 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const stored = await realPrisma.prediction.findMany({
-      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
+      where: { cmeActivityId: 'brief-test-cme-1' },
+    });
+    stored.forEach((row) => createdIds.push(row.id));
+
+    expect(stored).toHaveLength(1);
+  });
+
+  it('deduplicates Predictions for the same active CME across near-simultaneous concurrent requests', async () => {
+    // Regression test for the check-then-act race this fix closes: two
+    // requests racing `findFirst`-then-`create` could both observe "no
+    // existing row" before either write landed, each inserting a
+    // duplicate. Firing the requests together (no await between them)
+    // reproduces that overlap; the real guard is `Prediction.cmeActivityId`'s
+    // DB-level unique constraint, not request timing, so this only stays
+    // green because of that constraint, not because of how fast the test
+    // happens to run.
+    const now = new Date();
+    setActiveCmeState(now);
+
+    const CONCURRENT_REQUESTS = 8;
+    const responses = await Promise.all(
+      Array.from({ length: CONCURRENT_REQUESTS }, () =>
+        request(createTestApp()).get('/api/brief?lat=65&lon=-20'),
+      ),
+    );
+    responses.forEach((res) => expect(res.status).toBe(200));
+
+    // Wait for every fire-and-forget persistence attempt to settle —
+    // successful insert or swallowed P2002 alike.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const stored = await realPrisma.prediction.findMany({
+      where: { cmeActivityId: 'brief-test-cme-1' },
     });
     stored.forEach((row) => createdIds.push(row.id));
 
@@ -347,6 +378,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
     const seeded = await Promise.all([
       realPrisma.prediction.create({
         data: {
+          cmeActivityId: 'f-hist-seed-1',
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -357,6 +389,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
       }),
       realPrisma.prediction.create({
         data: {
+          cmeActivityId: 'f-hist-seed-2',
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -367,6 +400,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
       }),
       realPrisma.prediction.create({
         data: {
+          cmeActivityId: 'f-hist-seed-3',
           targetTime: new Date(),
           predictedKp: 4,
           confidence: 0.6,
@@ -377,6 +411,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
       }),
       realPrisma.prediction.create({
         data: {
+          cmeActivityId: 'f-hist-seed-4',
           targetTime: new Date(),
           predictedKp: 8,
           confidence: 0.6,
@@ -402,7 +437,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
 
     // The Brief's own persisted row (matched by its CME marker) also needs cleanup.
     const own = await realPrisma.prediction.findMany({
-      where: { context: { path: ['cmeActivityId'], equals: 'brief-test-cme-1' } },
+      where: { cmeActivityId: 'brief-test-cme-1' },
     });
     own.forEach((row) => createdIds.push(row.id));
   });

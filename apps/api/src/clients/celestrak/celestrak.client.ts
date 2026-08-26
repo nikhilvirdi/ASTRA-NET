@@ -12,62 +12,13 @@ import {
   CelestrakTleRecord,
 } from './celestrak.types.js';
 import { CelestrakOmmResponseSchema, CelestrakTleRecordsSchema } from './celestrak.schemas.js';
+import { fetchWithRetry } from '../../lib/fetch-with-retry.js';
 
 const BASE = 'https://celestrak.org/NORAD/elements/gp.php';
-
-const FETCH_TIMEOUT_MS = 10_000;
-const MAX_ATTEMPTS = 3;
-const INITIAL_BACKOFF_MS = 500;
 
 export interface FetchCelestrakParams {
   catnr?: number;
   group?: string;
-}
-
-/**
- * Fetches a URL with a per-request timeout and exponential-backoff retry.
- * `parseResponse` extracts the body (JSON by default; the TLE endpoint below
- * passes `(r) => r.text()` since CelesTrak's FORMAT=tle response is plain
- * text, not JSON). Throws on final failure (caller catches per-product).
- */
-async function fetchWithRetry<T = unknown>(
-  url: string,
-  parseResponse: (response: Response) => Promise<T> = (r) => r.json() as Promise<T>,
-  timeoutMs: number = FETCH_TIMEOUT_MS,
-  maxAttempts: number = MAX_ATTEMPTS,
-  initialBackoffMs: number = INITIAL_BACKOFF_MS,
-): Promise<T> {
-  let lastError: unknown;
-  let backoff = initialBackoffMs;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          throw new Error(`HTTP ${response.status} for ${url} — not retrying (client error)`);
-        }
-        throw new Error(`HTTP ${response.status} for ${url}`);
-      }
-
-      return await parseResponse(response);
-    } catch (err) {
-      lastError = err;
-      const is4xx = err instanceof Error && err.message.includes('not retrying');
-      if (is4xx || attempt === maxAttempts) break;
-
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff *= 2;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  throw lastError;
 }
 
 function parseCelestrakOmm(raw: unknown): CelestrakOmmRecord[] | null {

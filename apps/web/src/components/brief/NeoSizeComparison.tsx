@@ -16,8 +16,8 @@ export function NeoSizeComparison({
   velocityKmS,
 }: NeoSizeComparisonProps): React.ReactElement {
   const units = useAppStore((s) => s.units);
-  const meters = diameterKm ? Math.round(diameterKm * 1000) : 300;
-  const comparisonLabel = getNeoComparisonLabel(meters, units);
+  const meters = diameterKm != null && diameterKm > 0 ? Math.round(diameterKm * 1000) : null;
+  const comparisonLabel = meters !== null ? getNeoComparisonLabel(meters, units) : null;
 
   return (
     <div className="flex flex-col gap-2 p-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
@@ -42,7 +42,9 @@ export function NeoSizeComparison({
             {name}
           </span>
           <span className="font-sans text-xs text-sky-300 font-normal">
-            ~{formatLength(meters, units)} wide · comparable to {comparisonLabel}
+            {meters !== null && comparisonLabel !== null
+              ? `~${formatLength(meters, units)} wide · comparable to ${comparisonLabel}`
+              : 'Estimated diameter unavailable'}
           </span>
         </div>
 

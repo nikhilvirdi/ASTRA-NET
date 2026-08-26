@@ -35,6 +35,9 @@ export function PersistentNav(): React.ReactElement {
           <li>
             <NavItem to="/settings" label="Settings" />
           </li>
+          <li>
+            <NavItem to="/about" label="About" />
+          </li>
         </ul>
       </nav>
     </header>

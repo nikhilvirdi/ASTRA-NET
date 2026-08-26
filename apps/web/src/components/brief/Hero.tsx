@@ -9,9 +9,7 @@ const RADIUS = 1.3;
 const RealisticMoon = ({ onClick }: { onClick?: () => void }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
-  const colorMap = useTexture(
-    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
-  );
+  const colorMap = useTexture('/textures/moon_1024.jpg');
 
   useFrame((_, delta) => {
     if (meshRef.current) meshRef.current.rotation.y += delta * 0.05;
@@ -143,11 +141,10 @@ const ParticleRing = ({
     }
   });
 
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
-  const onBeforeCompile = (shader: any) => {
-    shader.uniforms.uProgress = uniforms.current.uProgress;
-    shader.uniforms.uAsteroids = uniforms.current.uAsteroids;
-    shader.uniforms.time = uniforms.current.time;
+  const onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms['uProgress'] = uniforms.current.uProgress;
+    shader.uniforms['uAsteroids'] = uniforms.current.uAsteroids;
+    shader.uniforms['time'] = uniforms.current.time;
 
     shader.vertexShader = `
       uniform float uProgress;
@@ -215,7 +212,6 @@ const ParticleRing = ({
       `,
     );
   };
-  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 
   return (
     <points ref={pointsRef} rotation={[-Math.PI / 2, 0, 0]}>
@@ -302,10 +298,7 @@ const AsteroidBelt = ({
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
-  const [colorMap, bumpMap] = useTexture([
-    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
-    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
-  ]);
+  const [colorMap, bumpMap] = useTexture(['/textures/moon_1024.jpg', '/textures/moon_1024.jpg']);
 
   const count = 75;
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -462,7 +455,7 @@ export default function Hero() {
             <img
               src="/astra-net-wordmark.svg"
               alt="ASTRA NET"
-              className="w-[280px] sm:w-[420px] md:w-[560px] lg:w-[680px] max-w-full h-auto drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)] select-none pointer-events-none"
+              className="w-[280px] sm:w-[420px] md:w-[560px] lg:w-[680px] max-w-full h-auto select-none pointer-events-none"
             />
           </motion.div>
 
@@ -472,9 +465,6 @@ export default function Hero() {
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
             className="mt-8 text-[22px] sm:text-[24px] md:text-[28px] font-jost font-medium text-sky-200 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
-            style={{
-              textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.9)',
-            }}
           >
             What's overhead, right now.
           </motion.p>
