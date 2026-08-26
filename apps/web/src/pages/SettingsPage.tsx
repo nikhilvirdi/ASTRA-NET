@@ -314,7 +314,7 @@ export function SettingsPage(): React.ReactElement {
                       if (coordError) setCoordError(null);
                     }}
                     placeholder="40.7128"
-                    className="w-full bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
+                    className="w-full min-w-0 bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
                   />
                   <div
                     role="group"
@@ -370,7 +370,7 @@ export function SettingsPage(): React.ReactElement {
                       if (coordError) setCoordError(null);
                     }}
                     placeholder="74.0060"
-                    className="w-full bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
+                    className="w-full min-w-0 bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] font-mono"
                   />
                   <div
                     role="group"
@@ -412,10 +412,10 @@ export function SettingsPage(): React.ReactElement {
               <p className="type-body text-sm text-brass-300 mt-1.5">{saveFeedback}</p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
               <button
                 type="submit"
-                className="font-jost text-sm font-semibold px-5 py-2 bg-brass-400 text-sky-950 hover:bg-brass-300 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center shadow-sm"
+                className="w-full sm:w-auto font-jost text-sm font-semibold px-5 py-2.5 bg-brass-400 text-sky-950 hover:bg-brass-300 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center shadow-sm"
               >
                 Apply Location
               </button>
@@ -424,7 +424,7 @@ export function SettingsPage(): React.ReactElement {
                 type="button"
                 onClick={handleUseCurrentLocation}
                 disabled={geoLoading}
-                className="font-jost text-sm font-medium px-4 py-2 border border-brass-400/60 text-brass-300 hover:bg-brass-400/10 hover:border-brass-400 disabled:opacity-50 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center gap-2"
+                className="w-full sm:w-auto font-jost text-sm font-medium px-4 py-2.5 border border-brass-400/60 text-brass-300 hover:bg-brass-400/10 hover:border-brass-400 disabled:opacity-50 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center gap-2"
               >
                 {geoLoading ? (
                   <>
@@ -572,19 +572,19 @@ export function SettingsPage(): React.ReactElement {
                     type="button"
                     onClick={() => toggleDataSource(item.id)}
                     aria-expanded={isOpen}
-                    className="w-full text-left flex items-start justify-between gap-4 group cursor-pointer focus:outline-none"
+                    className="w-full text-left flex items-start justify-between gap-3 sm:gap-4 group cursor-pointer focus:outline-none"
                   >
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-col min-w-0 pr-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1">
                         <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider">
                           {item.category}
                         </span>
-                        <span className="text-sky-600 text-xs">·</span>
+                        <span className="text-sky-600 text-xs hidden sm:inline">·</span>
                         <span className="font-jost text-xs text-sky-400 font-medium">
                           {item.source}
                         </span>
                       </div>
-                      <span className="type-body text-sm font-medium text-sky-100 group-hover:text-brass-300 transition-colors">
+                      <span className="type-body text-sm font-medium text-sky-100 group-hover:text-brass-300 transition-colors break-words">
                         {item.summary}
                       </span>
                     </div>
@@ -606,8 +606,8 @@ export function SettingsPage(): React.ReactElement {
                   </button>
 
                   {isOpen && (
-                    <div className="pt-3 pb-1 pr-6">
-                      <p className="type-body text-sm text-sky-200/90 leading-relaxed">
+                    <div className="pt-3 pb-1 pr-2 sm:pr-6">
+                      <p className="type-body text-sm text-sky-200/90 leading-relaxed break-words">
                         {item.details}
                       </p>
                     </div>
@@ -649,7 +649,7 @@ export function SettingsPage(): React.ReactElement {
             <button
               type="button"
               onClick={() => setShowClearModal(true)}
-              className="font-jost text-sm px-4 py-2.5 border border-ember-500/60 text-ember-400 hover:bg-ember-500/10 hover:border-ember-400 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
+              className="w-full sm:w-auto font-jost text-sm px-4 py-2.5 border border-ember-500/60 text-ember-400 hover:bg-ember-500/10 hover:border-ember-400 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
             >
               Clear Local Data
             </button>
@@ -659,8 +659,8 @@ export function SettingsPage(): React.ReactElement {
 
       {/* Confirmation Step Modal before clearing local data */}
       {showClearModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-sky-950/90 backdrop-blur-sm p-4">
-          <div className="max-w-md w-full border border-ember-500/60 bg-sky-950 p-6 space-y-4 rounded-sm shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-sky-950/90 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="max-w-md w-full border border-ember-500/60 bg-sky-950 p-5 sm:p-6 space-y-4 rounded-sm shadow-2xl my-auto">
             <h2 className="font-jost text-lg font-medium text-ember-400">
               Confirm Clear Local Data
             </h2>
@@ -678,14 +678,14 @@ export function SettingsPage(): React.ReactElement {
               className="w-full bg-sky-900 border border-ember-500/50 text-sky-100 px-3 py-2 type-body text-sm uppercase rounded-sm focus:border-ember-400 focus:outline-none min-h-[44px]"
             />
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowClearModal(false);
                   setConfirmText('');
                 }}
-                className="font-jost text-sm px-4 py-2 border border-sky-800 text-sky-300 hover:text-sky-100 cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
+                className="w-full sm:w-auto font-jost text-sm px-4 py-2.5 border border-sky-800 text-sky-300 hover:text-sky-100 cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center"
               >
                 Cancel
               </button>
@@ -693,7 +693,7 @@ export function SettingsPage(): React.ReactElement {
                 type="button"
                 disabled={confirmText.trim().toUpperCase() !== 'CLEAR'}
                 onClick={handleClearLocalDataConfirm}
-                className="font-jost text-sm px-4 py-2 bg-ember-600 text-sky-100 font-medium disabled:opacity-40 cursor-pointer hover:bg-ember-500 transition-colors rounded-sm min-h-[44px] flex items-center justify-center"
+                className="w-full sm:w-auto font-jost text-sm px-4 py-2.5 bg-ember-600 text-sky-100 font-medium disabled:opacity-40 cursor-pointer hover:bg-ember-500 transition-colors rounded-sm min-h-[44px] flex items-center justify-center"
               >
                 Clear Data
               </button>

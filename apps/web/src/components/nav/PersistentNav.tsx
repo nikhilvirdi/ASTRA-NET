@@ -11,21 +11,21 @@ export function PersistentNav(): React.ReactElement {
     <header
       role="banner"
       aria-label="ASTRANET navigation"
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 h-12 bg-sky-950 border-b border-sky-800/40"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-8 h-12 bg-sky-950 border-b border-sky-800/40"
     >
       {/* Wordmark Logo */}
       <NavLink
         to="/"
         aria-label="ASTRANET — go to Daily Brief"
-        className="flex items-center transition-opacity hover:opacity-80"
+        className="flex items-center transition-opacity hover:opacity-80 flex-shrink-0"
         style={{ transitionDuration: 'var(--dur-micro)' }}
       >
-        <img src="/logo.svg" alt="ASTRANET" className="h-5 w-auto object-contain" />
+        <img src="/logo.svg" alt="ASTRANET" className="h-4 sm:h-5 w-auto object-contain" />
       </NavLink>
 
       {/* Primary nav links */}
       <nav role="navigation" aria-label="Primary navigation">
-        <ul className="flex items-center gap-8 list-none m-0 p-0">
+        <ul className="flex items-center gap-1.5 sm:gap-6 md:gap-8 list-none m-0 p-0">
           <li>
             <NavItem to="/" label="Home" end />
           </li>
@@ -60,8 +60,8 @@ function NavItem({
       end={end}
       className={({ isActive }) =>
         [
-          'font-jost text-sm font-medium no-underline min-h-[44px] px-2 flex items-center justify-center',
-          'transition-colors',
+          'font-jost text-xs sm:text-sm font-medium no-underline min-h-[44px] px-1.5 sm:px-2 flex items-center justify-center',
+          'transition-colors whitespace-nowrap',
           isActive ? 'text-brass-300 font-semibold' : 'text-white hover:text-brass-300',
         ].join(' ')
       }

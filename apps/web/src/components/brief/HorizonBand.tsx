@@ -506,10 +506,19 @@ export function HorizonBand({
 
       {/* Time Scrubber — brass instrument control, §9 */}
       {!hideScrubber && (
-        <div className="flex items-center gap-4 mt-2 px-1">
-          <span className="font-jost text-xs sm:text-sm text-brass-400 font-medium tracking-wider min-w-[75px]">
-            TIME SCRUB
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 px-1">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+            <span className="font-jost text-xs sm:text-sm text-brass-400 font-medium tracking-wider whitespace-nowrap">
+              TIME SCRUB
+            </span>
+            <button
+              type="button"
+              onClick={() => setScrubHours(0)}
+              className="sm:hidden font-jost text-xs text-brass-400 hover:text-sky-100 transition-colors px-2.5 py-0.5 border border-brass-500/40 rounded cursor-pointer"
+            >
+              NOW
+            </button>
+          </div>
           <div className="relative w-full flex flex-col gap-1">
             <input
               type="range"
@@ -536,7 +545,7 @@ export function HorizonBand({
           <button
             type="button"
             onClick={() => setScrubHours(0)}
-            className="font-jost text-xs text-brass-400 hover:text-sky-100 transition-colors px-2.5 py-0.5 border border-brass-500/40 rounded cursor-pointer"
+            className="hidden sm:inline-flex font-jost text-xs text-brass-400 hover:text-sky-100 transition-colors px-2.5 py-0.5 border border-brass-500/40 rounded cursor-pointer"
           >
             NOW
           </button>

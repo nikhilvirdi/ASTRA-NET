@@ -218,10 +218,10 @@ export function BriefPage(): React.ReactElement {
         </Suspense>
         <main
           id="main-content"
-          className="w-full max-w-[1200px] mx-auto pt-16 px-8 pb-24 flex flex-col gap-12"
+          className="w-full max-w-[1200px] mx-auto pt-12 sm:pt-16 px-4 sm:px-8 pb-24 flex flex-col gap-8 sm:gap-12"
         >
           <section aria-label="Error state">
-            <h1 className="type-display-l text-ember-400 max-w-[900px] leading-tight">
+            <h1 className="type-display-l text-ember-400 max-w-[900px] leading-tight text-3xl sm:text-4xl md:text-5xl">
               Telemetry Failure
             </h1>
             <p className="type-body text-sky-300 mt-4 max-w-[600px]">{error}</p>
@@ -244,7 +244,7 @@ export function BriefPage(): React.ReactElement {
       </Suspense>
       <main
         id="main-content"
-        className="w-full max-w-[1200px] mx-auto pt-16 px-8 pb-24 flex flex-col gap-12"
+        className="w-full max-w-[1200px] mx-auto pt-12 sm:pt-16 px-4 sm:px-8 pb-24 flex flex-col gap-8 sm:gap-12"
       >
         {/* ── 2. The Headline (§10) ──────────────────────────────────────────── */}
         <section aria-label="Daily Brief Headline">
@@ -267,17 +267,17 @@ export function BriefPage(): React.ReactElement {
         {/* ── 4. Vertical Stack of Entries (§10) ────────────────────────────── */}
         <div className="flex flex-col divide-y divide-sky-800/40">
           {/* ── Entry 1: Sky Anchor (Never fails) ────────────────────────────── */}
-          <article className="py-8 flex flex-col gap-6">
-            <div className="flex justify-between items-baseline">
-              <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          <article className="py-6 sm:py-8 flex flex-col gap-6">
+            <div className="flex justify-between items-baseline gap-2">
+              <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
                 Sky Anchor
               </h2>
               {brief?.skyAnchor?.status === 'unavailable' ? (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -351,20 +351,20 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 2: ISS Pass ────────────────────────────────────────────── */}
-          <article className="py-8 flex flex-col gap-6">
-            <div className="flex justify-between items-baseline">
-              <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          <article className="py-6 sm:py-8 flex flex-col gap-6">
+            <div className="flex justify-between items-baseline gap-2">
+              <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
                 ISS Visible Pass
               </h2>
               {brief?.iss.status === 'unavailable' ? (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   {(() => {
                     const ls = formatLastSeen(brief.iss.data?.position?.fetchedAt ?? null);
                     return ls ? `HALTED · LAST SEEN ${ls}` : 'HALTED';
                   })()}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -377,12 +377,12 @@ export function BriefPage(): React.ReactElement {
                 </span>
               </div>
             ) : !brief?.iss.data?.nextPass ? (
-              <div className="p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 sm:p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="font-sans text-sm text-sky-200">
                   No visible pass in the current 24-hour observation window.
                 </span>
                 {brief?.iss.data?.position && (
-                  <div className="flex items-center gap-4 text-xs">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                     <span>
                       <span className="font-jost font-medium uppercase text-sky-400 mr-1">
                         LAT:
@@ -465,17 +465,17 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 3: Space Weather ──────────────────────────────────────── */}
-          <article className="py-8 flex flex-col gap-6">
-            <div className="flex justify-between items-baseline">
-              <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          <article className="py-6 sm:py-8 flex flex-col gap-6">
+            <div className="flex justify-between items-baseline gap-2">
+              <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
                 Space Weather
               </h2>
               {spaceWeatherUi.notice !== null ? (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   {spaceWeatherUi.notice}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -503,17 +503,17 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 4: Near-Earth Object Flyby ────────────────────────────── */}
-          <article className="py-8 flex flex-col gap-6">
-            <div className="flex justify-between items-baseline">
-              <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          <article className="py-6 sm:py-8 flex flex-col gap-6">
+            <div className="flex justify-between items-baseline gap-2">
+              <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
                 Near-Earth Object Flyby
               </h2>
               {brief?.neoImagery.status === 'unavailable' ? (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -526,7 +526,7 @@ export function BriefPage(): React.ReactElement {
                 </span>
               </div>
             ) : !brief?.neoImagery.data?.neo ? (
-              <div className="p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm">
+              <div className="p-4 sm:p-5 bg-sky-950/40 border border-sky-800/50 rounded-sm">
                 <span className="font-jost text-sm text-sky-300">
                   No near-Earth asteroid flyby detected within the immediate tracking window.
                 </span>
@@ -550,20 +550,20 @@ export function BriefPage(): React.ReactElement {
           </article>
 
           {/* ── Entry 5: Learning Moment (Serif Pull Quote) ───────────────────── */}
-          <article className="py-12 flex flex-col gap-4">
-            <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+          <article className="py-8 sm:py-12 flex flex-col gap-4">
+            <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
               Learning Moment
             </h2>
-            <blockquote className="type-body-l text-sky-100 italic border-l-2 border-brass-400 pl-6 my-2 max-w-[800px]">
+            <blockquote className="type-body-l text-sky-100 italic border-l-2 border-brass-400 pl-4 sm:pl-6 my-2 max-w-[800px] text-sm sm:text-base md:text-lg">
               "{loading ? 'Loading astronomical note...' : learningMoment.text}"
             </blockquote>
           </article>
         </div>
 
         {/* ── 5. Exit Points (§10) ──────────────────────────────────────────── */}
-        <footer className="pt-8 border-t-2 border-brass-500/40 flex flex-wrap justify-between items-center gap-6">
+        <footer className="pt-8 border-t-2 border-brass-500/40 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 sm:gap-6">
           <div className="flex flex-col gap-1">
-            <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+            <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
               Exit Points
             </h2>
             <span className="type-caption text-sky-400">

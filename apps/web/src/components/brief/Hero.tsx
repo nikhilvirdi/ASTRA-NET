@@ -443,7 +443,7 @@ export default function Hero() {
       <div className="absolute inset-x-0 bottom-0 h-72 md:h-96 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent z-10 pointer-events-none" />
 
       {/* Centered Overlay Content */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-8 min-h-[100vh] flex flex-col items-center justify-center text-center py-16 pointer-events-none">
+      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-4 sm:px-8 min-h-[100vh] flex flex-col items-center justify-center text-center py-16 pointer-events-none">
         <div className="relative flex flex-col items-center justify-center pointer-events-auto">
           {/* Wordmark lockup (pre-aligned SVG asset) */}
           <motion.div
@@ -455,7 +455,7 @@ export default function Hero() {
             <img
               src="/astra-net-wordmark.svg"
               alt="ASTRA NET"
-              className="w-[280px] sm:w-[420px] md:w-[560px] lg:w-[680px] max-w-full h-auto select-none pointer-events-none"
+              className="w-[240px] sm:w-[380px] md:w-[560px] lg:w-[680px] max-w-full h-auto select-none pointer-events-none"
             />
           </motion.div>
 
@@ -464,7 +464,7 @@ export default function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
-            className="mt-8 text-[22px] sm:text-[24px] md:text-[28px] font-jost font-medium text-sky-200 max-w-xl md:max-w-2xl leading-snug text-center mx-auto"
+            className="mt-6 sm:mt-8 text-[18px] sm:text-[24px] md:text-[28px] font-jost font-medium text-sky-200 max-w-xl md:max-w-2xl leading-snug text-center mx-auto px-2"
           >
             What's overhead, right now.
           </motion.p>

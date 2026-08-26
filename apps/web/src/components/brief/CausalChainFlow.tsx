@@ -251,13 +251,23 @@ export function CausalChainFlow({ aurora, loading }: CausalChainFlowProps): Reac
                 transition={{ duration: 1.2, ease: 'easeOut' }}
               >
                 {/* Floating Tag */}
-                <div className="absolute -top-7 whitespace-nowrap px-1.5 py-0.5 rounded-sm bg-ember-950/90 border border-ember-500/60 text-ember-300 font-jost text-[9px] font-semibold tracking-wider uppercase shadow-md flex items-center gap-1">
+                <div
+                  className="absolute -top-7 whitespace-nowrap px-1.5 py-0.5 rounded-sm bg-ember-950/90 border border-ember-500/60 text-ember-300 font-jost text-[9px] font-semibold tracking-wider uppercase shadow-md flex items-center gap-1"
+                  style={{
+                    transform:
+                      progressPct < 15
+                        ? 'translateX(0%)'
+                        : progressPct > 85
+                          ? 'translateX(-100%)'
+                          : 'translateX(-50%)',
+                  }}
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-ember-400 animate-ping" />
                   CME FRONT · {Math.round(progressPct)}%
                 </div>
 
                 {/* Glowing Pulse Marker Dot */}
-                <div className="w-4 h-4 rounded-full bg-ember-400 ring-2 ring-black shadow-[0_0_10px_rgba(224,97,76,0.6)] flex items-center justify-center">
+                <div className="w-4 h-4 rounded-full bg-ember-400 ring-2 ring-black shadow-[0_0_10px_rgba(224,97,76,0.6)] flex items-center justify-center -translate-x-1/2">
                   <div className="w-1.5 h-1.5 rounded-full bg-black" />
                 </div>
               </motion.div>

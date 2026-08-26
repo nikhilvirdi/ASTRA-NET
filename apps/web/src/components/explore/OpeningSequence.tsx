@@ -87,7 +87,10 @@ export function OpeningSequence({ overlayText, onDone }: OpeningSequenceProps): 
       className="fixed inset-0 z-[60] bg-black flex items-center justify-center pointer-events-none"
       aria-hidden="true"
     >
-      <p ref={lineRef} className="type-micro text-sky-200 uppercase tracking-widest">
+      <p
+        ref={lineRef}
+        className="type-micro text-sky-200 uppercase tracking-widest text-[10px] sm:text-xs text-center px-4"
+      >
         {overlayText}
       </p>
     </div>,

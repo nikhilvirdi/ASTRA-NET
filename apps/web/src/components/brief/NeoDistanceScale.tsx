@@ -29,7 +29,7 @@ export function NeoDistanceScale({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <div className="flex justify-between items-baseline">
+      <div className="flex justify-between items-baseline gap-2 flex-wrap sm:flex-nowrap">
         <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
           MISS DISTANCE SCALE
         </span>
@@ -48,21 +48,21 @@ export function NeoDistanceScale({
           />
 
           {/* Earth Anchor (0 LD) */}
-          <div className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
-            <div className="w-3 h-3 rounded-full bg-sky-400 ring-2 ring-black flex items-center justify-center" />
-            <span className="font-jost text-[9px] text-sky-300 whitespace-nowrap mt-1 font-medium">
+          <div className="absolute top-1/2 left-0 -translate-y-1/2 z-10 flex flex-col items-start">
+            <div className="w-3 h-3 rounded-full bg-sky-400 ring-2 ring-black flex items-center justify-center -translate-x-1/2" />
+            <span className="font-jost text-[8.5px] sm:text-[9px] text-sky-300 whitespace-nowrap mt-1 font-medium">
               EARTH (0 LD)
             </span>
           </div>
 
           {/* Moon Orbit Reference Line (1 LD) */}
           <div
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center"
+            className="absolute top-1/2 -translate-y-1/2 z-10 flex flex-col items-center"
             style={{ left: `${moonPct}%` }}
           >
-            <div className="w-[1px] h-4 bg-sky-400/80 -translate-y-0.5" />
-            <div className="w-2 h-2 rounded-full bg-sky-200 ring-2 ring-black" />
-            <span className="font-jost text-[9px] text-sky-300 whitespace-nowrap mt-1 font-medium">
+            <div className="w-[1px] h-4 bg-sky-400/80 -translate-y-0.5 -translate-x-1/2" />
+            <div className="w-2 h-2 rounded-full bg-sky-200 ring-2 ring-black -translate-x-1/2" />
+            <span className="font-jost text-[8.5px] sm:text-[9px] text-sky-300 whitespace-nowrap mt-1 font-medium -translate-x-1/2">
               MOON (1 LD)
             </span>
           </div>
@@ -96,17 +96,27 @@ export function NeoDistanceScale({
 
           {/* NEO Marker */}
           <div
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
+            className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
             style={{ left: `${neoPct}%` }}
           >
             <div
-              className={`w-3.5 h-3.5 rounded-full ring-2 ring-black flex items-center justify-center ${
+              className={`w-3.5 h-3.5 rounded-full ring-2 ring-black flex items-center justify-center -translate-x-1/2 ${
                 isPotentiallyHazardous ? 'bg-ember-400' : 'bg-brass-300'
               }`}
             >
               <div className="w-1.5 h-1.5 rounded-full bg-black" />
             </div>
-            <div className="absolute -top-5 flex flex-col items-center whitespace-nowrap">
+            <div
+              className="absolute -top-6 flex flex-col items-center whitespace-nowrap"
+              style={{
+                transform:
+                  neoPct < 15
+                    ? 'translateX(0%)'
+                    : neoPct > 85
+                      ? 'translateX(-100%)'
+                      : 'translateX(-50%)',
+              }}
+            >
               <span
                 className={`font-jost text-[9.5px] font-semibold uppercase px-1 py-0.5 rounded-sm border ${
                   isPotentiallyHazardous

@@ -85,11 +85,21 @@ export function MoonTimeline({
           {/* Moonrise Marker */}
           {!loading && risePct !== null && (
             <div
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
+              className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
               style={{ left: `${risePct}%` }}
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-brass-300 ring-2 ring-black flex items-center justify-center" />
-              <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
+              <div className="w-2.5 h-2.5 rounded-full bg-brass-300 ring-2 ring-black flex items-center justify-center -translate-x-1/2" />
+              <div
+                className="absolute top-3 flex flex-col items-center whitespace-nowrap"
+                style={{
+                  transform:
+                    risePct < 15
+                      ? 'translateX(0%)'
+                      : risePct > 85
+                        ? 'translateX(-100%)'
+                        : 'translateX(-50%)',
+                }}
+              >
                 <span className="font-sans text-[10px] font-medium text-brass-300">
                   ↑ {formatTime(nextRiseUtc, timeFormat)}
                 </span>
@@ -103,11 +113,21 @@ export function MoonTimeline({
           {/* Moonset Marker */}
           {!loading && setPct !== null && (
             <div
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
+              className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center"
               style={{ left: `${setPct}%` }}
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-sky-200 ring-2 ring-black flex items-center justify-center" />
-              <div className="absolute top-3 flex flex-col items-center whitespace-nowrap">
+              <div className="w-2.5 h-2.5 rounded-full bg-sky-200 ring-2 ring-black flex items-center justify-center -translate-x-1/2" />
+              <div
+                className="absolute top-3 flex flex-col items-center whitespace-nowrap"
+                style={{
+                  transform:
+                    setPct < 15
+                      ? 'translateX(0%)'
+                      : setPct > 85
+                        ? 'translateX(-100%)'
+                        : 'translateX(-50%)',
+                }}
+              >
                 <span className="font-sans text-[10px] font-medium text-sky-200">
                   ↓ {formatTime(nextSetUtc, timeFormat)}
                 </span>

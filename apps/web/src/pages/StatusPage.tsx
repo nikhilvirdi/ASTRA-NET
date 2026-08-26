@@ -61,12 +61,17 @@ export function StatusPage(): React.ReactElement {
   }, []);
 
   return (
-    <main id="main-content" className="pt-24 px-8 pb-32 max-w-2xl mx-auto space-y-10">
+    <main
+      id="main-content"
+      className="pt-16 sm:pt-24 px-4 sm:px-8 pb-20 sm:pb-32 max-w-2xl mx-auto space-y-8 sm:space-y-10"
+    >
       <header className="space-y-2">
         <h1 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
           System Status
         </h1>
-        <p className="type-body text-sky-200">Live poller source health and telemetry freshness.</p>
+        <p className="type-body text-sm sm:text-base text-sky-200 break-words">
+          Live poller source health and telemetry freshness.
+        </p>
       </header>
 
       <section className="space-y-4 border-t border-sky-800/40 pt-6">
@@ -83,11 +88,14 @@ export function StatusPage(): React.ReactElement {
               const statusText = relTime ? `UPDATED ${relTime.toUpperCase()} AGO` : 'UNAVAILABLE';
 
               return (
-                <div key={key} className="flex items-center justify-between py-3">
-                  <span className="font-jost text-xs uppercase tracking-wider text-sky-200 font-medium">
+                <div
+                  key={key}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 sm:py-3.5 gap-1.5 sm:gap-4"
+                >
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-200 font-medium break-words">
                     {label}
                   </span>
-                  <div className="flex items-center">
+                  <div className="flex items-center shrink-0 self-start sm:self-auto">
                     {isHealthy ? (
                       <LivePulse label="LIVE" active={true} />
                     ) : (

@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom';
 
 export function AboutPage(): React.ReactElement {
   return (
-    <main id="main-content" className="pt-24 px-8 pb-32 max-w-2xl mx-auto space-y-12">
+    <main
+      id="main-content"
+      className="pt-16 sm:pt-24 px-4 sm:px-8 pb-20 sm:pb-32 max-w-2xl mx-auto space-y-8 sm:space-y-12"
+    >
       {/* ── Section: What's Overhead ── */}
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <h1 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
           What&apos;s Overhead
         </h1>
-        <div className="space-y-4 type-body text-sky-200 leading-relaxed font-sans">
+        <div className="space-y-3 sm:space-y-4 type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           <p>
             ASTRA-NET tells you what&apos;s actually happening in the sky above you right now — the
             ISS passing overhead, an aurora that might reach your latitude tonight, an asteroid
@@ -26,67 +29,67 @@ export function AboutPage(): React.ReactElement {
       </section>
 
       {/* ── Section: The Causal Engine ── */}
-      <section className="space-y-4 border-t border-sky-800/40 pt-8">
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
           The Causal Engine
         </h2>
-        <p className="type-body text-sky-200 leading-relaxed font-sans">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           When ASTRA-NET says an aurora might be visible tonight, that&apos;s the end of a real
           chain of physical reasoning, not a single number pulled from somewhere:
         </p>
         <ol className="space-y-3 pt-2 text-sky-200 font-sans list-none">
           <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 flex-shrink-0 mt-0.5">
+            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
               1
             </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed">
+            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
               <strong className="text-sky-100 font-semibold">Detection</strong> — NASA&apos;s DONKI
               system reports a coronal mass ejection (CME) erupting from the Sun.
             </div>
           </li>
           <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 flex-shrink-0 mt-0.5">
+            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
               2
             </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed">
+            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
               <strong className="text-sky-100 font-semibold">Transit</strong> — the CME&apos;s real
               launch velocity runs through a physics-based drag model to estimate when it&apos;ll
               reach Earth, usually a day or more out.
             </div>
           </li>
           <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 flex-shrink-0 mt-0.5">
+            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
               3
             </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed">
+            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
               <strong className="text-sky-100 font-semibold">Geomagnetic response</strong> —
               NOAA&apos;s live Kp index (a measure of geomagnetic disturbance) gets checked against
               how strong that CME is expected to be.
             </div>
           </li>
           <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 flex-shrink-0 mt-0.5">
+            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
               4
             </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed">
+            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
               <strong className="text-sky-100 font-semibold">Local outcome</strong> — the Kp value
               is compared against your actual latitude to figure out whether the aurora&apos;s
               visibility boundary reaches you.
             </div>
           </li>
         </ol>
-        <p className="type-body text-sky-200 leading-relaxed font-sans pt-2">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans pt-2 break-words">
           You can see the whole chain, from solar eruption to &ldquo;will I see it from here,&rdquo;
           along with how confident that final answer really is.
         </p>
       </section>
 
       {/* ── Section: Confidence, honestly ── */}
-      <section className="space-y-4 border-t border-sky-800/40 pt-8">
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
           Confidence, Honestly
         </h2>
-        <p className="type-body text-sky-200 leading-relaxed font-sans">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           Every prediction gets tracked against what actually happens. The public accuracy record
           isn&apos;t touched up afterward — it&apos;s a rolling, unedited log of every call the app
           has made, right or wrong, so the track record actually means something.
@@ -94,11 +97,11 @@ export function AboutPage(): React.ReactElement {
       </section>
 
       {/* ── Section: The data behind it ── */}
-      <section className="space-y-4 border-t border-sky-800/40 pt-8">
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
           The Data Behind It
         </h2>
-        <p className="type-body text-sky-200 leading-relaxed font-sans">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           ISS positions and passes come from N2YO. Space weather and geomagnetic data come from
           NOAA&apos;s Space Weather Prediction Center. Solar flares and CMEs come from NASA&apos;s
           DONKI system. Near-Earth objects come from NASA&apos;s NeoWs. Planetary positions come
@@ -116,22 +119,22 @@ export function AboutPage(): React.ReactElement {
       </section>
 
       {/* ── Section: No accounts, nothing tracked ── */}
-      <section className="space-y-4 border-t border-sky-800/40 pt-8">
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
           No Accounts, Nothing Tracked
         </h2>
-        <p className="type-body text-sky-200 leading-relaxed font-sans">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           There&apos;s no sign-up here. Your location stays in your own browser and never touches a
           server. Nothing about you is being collected.
         </p>
       </section>
 
       {/* ── Section: Built by ── */}
-      <section className="space-y-4 border-t border-sky-800/40 pt-8">
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
           Built By
         </h2>
-        <p className="type-body text-sky-200 leading-relaxed font-sans">
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
           ASTRA-NET was built by{' '}
           <strong className="text-sky-100 font-semibold">Nikhil Virdi</strong>. Source and more
           work:{' '}
@@ -139,7 +142,7 @@ export function AboutPage(): React.ReactElement {
             href="https://github.com/nikhilvirdi/ASTRA-NET"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-brass-300 hover:text-sky-100 underline underline-offset-4 transition-colors"
+            className="text-brass-300 hover:text-sky-100 underline underline-offset-4 transition-colors break-all sm:break-normal"
           >
             github.com/nikhilvirdi/ASTRA-NET
           </a>

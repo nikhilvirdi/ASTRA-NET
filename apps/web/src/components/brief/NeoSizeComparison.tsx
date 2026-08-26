@@ -21,12 +21,12 @@ export function NeoSizeComparison({
 
   return (
     <div className="flex flex-col gap-2 p-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
-      <div className="flex justify-between items-baseline">
+      <div className="flex justify-between items-baseline gap-2 flex-wrap sm:flex-nowrap">
         <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block font-medium">
           OBJECT & SCALE
         </span>
         <span
-          className={`font-jost text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-sm border ${
+          className={`font-jost text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-sm border whitespace-nowrap ${
             isPotentiallyHazardous
               ? 'text-ember-400 bg-ember-950/50 border-ember-600/50'
               : 'text-aurora bg-aurora/10 border-aurora/30'

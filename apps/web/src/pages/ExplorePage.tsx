@@ -188,25 +188,38 @@ export function ExplorePage(): React.ReactElement {
 
   const selectedPos = selectedObject ? screenPosMap[selectedObject.id] : null;
 
-  let panelX = 0;
-  let panelY = 0;
+  let panelX = 16;
+  let panelY = 90;
+  let tetherTargetX = 16;
+  let tetherTargetY = 120;
   if (selectedPos) {
     const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    panelX = Math.min(windowWidth - 400, Math.max(20, selectedPos.x + 30));
-    panelY = Math.min(windowHeight - 240, Math.max(90, selectedPos.y - 80));
+    const panelWidth = Math.min(320, windowWidth - 32);
+    const panelHeight = 200;
+
+    const preferredX =
+      selectedPos.x > windowWidth / 2 ? selectedPos.x - panelWidth - 24 : selectedPos.x + 24;
+
+    panelX = Math.max(16, Math.min(windowWidth - panelWidth - 16, preferredX));
+    panelY = Math.max(70, Math.min(windowHeight - panelHeight - 20, selectedPos.y - 40));
+
+    tetherTargetX = selectedPos.x < panelX ? panelX : panelX + panelWidth;
+    tetherTargetY = Math.max(panelY + 20, Math.min(panelY + panelHeight - 20, selectedPos.y));
   }
 
   return (
     <div
       id="main-content"
-      className="fixed inset-0 bg-sky-950 flex flex-col select-none"
+      className="fixed inset-0 bg-sky-950 flex flex-col select-none overflow-hidden"
       aria-label="Explorable Universe — 3D scene"
       onPointerMove={onContainerPointerMove}
     >
       {/* DESIGN_SPEC.md §11 - Opening sequence static overlay */}
-      <div className="absolute top-8 left-0 right-0 z-10 text-center pointer-events-none">
-        <p className="type-micro text-sky-200 uppercase tracking-widest">{overlayText}</p>
+      <div className="absolute top-14 sm:top-16 left-0 right-0 z-10 text-center pointer-events-none px-4">
+        <p className="type-micro text-sky-200 uppercase tracking-widest text-[9.5px] sm:text-xs truncate">
+          {overlayText}
+        </p>
       </div>
 
       <Canvas
@@ -260,8 +273,8 @@ export function ExplorePage(): React.ReactElement {
             <line
               x1={selectedPos.x}
               y1={selectedPos.y}
-              x2={panelX}
-              y2={panelY + 40}
+              x2={tetherTargetX}
+              y2={tetherTargetY}
               stroke="#C9B187"
               strokeWidth="1"
               strokeDasharray="4 3"
@@ -272,7 +285,7 @@ export function ExplorePage(): React.ReactElement {
           {/* Info Panel Container (tightened static 2-part card, white border) */}
           <div
             style={{ left: `${panelX}px`, top: `${panelY}px` }}
-            className="absolute z-30 max-w-[320px] w-[calc(100vw-32px)] backdrop-blur-md bg-sky-950/95 border border-white/50 p-3 sm:p-3.5 rounded-none shadow-2xl transition-all duration-300"
+            className="absolute z-30 max-w-[320px] w-[calc(100vw-32px)] backdrop-blur-md bg-sky-950/95 border border-white/50 p-3 sm:p-3.5 rounded-none shadow-2xl transition-all duration-300 pointer-events-auto"
           >
             <div className="flex items-center justify-between border-b border-white/20 pb-1.5 mb-2">
               <span className="font-jost text-sm font-semibold text-brass-300 uppercase tracking-wider">
