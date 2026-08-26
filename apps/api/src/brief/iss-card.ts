@@ -6,9 +6,8 @@
  *  - `nextPass`: the soonest upcoming visible pass. This is inherently
  *    observer-specific (depends on the request's lat/lon), so it cannot
  *    come from the central store the way position does — the HTTP layer
- *    fetches it on-demand per request (mirroring the precedent
- *    API_SOURCES.md already documents for Open-Meteo: "on-demand per
- *    Best-Spot query") and passes the already-fetched result in here.
+ *    fetches it on-demand per request, rather than from the central
+ *    poller, and passes the already-fetched result in here.
  *    See DECISIONS.md.
  *
  * Either sub-field can be null independently without blanking the other —

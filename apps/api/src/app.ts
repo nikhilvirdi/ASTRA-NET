@@ -11,15 +11,12 @@ import { registerHealthRoute } from './routes/health.js';
 import { registerStreamRoute } from './routes/stream.js';
 import { registerBriefRoute, type BriefRouteDeps } from './routes/brief.js';
 import { registerSatellitesRoute } from './routes/satellites.js';
-import { registerBestSpotRoute, type BestSpotRouteDeps } from './routes/best-spot.js';
 import { registerAccuracyRoute } from './routes/accuracy.js';
 
 export interface CreateAppDeps {
   n2yoApiKey: BriefRouteDeps['n2yoApiKey'];
   prisma: PrismaClient;
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
-  fetchOpenMeteoBatch?: BestSpotRouteDeps['fetchOpenMeteoBatch'];
-  bortleAt?: BestSpotRouteDeps['bortleAt'];
 }
 
 export function createApp(deps: CreateAppDeps): Express {
@@ -28,10 +25,6 @@ export function createApp(deps: CreateAppDeps): Express {
   registerHealthRoute(app);
   registerStreamRoute(app);
   registerSatellitesRoute(app);
-  registerBestSpotRoute(app, {
-    fetchOpenMeteoBatch: deps.fetchOpenMeteoBatch,
-    bortleAt: deps.bortleAt,
-  });
   registerBriefRoute(app, deps);
   registerAccuracyRoute(app, { prisma: deps.prisma });
 

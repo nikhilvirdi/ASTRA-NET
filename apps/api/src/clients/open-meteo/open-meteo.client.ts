@@ -149,9 +149,10 @@ const BATCH_FORECAST_DAYS = 2;
  * request — Open-Meteo accepts comma-separated `latitude`/`longitude` lists
  * and answers with an array in request order.
  *
- * `/api/best-spot` scores dozens of candidate sites per call; one request
- * per site would multiply this endpoint's external API cost by the
- * candidate count for no added information.
+ * Batching exists so a caller scoring many coordinates at once costs one
+ * request rather than one per point. No caller uses it today — the spot
+ * finder that did was removed (see DECISIONS.md) — but the batching contract
+ * below is the reason to keep this client rather than rewrite it later.
  *
  * Returns one entry per requested point, **always in request order and
  * always the same length as `points`**. Callers must key results by index,

@@ -255,8 +255,8 @@ export function SettingsPage(): React.ReactElement {
           <div>
             <h2 className="font-jost text-xl font-medium text-sky-100">Location</h2>
             <p className="type-body text-sm text-sky-300 mt-1 leading-relaxed">
-              This location applies across the Daily Brief, Explore, and Best Spot. Saved locally to
-              this browser only.
+              This location applies across the Daily Brief and Explore. Saved locally to this
+              browser only.
             </p>
           </div>
 

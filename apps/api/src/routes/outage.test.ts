@@ -43,7 +43,6 @@ import { fetchSwpcFast, fetchSwpcSlow } from '../clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from '../clients/nasa/index.js';
 import { fetchHorizons, fetchHorizonsRaDec } from '../clients/jpl-horizons/index.js';
 import { fetchCelestrakTle } from '../clients/celestrak/index.js';
-import { fetchOpenMeteoBatch } from '../clients/open-meteo/index.js';
 import type { DailyBrief } from '../brief/build-brief.js';
 
 import n2yoPositions from '../clients/n2yo/__fixtures__/n2yo_positions.json';
@@ -58,7 +57,6 @@ import donkiFlr from '../clients/nasa/__fixtures__/donki_flr.json';
 import neowsFeed from '../clients/nasa/__fixtures__/neows_feed.json';
 import horizonsSun from '../clients/jpl-horizons/__fixtures__/jpl_horizons.json';
 import horizonsRaDec from '../clients/jpl-horizons/__fixtures__/jpl_horizons_jupiter_csv.json';
-import openMeteo from '../clients/open-meteo/__fixtures__/open_meteo.json';
 
 /**
  * The retry backoff here is real, not faked, because it is part of what is
@@ -74,8 +72,7 @@ const NOW = new Date('2026-07-17T21:40:00.000Z');
 const OBSERVER = { lat: 51.5072, lon: -0.1276 };
 
 /** Every upstream this app talks to, keyed the way the failure injector matches them. */
-type SourceId =
-  'n2yo' | 'swpc' | 'nasaDonki' | 'nasaNeows' | 'horizons' | 'celestrak' | 'openMeteo';
+type SourceId = 'n2yo' | 'swpc' | 'nasaDonki' | 'nasaNeows' | 'horizons' | 'celestrak';
 
 type FailureMode = 'http500' | 'http503' | 'http404' | 'malformed' | 'abort';
 
@@ -93,7 +90,6 @@ function sourceOf(url: string): SourceId | null {
   if (url.includes('api.nasa.gov/neo')) return 'nasaNeows';
   if (url.includes('ssd.jpl.nasa.gov')) return 'horizons';
   if (url.includes('celestrak.org')) return 'celestrak';
-  if (url.includes('api.open-meteo.com')) return 'openMeteo';
   return null;
 }
 
@@ -116,7 +112,6 @@ function successBody(url: string): { json: unknown } | { text: string } {
   if (url.includes('celestrak.org')) {
     return url.includes('FORMAT=tle') ? { text: TLE_BODY } : { json: [] };
   }
-  if (url.includes('api.open-meteo.com')) return { json: openMeteo };
   throw new Error(`outage.test: no fixture wired for ${url}`);
 }
 
@@ -207,8 +202,6 @@ function appUnderTest() {
     // The real client, so the route's own N2YO call goes through the same
     // injected transport as the poller's.
     fetchN2yoVisualPasses,
-    fetchOpenMeteoBatch,
-    bortleAt: () => 4,
   });
 }
 
@@ -218,19 +211,6 @@ async function getBrief(): Promise<{ status: number; body: DailyBrief }> {
     `/api/brief?lat=${OBSERVER.lat}&lon=${OBSERVER.lon}`,
   );
   return { status: res.status, body: res.body as DailyBrief };
-}
-
-/** The Best-Spot response, narrowed to the fields these tests assert on. */
-interface BestSpotBody {
-  ranking: { basis: string };
-  sites: unknown[];
-}
-
-async function getBestSpot(): Promise<{ status: number; body: BestSpotBody }> {
-  const res = await request(appUnderTest()).get(
-    `/api/best-spot?lat=${OBSERVER.lat}&lon=${OBSERVER.lon}`,
-  );
-  return { status: res.status, body: res.body as BestSpotBody };
 }
 
 beforeEach(() => {
@@ -380,16 +360,6 @@ describe.each<FailureMode>(['http500', 'http503', 'http404', 'malformed', 'abort
       expect(getAllSourceStates().satellites.healthy).toBe(false);
     });
 
-    it('Open-Meteo down degrades Best-Spot to darkness+travel, still 200', async () => {
-      injectFailures({ openMeteo: mode });
-      await pollBothTiers();
-
-      const res = await getBestSpot();
-      expect(res.status).toBe(200);
-      expect(res.body.ranking.basis).toBe('darkness-travel');
-      expect(res.body.sites.length).toBeGreaterThan(0);
-    });
-
     it('every upstream down at once still serves a Brief on Sky Anchor alone', async () => {
       // ARCHITECTURE.md §5: "The Brief renders if any card resolves", and
       // Sky Anchor is pure math with no source to fail.
@@ -400,7 +370,6 @@ describe.each<FailureMode>(['http500', 'http503', 'http404', 'malformed', 'abort
         nasaNeows: mode,
         horizons: mode,
         celestrak: mode,
-        openMeteo: mode,
       });
       await pollBothTiers();
 

@@ -1,11 +1,12 @@
 # ASTRA-NET
+
 ### Adaptive Sky Telemetry and Realtime Analysis Network
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/status-active--development-blue)]()
+[![Status](https://img.shields.io/badge/status-active--development-blue)](<>)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Data](https://img.shields.io/badge/data-real%20%26%20verified-brightgreen)]()
+[![Data](https://img.shields.io/badge/data-real%20%26%20verified-brightgreen)](<>)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white)](https://threejs.org/)
@@ -14,15 +15,14 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-black)](https://ui.shadcn.com/)
 [![GSAP](https://img.shields.io/badge/GSAP-88CE02?logo=greensock&logoColor=black)](https://gsap.com/)
-[![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-396CB2)](https://maplibre.org/)
 [![Recharts](https://img.shields.io/badge/Recharts-8884d8)](https://recharts.org/)
 [![Express](https://img.shields.io/badge/Express-black?logo=express&logoColor=white)](https://expressjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![JWT Auth](https://img.shields.io/badge/Auth-JWT-black?logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![Argon2](https://img.shields.io/badge/hashing-Argon2-blueviolet)]()
-[![SSE](https://img.shields.io/badge/realtime-SSE-blue)]()
+[![Argon2](https://img.shields.io/badge/hashing-Argon2-blueviolet)](<>)
+[![SSE](https://img.shields.io/badge/realtime-SSE-blue)](<>)
 [![Zod](https://img.shields.io/badge/validation-Zod-3E67B1)](https://zod.dev/)
 [![CelesTrak](https://img.shields.io/badge/data-CelesTrak-lightgrey)](https://celestrak.org/)
 [![N2YO](https://img.shields.io/badge/data-N2YO-lightgrey)](https://www.n2yo.com/)
@@ -48,10 +48,10 @@ It is not a satellite tracker, not a space-news dashboard, and not a scientific 
 Space-related information today is fragmented, decontextualized, and impersonal:
 
 - Satellite trackers show raw positions with no story — a dot moving, not what it means.
-- Aurora forecasting tools show a number (a Kp-index) with no context for what that number means for *you*, standing where you are.
+- Aurora forecasting tools show a number (a Kp-index) with no context for what that number means for _you_, standing where you are.
 - Astronomy and stargazing apps assume baseline technical knowledge and lean on jargon without explanation.
 - Nothing connects cause to effect across domains — a solar flare, the geomagnetic storm it causes, and the aurora that might appear over your city tonight are treated as three unrelated facts scattered across three different tools.
-- Existing 3D universe explorers are either scientifically fake (inventing stars and objects that don't exist) or scientifically accurate but entirely passive, with nothing to *do* and no reason to return.
+- Existing 3D universe explorers are either scientifically fake (inventing stars and objects that don't exist) or scientifically accurate but entirely passive, with nothing to _do_ and no reason to return.
 - No single platform combines real-time, personalized, causally-explained space awareness with an experience people actually want to explore rather than just read.
 
 ASTRANET closes all of these gaps at once, for one clearly defined audience.
@@ -68,7 +68,7 @@ Every feature in ASTRANET is measured against these five principles:
 Every fact is anchored to something human-scale and relatable, never left as an abstract number. "17,500 mph" means nothing; "circles Earth every 90 minutes, so it laps your city every 90 minutes" means something.
 
 **2. Visualization as Interface**
-The 3D universe *is* the navigation. There are no traditional dashboards or menus — understanding comes from exploring and clicking, not from reading a manual.
+The 3D universe _is_ the navigation. There are no traditional dashboards or menus — understanding comes from exploring and clicking, not from reading a manual.
 
 **3. Cross-Domain Synthesis**
 Cause and effect across different space domains — solar activity, satellites, geomagnetic conditions, visible sky events — are shown as one continuous, connected story, not separate silos.
@@ -77,7 +77,7 @@ Cause and effect across different space domains — solar activity, satellites, 
 Distances, sizes, and events are always tied back to a human frame of reference, never presented as pure abstraction.
 
 **5. Chronological Synchronicity**
-The platform's default state is always *now*. Live, current data is the foundation of trust — a user must always be confident that what they're looking at is happening in real time.
+The platform's default state is always _now_. Live, current data is the foundation of trust — a user must always be confident that what they're looking at is happening in real time.
 
 ## Who ASTRANET Is For
 
@@ -109,9 +109,6 @@ A seamless cinematic journey that begins from your actual real-time night sky �
 
 **The Auroral Ring & Heliosphere Pulse**
 The aurora rendered as a living ring of light over Earth, and solar wind visualized as a visible pulse washing outward from the Sun — both driven by real, live geomagnetic and solar data.
-
-**Best-Spot-Tonight Finder**
-Combines your personalized event odds — aurora, meteor showers — with light-pollution conditions and cloud-cover forecasts to recommend the nearest genuinely good place to actually go and witness what's happening.
 
 **Personal Sky Log**
 A private, running history of what you've actually seen — ISS passes caught, aurora nights witnessed, meteor showers checked — giving long-term reasons to keep returning beyond the initial novelty.

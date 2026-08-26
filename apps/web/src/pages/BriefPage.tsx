@@ -118,7 +118,7 @@ export function BriefPage(): React.ReactElement {
 
   // Reactive (not `getEffectiveLocation()`'s one-shot read): the site-wide
   // location switcher below writes here, and every consumer of this store
-  // slot — this page, Explore, Best-Spot — needs to re-render when it does.
+  // slot — this page and Explore — needs to re-render when it does.
   const storeLocation = useAppStore((s) => s.location);
   const timeFormat = useAppStore((s) => s.timeFormat);
   const units = useAppStore((s) => s.units);
@@ -569,7 +569,7 @@ export function BriefPage(): React.ReactElement {
               Exit Points
             </h2>
             <span className="type-caption text-sky-400">
-              Continue observing through 3D interactive view or light-pollution search
+              Continue observing in the 3D interactive view
             </span>
           </div>
 
@@ -579,14 +579,6 @@ export function BriefPage(): React.ReactElement {
               className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
             >
               Explore this sky
-              <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>
-            </Link>
-
-            <Link
-              to="/best-spot"
-              className="type-title text-sky-100 hover:text-brass-300 transition-colors flex items-center gap-2 group"
-            >
-              Find a better view tonight
               <span className="type-mono group-hover:translate-x-1 transition-transform">→</span>
             </Link>
           </div>

@@ -2,19 +2,17 @@
  * Spherical-Earth geodesy helpers — great-circle distance and
  * destination-point offset.
  *
- * FORMULAS.md §11's travel term is `exp(-distance_km / 50)`, but the doc
- * never states *which* metric produces `distance_km`, and it specifies no
- * candidate-site generation strategy at all. Both are required by
- * `/api/best-spot` (WORKPLAN.md Phase 9), so they are pinned down here,
- * once, rather than being re-derived per caller.
+ * Written for the spot finder's candidate-site generation, which has since
+ * been removed (see DECISIONS.md). Kept as general-purpose geodesy: these are
+ * standard, well-tested primitives with no feature-specific assumptions baked
+ * in, and re-deriving them at the next call site would be the exact
+ * duplication this module exists to prevent. Currently unreferenced.
  *
  * These are standard spherical geodesy over §0's already-frozen
  * `R_EARTH_KM`, not a new physical model and not a new FORMULAS.md
- * section — see DECISIONS.md for why that call was made and what a
- * FORMULAS.md clarification would need to say. Spherical (not ellipsoidal)
- * is deliberate: the ~0.3% WGS84 disagreement is far below the resolution
- * of anything §11 consumes, since the travel term decays over a 50 km
- * scale and the Bortle grid it is scored against is itself ~11 km-resolution.
+ * section — see DECISIONS.md. Spherical (not ellipsoidal) is deliberate: the
+ * ~0.3% WGS84 disagreement is far below the resolution of anything that
+ * consumed it.
  */
 
 import { R_EARTH_KM } from './constants.js';
