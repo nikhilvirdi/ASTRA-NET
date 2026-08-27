@@ -277,7 +277,7 @@ export function BriefPage(): React.ReactElement {
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -364,7 +364,7 @@ export function BriefPage(): React.ReactElement {
                   })()}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -475,7 +475,7 @@ export function BriefPage(): React.ReactElement {
                   {spaceWeatherUi.notice}
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora whitespace-nowrap">
                   LIVE
                 </span>
               )}
@@ -513,7 +513,7 @@ export function BriefPage(): React.ReactElement {
                   HALTED
                 </span>
               ) : (
-                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
+                <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora whitespace-nowrap">
                   LIVE
                 </span>
               )}

@@ -85,6 +85,9 @@ function formatCoordinates(lat: number, lon: number): string {
 export function SettingsPage(): React.ReactElement {
   const location = useAppStore((s) => s.location);
   const setLocation = useAppStore((s) => s.setLocation);
+  const locationHistory = useAppStore((s) => s.locationHistory);
+  const saveLocationToHistory = useAppStore((s) => s.saveLocationToHistory);
+  const removeLocationFromHistory = useAppStore((s) => s.removeLocationFromHistory);
   const clearLocalData = useAppStore((s) => s.clearLocalData);
   const timeFormat = useAppStore((s) => s.timeFormat);
   const setTimeFormat = useAppStore((s) => s.setTimeFormat);
@@ -93,7 +96,8 @@ export function SettingsPage(): React.ReactElement {
 
   const effectiveLocation = location ?? DEFAULT_OBSERVER_LOCATION;
 
-  // Manual Coordinate Entry State
+  // Location Name & Coordinate Entry State
+  const [nameInput, setNameInput] = useState<string>('');
   const [latInput, setLatInput] = useState<string>(() =>
     Math.abs(effectiveLocation.lat).toFixed(4),
   );
@@ -123,46 +127,93 @@ export function SettingsPage(): React.ReactElement {
     }));
   };
 
-  const handleApplyCoordinates = (e?: React.FormEvent): void => {
-    if (e) e.preventDefault();
-    setCoordError(null);
-    setSaveFeedback(null);
-
+  const parseCurrentCoordinates = (): {
+    signedLat: number;
+    signedLon: number;
+    formattedCoords: string;
+  } | null => {
     const trimmedLat = latInput.trim();
     const trimmedLon = lonInput.trim();
 
     if (!trimmedLat) {
       setCoordError('Please enter a latitude degree value.');
-      return;
+      return null;
     }
     if (!trimmedLon) {
       setCoordError('Please enter a longitude degree value.');
-      return;
+      return null;
     }
 
     const numLat = Number(trimmedLat);
     if (Number.isNaN(numLat) || numLat < 0 || numLat > 90) {
       setCoordError('Latitude must be a valid number between 0° and 90°.');
-      return;
+      return null;
     }
 
     const numLon = Number(trimmedLon);
     if (Number.isNaN(numLon) || numLon < 0 || numLon > 180) {
       setCoordError('Longitude must be a valid number between 0° and 180°.');
-      return;
+      return null;
     }
 
     const signedLat = latDir === 'S' ? -numLat : numLat;
     const signedLon = lonDir === 'W' ? -numLon : numLon;
+    const formattedCoords = formatCoordinates(signedLat, signedLon);
 
-    const formattedName = `${numLat.toFixed(4)}°${latDir}, ${numLon.toFixed(4)}°${lonDir}`;
+    return { signedLat, signedLon, formattedCoords };
+  };
+
+  const handleApplyCoordinates = (e?: React.FormEvent): void => {
+    if (e) e.preventDefault();
+    setCoordError(null);
+    setSaveFeedback(null);
+
+    const parsed = parseCurrentCoordinates();
+    if (!parsed) return;
+
+    const displayName = nameInput.trim() || parsed.formattedCoords;
     setLocation({
-      lat: signedLat,
-      lon: signedLon,
-      name: formattedName,
+      lat: parsed.signedLat,
+      lon: parsed.signedLon,
+      name: displayName,
     });
 
     setSaveFeedback('Location updated successfully.');
+  };
+
+  const handleSaveToHistory = (e?: React.MouseEvent | React.FormEvent): void => {
+    if (e) e.preventDefault();
+    setCoordError(null);
+    setSaveFeedback(null);
+
+    const parsed = parseCurrentCoordinates();
+    if (!parsed) return;
+
+    const displayName = nameInput.trim() || parsed.formattedCoords;
+    saveLocationToHistory(displayName, parsed.signedLat, parsed.signedLon);
+    setLocation({
+      lat: parsed.signedLat,
+      lon: parsed.signedLon,
+      name: displayName,
+    });
+
+    setSaveFeedback(`Saved "${displayName}" to location history.`);
+  };
+
+  const handleSelectSavedLocation = (entry: (typeof locationHistory)[number]): void => {
+    setLocation({
+      lat: entry.lat,
+      lon: entry.lon,
+      name: entry.name,
+    });
+    setLatInput(Math.abs(entry.lat).toFixed(4));
+    setLatDir(entry.lat >= 0 ? 'N' : 'S');
+    setLonInput(Math.abs(entry.lon).toFixed(4));
+    setLonDir(entry.lon >= 0 ? 'E' : 'W');
+    setNameInput(entry.name);
+    setCoordError(null);
+    setGeoError(null);
+    setSaveFeedback(`Switched to "${entry.name}".`);
   };
 
   const handleUseCurrentLocation = (): void => {
@@ -186,16 +237,18 @@ export function SettingsPage(): React.ReactElement {
         const absLat = Math.abs(lat);
         const absLon = Math.abs(lon);
 
+        const initialName = nameInput.trim() || 'Current Location';
         setLocation({
           lat,
           lon,
-          name: 'Current Location',
+          name: initialName,
         });
 
         setLatInput(absLat.toFixed(4));
         setLatDir(newLatDir);
         setLonInput(absLon.toFixed(4));
         setLonDir(newLonDir);
+        setSaveFeedback('Location detected. Click "Save to History" to remember it.');
       },
       (err) => {
         setGeoLoading(false);
@@ -226,6 +279,7 @@ export function SettingsPage(): React.ReactElement {
     setLatDir(defaultLat >= 0 ? 'N' : 'S');
     setLonInput(Math.abs(defaultLon).toFixed(4));
     setLonDir(defaultLon >= 0 ? 'E' : 'W');
+    setNameInput('');
     setCoordError(null);
     setGeoError(null);
     setSaveFeedback(null);
@@ -291,6 +345,24 @@ export function SettingsPage(): React.ReactElement {
             <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block">
               SET COORDINATES MANUALLY
             </span>
+
+            {/* Optional Location Name */}
+            <div>
+              <label
+                htmlFor="location-name-input"
+                className="font-jost text-xs text-sky-300 block mb-1.5"
+              >
+                Location Name (optional)
+              </label>
+              <input
+                id="location-name-input"
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="e.g. Home Observatory, Mauna Kea, Campsite"
+                className="w-full bg-sky-950/60 border border-sky-800 text-sky-100 px-3.5 py-2.5 type-body text-sm rounded-sm focus:border-brass-400 focus:outline-none min-h-[44px] placeholder:text-sky-600"
+              />
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Latitude */}
@@ -422,9 +494,17 @@ export function SettingsPage(): React.ReactElement {
 
               <button
                 type="button"
+                onClick={handleSaveToHistory}
+                className="w-full sm:w-auto font-jost text-sm font-medium px-4 py-2.5 border border-brass-400/80 text-brass-300 hover:bg-brass-400/10 hover:border-brass-400 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center gap-2"
+              >
+                Save to History
+              </button>
+
+              <button
+                type="button"
                 onClick={handleUseCurrentLocation}
                 disabled={geoLoading}
-                className="w-full sm:w-auto font-jost text-sm font-medium px-4 py-2.5 border border-brass-400/60 text-brass-300 hover:bg-brass-400/10 hover:border-brass-400 disabled:opacity-50 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center gap-2"
+                className="w-full sm:w-auto font-jost text-sm font-medium px-4 py-2.5 border border-sky-800 text-sky-300 hover:bg-sky-900/40 hover:border-sky-700 disabled:opacity-50 transition-colors cursor-pointer rounded-sm min-h-[44px] flex items-center justify-center gap-2"
               >
                 {geoLoading ? (
                   <>
@@ -441,6 +521,72 @@ export function SettingsPage(): React.ReactElement {
               <p className="type-body text-sm text-ember-400 mt-2 leading-relaxed">{geoError}</p>
             )}
           </form>
+
+          {/* Saved Locations List */}
+          {locationHistory.length > 0 && (
+            <div className="pt-4 space-y-3">
+              <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block">
+                SAVED LOCATIONS
+              </span>
+
+              <div className="divide-y divide-sky-800/30 border-y border-sky-800/30">
+                {locationHistory.map((entry) => {
+                  const isCurrent =
+                    location !== null &&
+                    Math.abs(location.lat - entry.lat) < 0.0001 &&
+                    Math.abs(location.lon - entry.lon) < 0.0001;
+
+                  return (
+                    <div
+                      key={`${entry.name}-${entry.lat}-${entry.lon}`}
+                      className="py-3 flex items-center justify-between gap-3 group"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSavedLocation(entry)}
+                        className="flex-1 text-left flex flex-col min-w-0 cursor-pointer focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="type-body text-sm font-medium text-sky-100 group-hover:text-brass-300 transition-colors truncate">
+                            {entry.name}
+                          </span>
+                          {isCurrent && (
+                            <span className="font-jost text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-xs bg-brass-400 text-sky-950 shrink-0">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono text-xs text-sky-300 mt-0.5">
+                          {formatCoordinates(entry.lat, entry.lon)}
+                        </span>
+                      </button>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSavedLocation(entry)}
+                          className="font-jost text-xs text-sky-400 hover:text-brass-300 px-2.5 py-1.5 transition-colors cursor-pointer rounded-sm hover:bg-sky-900/40"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeLocationFromHistory(entry.name);
+                          }}
+                          aria-label={`Remove ${entry.name} from saved locations`}
+                          className="text-sky-500 hover:text-ember-400 p-2 text-sm leading-none transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center rounded-sm hover:bg-ember-500/10"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* SECTION 2: PREFERENCES */}

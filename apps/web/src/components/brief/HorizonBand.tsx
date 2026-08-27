@@ -346,7 +346,11 @@ export function HorizonBand({
               HALTED
             </span>
           ) : (
-            <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400">
+            <span
+              className={`font-jost text-xs sm:text-sm font-semibold tracking-wider ${
+                scrubHours === 0 ? 'text-aurora' : 'text-brass-300'
+              }`}
+            >
               {scrubHours === 0 ? 'LIVE' : `${scrubHours > 0 ? '+' : ''}${scrubHours.toFixed(1)}h`}
             </span>
           ))}
