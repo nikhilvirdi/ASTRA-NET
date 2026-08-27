@@ -10,7 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "dev:api": "npm run dev --workspace=@astranet/api",
     "dev:web": "npm run dev --workspace=@astranet/web",
     "prelint": "npm run build --workspace=packages/shared",
