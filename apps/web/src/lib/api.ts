@@ -1,4 +1,5 @@
 import { useAppStore, type UserLocation } from '@/store';
+import { API_BASE } from './config';
 
 // ─── Types matching API /api/brief payload ───────────────────────────────────
 
@@ -227,7 +228,7 @@ export function getEffectiveLocation(): UserLocation {
  * Fetches the Daily Brief from /api/brief
  */
 export async function fetchBrief(lat: number, lon: number): Promise<DailyBrief> {
-  const url = `/api/brief?lat=${lat}&lon=${lon}`;
+  const url = `${API_BASE}/api/brief?lat=${lat}&lon=${lon}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch brief: ${res.status} ${res.statusText}`);

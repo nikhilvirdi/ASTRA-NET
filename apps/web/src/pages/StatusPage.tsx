@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/config';
 import React, { useEffect, useState } from 'react';
 import { LivePulse } from '@/components/common/LivePulse';
 import { formatRelativeTime } from '@/lib/space-weather-status';
@@ -37,7 +38,7 @@ export function StatusPage(): React.ReactElement {
     let mounted = true;
     const fetchHealth = async () => {
       try {
-        const res = await fetch('/health');
+        const res = await fetch(`${API_BASE}/health`);
         if (res.ok) {
           const data = (await res.json()) as HealthPayload;
           if (mounted) {

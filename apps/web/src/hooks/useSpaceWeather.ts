@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/config';
 import { useEffect, useState } from 'react';
 import type { FastTierStreamPayload } from '@/lib/api';
 
@@ -41,7 +42,7 @@ export function useSpaceWeather(): SpaceWeatherLive {
   const [state, setState] = useState<SpaceWeatherLive>(INITIAL_STATE);
 
   useEffect(() => {
-    const source = new EventSource('/stream');
+    const source = new EventSource(`${API_BASE}/stream`);
 
     source.onopen = () => {
       setState((s) => ({ ...s, connected: true }));

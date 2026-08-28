@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/config';
 import { useState, useEffect, useRef } from 'react';
 import * as satellite from 'satellite.js';
 import { isVisiblePass, julianDay, sunAltitudeDeg, sunEquatorialPosition } from '@astranet/shared';
@@ -38,7 +39,7 @@ export function useSatellites(): PropagatedSatellite[] {
 
   useEffect(() => {
     let mounted = true;
-    fetch('/api/satellites')
+    fetch(`${API_BASE}/api/satellites`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch satellites');
         return res.json();
