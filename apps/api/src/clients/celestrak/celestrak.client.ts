@@ -130,7 +130,7 @@ export async function fetchCelestrakTle(
   }
 
   try {
-    const raw = await fetchWithRetry<string>(url.toString(), (r) => r.text());
+    const raw = await fetchWithRetry<string>(url.toString(), (r) => r.text(), 20_000);
     const records = parseCelestrakTleText(raw);
     return { records, fetchedAt: now.toISOString() };
   } catch (err) {
