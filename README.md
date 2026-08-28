@@ -1,4 +1,4 @@
-﻿# ASTRA-NET
+﻿# ASTRA-NET: Adaptive Sky Telemetry and Realtime Analysis Network
 
 <br>
 <div align="center">
