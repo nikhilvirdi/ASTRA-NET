@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { sunHorizontalPosition, moonHorizontalPosition } from '@astranet/shared';
+import { computeOrbitTrailPositions } from '@/lib/orbit-trails';
 import type { DailyBrief } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
 import {
@@ -93,7 +95,15 @@ type MarkerPhase = 'live' | 'out';
 const ORBITAL_COLOR = '#A8B4BC';
 const BRASS_LINE_COLOR = '#C9B187';
 
-function altAzToVector3(altDeg: number, azDeg: number, radius = MARKER_RADIUS): THREE.Vector3 {
+// Sun and Moon orbit trails: --color-solar (#d9a05b) and --color-sky-100 (#eef1f1)
+const SUN_TRAIL_COLOR = '#D9A05B';
+const MOON_TRAIL_COLOR = '#EEF1F1';
+
+export function altAzToVector3(
+  altDeg: number,
+  azDeg: number,
+  radius = MARKER_RADIUS,
+): THREE.Vector3 {
   const rAlt = altDeg * (Math.PI / 180);
   const rAz = azDeg * (Math.PI / 180);
   const x = radius * Math.cos(rAlt) * Math.sin(rAz);
@@ -816,6 +826,82 @@ function ShellMarker({
   );
 }
 
+// ─── Sun and Moon Orbit Trails ───────────────────────────────────────────────
+
+function CelestialOrbitTrails({
+  brief,
+  currentTime,
+}: {
+  brief: DailyBrief | null;
+  currentTime: Date;
+}): React.ReactElement | null {
+  const sunPositions = useMemo(() => {
+    if (!brief?.observer) return null;
+    return computeOrbitTrailPositions(
+      currentTime,
+      brief.observer.latDeg,
+      brief.observer.lonDeg,
+      sunHorizontalPosition,
+      altAzToVector3,
+    );
+  }, [brief, currentTime]);
+
+  const moonPositions = useMemo(() => {
+    if (!brief?.observer) return null;
+    return computeOrbitTrailPositions(
+      currentTime,
+      brief.observer.latDeg,
+      brief.observer.lonDeg,
+      moonHorizontalPosition,
+      altAzToVector3,
+    );
+  }, [brief, currentTime]);
+
+  const sunGeometry = useMemo(() => {
+    if (!sunPositions) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(sunPositions, 3));
+    return geo;
+  }, [sunPositions]);
+
+  const moonGeometry = useMemo(() => {
+    if (!moonPositions) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(moonPositions, 3));
+    return geo;
+  }, [moonPositions]);
+
+  useEffect(() => () => sunGeometry?.dispose(), [sunGeometry]);
+  useEffect(() => () => moonGeometry?.dispose(), [moonGeometry]);
+
+  if (!sunGeometry && !moonGeometry) return null;
+
+  return (
+    <group>
+      {sunGeometry && (
+        <lineSegments geometry={sunGeometry}>
+          <lineBasicMaterial
+            color={SUN_TRAIL_COLOR}
+            transparent={true}
+            opacity={0.35}
+            depthWrite={false}
+          />
+        </lineSegments>
+      )}
+      {moonGeometry && (
+        <lineSegments geometry={moonGeometry}>
+          <lineBasicMaterial
+            color={MOON_TRAIL_COLOR}
+            transparent={true}
+            opacity={0.35}
+            depthWrite={false}
+          />
+        </lineSegments>
+      )}
+    </group>
+  );
+}
+
 // ─── The marker layer ───────────────────────────────────────────────────────
 
 function renderableKey(r: SkyRenderable): string {
@@ -1209,6 +1295,7 @@ export function CelestialMarkers({
 
   return (
     <group>
+      <CelestialOrbitTrails brief={brief} currentTime={currentTime} />
       {aggregation.renderables.map((r) => renderOne(r, 'live'))}
       {leaving.filter((r) => !liveKeys.has(renderableKey(r))).map((r) => renderOne(r, 'out'))}
     </group>
