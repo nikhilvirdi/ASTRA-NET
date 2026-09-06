@@ -10,6 +10,17 @@ export interface SatelliteElementSet {
   name: string;
   line1: string;
   line2: string;
+  /** Which CelesTrak group/catnr this record came from — for future filtering/grouping by category. */
+  category?:
+    | 'stations'
+    | 'starlink'
+    | 'oneweb'
+    | 'gps'
+    | 'weather'
+    | 'geo'
+    | 'cubesat'
+    | 'debris'
+    | 'hubble';
 }
 
 export interface SatellitesPayload {

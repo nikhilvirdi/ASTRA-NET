@@ -121,15 +121,53 @@ const swpcSlowTotalFailure: SwpcSlowData = {
   fetchedAt: NOW_ISO,
 };
 
+const SAMPLE_LINE1 = '1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927';
+const SAMPLE_LINE2 = '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537';
+
+/**
+ * The eleven real CelesTrak fetches `fetchAllSatelliteGroups` makes each
+ * tick, in the exact order it makes them — group/catnr param plus the
+ * category the poller tags that source's records with. Mirrors
+ * `SATELLITE_GROUP_FETCHES`/`DEBRIS_GROUP_NAMES`/`HUBBLE_CATNR` in
+ * `slow-tier.ts` so these tests exercise the real fetch set, not a stand-in.
+ */
+type TestSatelliteCategory =
+  'stations' | 'starlink' | 'oneweb' | 'gps' | 'weather' | 'geo' | 'cubesat' | 'debris' | 'hubble';
+
+const SATELLITE_SOURCES: {
+  params: { group?: string; catnr?: number };
+  category: TestSatelliteCategory;
+}[] = [
+  { params: { group: 'stations' }, category: 'stations' },
+  { params: { group: 'starlink' }, category: 'starlink' },
+  { params: { group: 'oneweb' }, category: 'oneweb' },
+  { params: { group: 'gps-ops' }, category: 'gps' },
+  { params: { group: 'weather' }, category: 'weather' },
+  { params: { group: 'geo' }, category: 'geo' },
+  { params: { group: 'cubesat' }, category: 'cubesat' },
+  { params: { group: 'cosmos-2251-debris' }, category: 'debris' },
+  { params: { group: 'fengyun-1c-debris' }, category: 'debris' },
+  { params: { group: 'iridium-33-debris' }, category: 'debris' },
+  { params: { catnr: 20580 }, category: 'hubble' },
+];
+
+/** One distinguishable success record per source, keyed by its group/catnr. */
+function celestrakSuccessFor(params: { group?: string; catnr?: number }): CelestrakTleData {
+  const label = params.group ?? `catnr-${params.catnr}`;
+  return {
+    records: [
+      { name: `TEST-${label}`, noradCatId: 25544, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 },
+    ],
+    fetchedAt: NOW_ISO,
+  };
+}
+
+/** The merged result `fetchAllSatelliteGroups` produces when every source succeeds via `celestrakSuccessFor`. */
 const satellitesSuccess: CelestrakTleData = {
-  records: [
-    {
-      name: 'ISS (ZARYA)',
-      noradCatId: 25544,
-      line1: '1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927',
-      line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537',
-    },
-  ],
+  records: SATELLITE_SOURCES.map(({ params, category }) => ({
+    ...celestrakSuccessFor(params).records![0]!,
+    category,
+  })),
   fetchedAt: NOW_ISO,
 };
 
@@ -142,7 +180,11 @@ function makeClients(overrides: Partial<SlowTierClients> = {}): SlowTierClients 
     fetchHorizons: vi.fn().mockResolvedValue(horizonsSuccess),
     fetchHorizonsRaDec: vi.fn().mockResolvedValue(horizonsRaDecSuccess),
     fetchSwpcSlow: vi.fn().mockResolvedValue(swpcSlowSuccess),
-    fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesSuccess),
+    fetchCelestrakTle: vi
+      .fn()
+      .mockImplementation((params: { group?: string; catnr?: number }) =>
+        Promise.resolve(celestrakSuccessFor(params)),
+      ),
     nasaApiKey: 'TEST_KEY',
     ...overrides,
   };
@@ -232,7 +274,10 @@ describe('runSlowTierTick', () => {
       );
     }
     expect(clients.fetchSwpcSlow).toHaveBeenCalledWith(NOW);
-    expect(clients.fetchCelestrakTle).toHaveBeenCalledWith({ group: 'visual' }, NOW);
+    expect(clients.fetchCelestrakTle).toHaveBeenCalledTimes(SATELLITE_SOURCES.length);
+    for (const { params } of SATELLITE_SOURCES) {
+      expect(clients.fetchCelestrakTle).toHaveBeenCalledWith(params, NOW);
+    }
   });
 
   it('marks NeoWs unhealthy with null-objects data on failure, no prior data', async () => {
@@ -472,23 +517,55 @@ describe('runSlowTierTick', () => {
     });
   });
 
-  it('caps the satellite population at MAX_SATELLITES on a successful fetch', async () => {
-    const oversized: CelestrakTleData = {
+  it('caps each satellite source independently at MAX_SATELLITES_PER_SOURCE, not the combined total', async () => {
+    const oversizedStations: CelestrakTleData = {
       records: Array.from({ length: 250 }, (_, i) => ({
         name: `SAT ${i}`,
         noradCatId: i,
-        line1: satellitesSuccess.records![0]!.line1,
-        line2: satellitesSuccess.records![0]!.line2,
+        line1: SAMPLE_LINE1,
+        line2: SAMPLE_LINE2,
       })),
       fetchedAt: NOW_ISO,
     };
-    const clients = makeClients({ fetchCelestrakTle: vi.fn().mockResolvedValue(oversized) });
+    const clients = makeClients({
+      fetchCelestrakTle: vi
+        .fn()
+        .mockImplementation((params: { group?: string; catnr?: number }) =>
+          Promise.resolve(
+            params.group === 'stations' ? oversizedStations : celestrakSuccessFor(params),
+          ),
+        ),
+    });
 
     await runSlowTierTick(clients, NOW);
 
     const stored = getSourceState('satellites');
     expect(stored.healthy).toBe(true);
-    expect(stored.data?.records).toHaveLength(200);
+    const stationsRecords = stored.data?.records?.filter((r) => r.category === 'stations') ?? [];
+    expect(stationsRecords).toHaveLength(200);
+    // The other ten sources' own single records still made it through —
+    // stations' oversized fetch didn't crowd them out of the merge.
+    expect(stored.data?.records).toHaveLength(200 + (SATELLITE_SOURCES.length - 1));
+  });
+
+  it('tags each merged record with its source category, merging all three debris groups under one "debris" tag', async () => {
+    const clients = makeClients();
+
+    await runSlowTierTick(clients, NOW);
+
+    const records = getSourceState('satellites').data?.records ?? [];
+    expect(records).toHaveLength(SATELLITE_SOURCES.length);
+
+    const expectedCategoryByLabel = new Map(
+      SATELLITE_SOURCES.map((s) => [s.params.group ?? `catnr-${s.params.catnr}`, s.category]),
+    );
+    for (const record of records) {
+      const label = record.name.replace(/^TEST-/, '');
+      expect(record.category).toBe(expectedCategoryByLabel.get(label));
+    }
+
+    const debrisRecords = records.filter((r) => r.category === 'debris');
+    expect(debrisRecords).toHaveLength(3);
   });
 
   it('treats an unexpected CelesTrak rejection as a failed fetch instead of throwing', async () => {

@@ -2,20 +2,26 @@
  * Slow-tier poller loop (ARCHITECTURE.md §4): NASA DONKI (CME/flares), NASA
  * NeoWs (near-Earth objects), JPL Horizons (Sun ephemeris), the slow-tier
  * half of SWPC (observed Kp history, 3-day forecast, propagated solar
- * wind), and CelesTrak (curated satellite population's TLE elements),
- * refreshed every 5-15min and written into the store. GIBS has no fetch
- * step (pure URL construction, per `clients/gibs`) — this loop just
- * rotates its layer config into the store on the same cadence.
+ * wind), and CelesTrak (satellite population's TLE elements, across several
+ * categories — see `fetchAllSatelliteGroups`), refreshed every 5-15min and
+ * written into the store. GIBS has no fetch step (pure URL construction,
+ * per `clients/gibs`) — this loop just rotates its layer config into the
+ * store on the same cadence.
  *
  * `runSlowTierTick` is the testable unit: it makes the six Phase-1 network
  * client calls once each tick, except JPL Horizons — that one runs six times
  * (the Sun via `fetchHorizons`, plus Jupiter/Venus/Mars/Saturn/Mercury via
- * `fetchHorizonsRaDec`, one call per body, same pattern each time) — decides
- * success/failure per-source, and writes to the store. It takes `now` and
- * the client functions as parameters rather than reading the clock or
- * importing the clients directly, so it can be exercised without a live
- * timer or network — mirrors `fast-tier.ts`. `startSlowTierLoop` is the thin
- * `setInterval` wrapper around it.
+ * `fetchHorizonsRaDec`, one call per body, same pattern each time) — and
+ * CelesTrak, which runs eleven times (`fetchAllSatelliteGroups`: seven
+ * category groups, three debris-cloud groups merged under one 'debris'
+ * category, and Hubble by catnr) — decides success/failure per-source, and
+ * writes to the store. It takes `now` and the client functions as parameters
+ * rather than reading the clock or importing the clients directly, so it
+ * can be exercised without a live timer or network — mirrors `fast-tier.ts`.
+ * `startSlowTierLoop` is the thin `setInterval` wrapper around it — all
+ * eleven CelesTrak calls ride the same single 5-15min cadence as everything
+ * else in this tick, not a faster schedule of their own, per CelesTrak's
+ * documented polite-use guidance.
  *
  * Failure handling follows API_SOURCES.md's per-source fallback, not a
  * single generic rule:
@@ -52,7 +58,7 @@ import type { fetchSwpcSlow } from '../clients/swpc/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
 import type { fetchCelestrakTle } from '../clients/celestrak/index.js';
-import type { CelestrakTleData } from '../clients/celestrak/index.js';
+import type { CelestrakTleData, CelestrakTleRecord } from '../clients/celestrak/index.js';
 import { getSourceState, setSourceState } from './store.js';
 
 /** ARCHITECTURE.md §4: slow tier polls every 5-15min. */
@@ -95,19 +101,67 @@ const HORIZONS_PLANET_STEP = '1 h';
 const GIBS_LAYER = 'VIIRS_SNPP_CorrectedReflectance_TrueColor';
 
 /**
- * CelesTrak's own curated "visually notable" group (~100-160 naked-eye
- * objects, incl. ISS) — a bounded, meaningful slice per API_SOURCES.md's
- * intent, not an invented selection rule. See DECISIONS.md.
+ * The satellite population's real category taxonomy (2026-09-06 widening —
+ * see DECISIONS.md): each CelesTrak group/catnr fetched below is tagged with
+ * exactly one of these, threaded through `CelestrakTleRecord.category` all
+ * the way to the frontend so the population can be filtered/grouped later.
  */
-const SATELLITE_GROUP = 'visual';
+type SatelliteCategory =
+  'stations' | 'starlink' | 'oneweb' | 'gps' | 'weather' | 'geo' | 'cubesat' | 'debris' | 'hubble';
 
 /**
- * Defensive cap on the exposed population, matching the frontend's own
- * `?simSats` ceiling (`apps/web/src/lib/dev-sim-satellites.ts`) — guards
- * against CelesTrak's curated group ever growing past a sane count for a
- * night-sky scene, independent of whatever `SATELLITE_GROUP` returns today.
+ * CelesTrak groups fetched every slow-tier tick, each tagged with the
+ * category above. Every name here was verified live against
+ * celestrak.org/NORAD/elements/index.php's real current GROUP list (and a
+ * live gp.php fetch returning real, non-empty data) before use — not
+ * assumed from documentation or memory. See DECISIONS.md.
  */
-const MAX_SATELLITES = 200;
+const SATELLITE_GROUP_FETCHES: readonly { group: string; category: SatelliteCategory }[] = [
+  { group: 'stations', category: 'stations' }, // ISS + Tiangong + a handful of others (~20 objects)
+  { group: 'starlink', category: 'starlink' }, // ~10,700 objects live
+  { group: 'oneweb', category: 'oneweb' }, // ~650 objects live
+  { group: 'gps-ops', category: 'gps' }, // GPS constellation, ~30 objects
+  { group: 'weather', category: 'weather' }, // ~70 objects live
+  { group: 'geo', category: 'geo' }, // geostationary comms, ~570 objects live
+  { group: 'cubesat', category: 'cubesat' }, // ~85 objects live
+];
+
+/**
+ * "Rocket bodies / space debris" has no single generic current CelesTrak
+ * group — verified live against celestrak.org/NORAD/elements/index.php's
+ * full real GROUP list, which has no plain "debris" or "rocket-bodies"
+ * entry. These three are real, currently valid, named debris-cloud groups
+ * from specific documented events (China's 2007 Fengyun-1C ASAT test; the
+ * 2009 Cosmos-2251/Iridium-33 collision) — each verified live to return
+ * substantial real data (584/1963/111 objects respectively) — merged under
+ * one 'debris' category rather than guessing an invented catch-all group
+ * name that might silently return nothing. See DECISIONS.md.
+ */
+const DEBRIS_GROUP_NAMES: readonly string[] = [
+  'cosmos-2251-debris',
+  'fengyun-1c-debris',
+  'iridium-33-debris',
+];
+
+/**
+ * Hubble Space Telescope — a single well-known object, fetched by NORAD
+ * catalog number like every other single-body fetch in this codebase
+ * (mirrors JPL Horizons' `catnr`-style per-body fetches), not via a group.
+ */
+const HUBBLE_CATNR = 20580;
+
+/**
+ * Per-source cap: guards against any one CelesTrak group — Starlink alone
+ * has 10,000+ real objects live — from dominating or ballooning the exposed
+ * population. Applied to each group/catnr fetch independently before
+ * merging (not to the combined total), so every category actually gets real
+ * representation regardless of how large its own raw catalog is. Same
+ * numeric value as the original single-group design's defensive bound
+ * (matches the frontend's own `?simSats` ceiling,
+ * `apps/web/src/lib/dev-sim-satellites.ts`), now applied per source instead
+ * of once overall.
+ */
+const MAX_SATELLITES_PER_SOURCE = 200;
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -215,13 +269,13 @@ function writeGibsResult(options: GibsLayerOptions, nowIso: string): void {
  * the previous store value when one exists — matches API_SOURCES.md's
  * documented "use last cached TLE set (valid for hours/days); only if never
  * fetched does satellite rendering degrade" — but is always marked
- * unhealthy. A successful fetch is capped at `MAX_SATELLITES` before
- * writing (defensive bound, not a CelesTrak behavior).
+ * unhealthy. Per-source capping already happened in `fetchAllSatelliteGroups`
+ * before this is called, so `data.records` here is already the final,
+ * merged, category-tagged population — nothing further to bound.
  */
 function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
   if (data.records !== null) {
-    const capped: CelestrakTleData = { ...data, records: data.records.slice(0, MAX_SATELLITES) };
-    setSourceState('satellites', capped, nowIso, true);
+    setSourceState('satellites', data, nowIso, true);
     return;
   }
 
@@ -231,6 +285,64 @@ function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
   } else {
     setSourceState('satellites', data, nowIso, false);
   }
+}
+
+/**
+ * Fetches every CelesTrak group/catnr this app tracks (`SATELLITE_GROUP_FETCHES`
+ * + `DEBRIS_GROUP_NAMES` + Hubble) in parallel — one network round trip per
+ * source, all within this same slow-tier tick (CelesTrak's polite-use
+ * guidance: no faster schedule just because there are now more sources) —
+ * tags each record with its category, caps each source independently at
+ * `MAX_SATELLITES_PER_SOURCE`, and merges everything into one combined list.
+ * A source that fails contributes nothing to the merge rather than failing
+ * the whole batch — the same one-source-down-doesn't-block-others contract
+ * every other card in this codebase already follows. Only degrades to a
+ * total failure (`records: null`) if every single source failed.
+ */
+async function fetchAllSatelliteGroups(
+  clients: Pick<SlowTierClients, 'fetchCelestrakTle'>,
+  now: Date,
+): Promise<CelestrakTleData> {
+  const sources: { category: SatelliteCategory; promise: Promise<CelestrakTleData> }[] = [
+    ...SATELLITE_GROUP_FETCHES.map(({ group, category }) => ({
+      category,
+      promise: clients.fetchCelestrakTle({ group }, now),
+    })),
+    ...DEBRIS_GROUP_NAMES.map((group) => ({
+      category: 'debris' as const,
+      promise: clients.fetchCelestrakTle({ group }, now),
+    })),
+    {
+      category: 'hubble' as const,
+      promise: clients.fetchCelestrakTle({ catnr: HUBBLE_CATNR }, now),
+    },
+  ];
+
+  const settled = await Promise.allSettled(sources.map((s) => s.promise));
+
+  const merged: CelestrakTleRecord[] = [];
+  let anySucceeded = false;
+  settled.forEach((result, i) => {
+    const { category } = sources[i]!;
+    if (result.status === 'fulfilled') {
+      if (result.value.records !== null) {
+        anySucceeded = true;
+        for (const record of result.value.records.slice(0, MAX_SATELLITES_PER_SOURCE)) {
+          merged.push({ ...record, category });
+        }
+      }
+    } else {
+      console.error(
+        `[poller/slow-tier] CelesTrak (${category}) threw unexpectedly:`,
+        result.reason,
+      );
+    }
+  });
+
+  return {
+    records: anySucceeded ? merged : null,
+    fetchedAt: now.toISOString(),
+  };
 }
 
 function isSwpcSlowTotalFailure(data: SwpcSlowData): boolean {
@@ -348,7 +460,7 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
     clients.fetchHorizonsRaDec(raDecParams(HORIZONS_SATURN_COMMAND), now),
     clients.fetchHorizonsRaDec(raDecParams(HORIZONS_MERCURY_COMMAND), now),
     clients.fetchSwpcSlow(now),
-    clients.fetchCelestrakTle({ group: SATELLITE_GROUP }, now),
+    fetchAllSatelliteGroups(clients, now),
   ]);
 
   if (donkiResult.status === 'fulfilled') {

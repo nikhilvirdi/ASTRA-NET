@@ -15,6 +15,15 @@ const issRecord = {
   noradCatId: 25544,
   line1: '1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927',
   line2: '2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537',
+  category: 'stations' as const,
+};
+
+const tiangongRecord = {
+  name: 'CSS (TIANHE)',
+  noradCatId: 48274,
+  line1: '1 48274U 21035A   26195.50000000  .00016717  00000-0  18500-3 0  9993',
+  line2: '2 48274  41.4700 100.0000 0005000 200.0000 160.0000 15.60000000123456',
+  category: 'stations' as const,
 };
 
 const calsphereRecord = {
@@ -22,10 +31,17 @@ const calsphereRecord = {
   noradCatId: 900,
   line1: '1 00900U 64063C   26195.50000000  .00000023  00000-0  35000-4 0  9995',
   line2: '2 00900  90.1600 200.0000 0025000 100.0000 260.0000 13.74000000123457',
+  category: 'debris' as const,
 };
 
 const satellitesSuccess: CelestrakTleData = {
   records: [issRecord, calsphereRecord],
+  fetchedAt: '2026-07-24T12:00:00.000Z',
+};
+
+/** Same 'stations' category as the ISS — the ISS exclusion must be by NORAD ID, not by category. */
+const satellitesWithStationsGroup: CelestrakTleData = {
+  records: [issRecord, tiangongRecord],
   fetchedAt: '2026-07-24T12:00:00.000Z',
 };
 
@@ -53,6 +69,29 @@ describe('buildSatellitesPayload', () => {
         name: 'CALSPHERE 1',
         line1: calsphereRecord.line1,
         line2: calsphereRecord.line2,
+        category: 'debris',
+      },
+    ]);
+    expect(payload.satellites.some((s) => s.id === '25544')).toBe(false);
+  });
+
+  it('excludes the ISS by NORAD ID even when Tiangong shares the same "stations" category', () => {
+    setSourceState(
+      'satellites',
+      satellitesWithStationsGroup,
+      satellitesWithStationsGroup.fetchedAt,
+      true,
+    );
+
+    const payload = buildSatellitesPayload();
+
+    expect(payload.satellites).toEqual([
+      {
+        id: '48274',
+        name: 'CSS (TIANHE)',
+        line1: tiangongRecord.line1,
+        line2: tiangongRecord.line2,
+        category: 'stations',
       },
     ]);
     expect(payload.satellites.some((s) => s.id === '25544')).toBe(false);

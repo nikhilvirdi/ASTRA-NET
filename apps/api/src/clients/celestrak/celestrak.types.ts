@@ -53,6 +53,24 @@ export interface CelestrakTleRecord {
   noradCatId: number;
   line1: string;
   line2: string;
+  /**
+   * Which CelesTrak group/catnr this record was fetched under — attached by
+   * the poller's merge step (`poller/slow-tier.ts`'s `fetchAllSatelliteGroups`),
+   * not by this client (which stays generic over any single group/catnr and
+   * has no notion of category). Optional here purely so this client's own
+   * parsed records satisfy the type before that tagging happens; always
+   * populated by the time a record reaches the store.
+   */
+  category?:
+    | 'stations'
+    | 'starlink'
+    | 'oneweb'
+    | 'gps'
+    | 'weather'
+    | 'geo'
+    | 'cubesat'
+    | 'debris'
+    | 'hubble';
 }
 
 /** Normalised output from fetchCelestrakTle(). Returns null if the fetch fails. */

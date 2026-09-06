@@ -17,7 +17,10 @@
  * second, TLE-propagated ISS position here would let the two disagree —
  * the same class of bug the Sun-position consolidation (DECISIONS.md,
  * 2026-07-24) fixed for the Explore scene's Sun marker vs. Heliosphere
- * Pulse.
+ * Pulse. This filter is by NORAD ID specifically (not by group/category):
+ * the 'stations' category (2026-09-06 widening, see DECISIONS.md) includes
+ * both the ISS and Tiangong, and only the ISS's own catalog number is
+ * excluded — Tiangong, sharing the same category, passes through normally.
  *
  * `buildSatellitesPayload` is the testable core (pure function over the
  * store, no Express), mirroring every other route's pattern
@@ -37,6 +40,17 @@ export interface SatelliteElementSet {
   name: string;
   line1: string;
   line2: string;
+  /** Which CelesTrak group/catnr this record came from (`poller/slow-tier.ts`'s `fetchAllSatelliteGroups`) — for future filtering/grouping by category. */
+  category?:
+    | 'stations'
+    | 'starlink'
+    | 'oneweb'
+    | 'gps'
+    | 'weather'
+    | 'geo'
+    | 'cubesat'
+    | 'debris'
+    | 'hubble';
 }
 
 export interface SatellitesPayload {
@@ -56,6 +70,7 @@ export function buildSatellitesPayload(): SatellitesPayload {
       name: record.name,
       line1: record.line1,
       line2: record.line2,
+      category: record.category,
     }));
 
   return { satellites, fetchedAt: state.fetchedAt, healthy: state.healthy };
