@@ -18,6 +18,7 @@ import { buildIssCard, type IssCard } from './iss-card.js';
 import { buildNeoImageryCard, type NeoImageryCard } from './neo-imagery-card.js';
 import { selectLearningMoment } from './learning-moment.js';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
+import type { OpenMeteoData } from '../clients/open-meteo/index.js';
 import type { PollerState } from '../poller/store.js';
 
 export interface BriefCard<T> {
@@ -55,6 +56,13 @@ export function buildBrief(
    */
   issVisualPasses: N2yoVisualPassesData | null,
   /**
+   * Pre-fetched by the HTTP layer, not by this pure core — cloud
+   * cover/visibility is observer-specific and needs a live per-request
+   * Open-Meteo call, the same shape as `issVisualPasses` above. See
+   * `sky-anchor-card.ts`'s `SkyAnchorCard.cloudCover` and DECISIONS.md.
+   */
+  openMeteo: OpenMeteoData | null,
+  /**
    * Real rolling accuracy-loop hits/trials (FORMULAS.md §9), queried by
    * the HTTP layer (`predictions/history.ts`) — global scope, not
    * per-user (DECISIONS.md). Same "fetched outside, passed in" shape as
@@ -67,13 +75,19 @@ export function buildBrief(
   // external source to fail, and each planet sub-field degrades to null on
   // its own when that body's Horizons ephemeris is down.
   const skyAnchor = okCard(
-    buildSkyAnchorCard(observerLatDeg, observerLonDeg, now, {
-      jupiter: pollerState.horizonsJupiter,
-      venus: pollerState.horizonsVenus,
-      mars: pollerState.horizonsMars,
-      saturn: pollerState.horizonsSaturn,
-      mercury: pollerState.horizonsMercury,
-    }),
+    buildSkyAnchorCard(
+      observerLatDeg,
+      observerLonDeg,
+      now,
+      {
+        jupiter: pollerState.horizonsJupiter,
+        venus: pollerState.horizonsVenus,
+        mars: pollerState.horizonsMars,
+        saturn: pollerState.horizonsSaturn,
+        mercury: pollerState.horizonsMercury,
+      },
+      openMeteo,
+    ),
   );
 
   const issCardData = buildIssCard(pollerState.iss, issVisualPasses, now);

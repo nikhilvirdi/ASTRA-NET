@@ -202,6 +202,16 @@ function appUnderTest() {
     // The real client, so the route's own N2YO call goes through the same
     // injected transport as the poller's.
     fetchN2yoVisualPasses,
+    // Open-Meteo isn't one of the sources this file's outage matrix drives
+    // (`SourceId` above) — stubbed to a fixed healthy value so its per-request
+    // call doesn't hit the real network or an unrouted-URL error from the
+    // stubbed `fetch` above, on every one of this file's Brief requests.
+    fetchOpenMeteo: vi.fn().mockResolvedValue({
+      latitude: OBSERVER.lat,
+      longitude: OBSERVER.lon,
+      hourly: [{ time: NOW.toISOString(), cloudCoverPercent: 50, visibilityMeters: 10_000 }],
+      fetchedAt: NOW.toISOString(),
+    }),
   });
 }
 

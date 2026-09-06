@@ -30,6 +30,7 @@ import {
   type MoonPhaseName,
 } from '@astranet/shared';
 import type { HorizonsRaDecData, HorizonsRaDecEntry } from '../clients/jpl-horizons/index.js';
+import type { OpenMeteoData } from '../clients/open-meteo/index.js';
 import type { SourceState } from '../poller/store.js';
 
 export type TwilightPhase = 'day' | 'twilight' | 'night';
@@ -41,6 +42,13 @@ export interface PlanetEphemerides {
   mars: SourceState<HorizonsRaDecData>;
   saturn: SourceState<HorizonsRaDecData>;
   mercury: SourceState<HorizonsRaDecData>;
+}
+
+/** One hour of the Open-Meteo forecast, exposed as-is (no unit conversion). */
+export interface CloudCoverHour {
+  timeUtc: string;
+  cloudCoverPercent: number;
+  visibilityMeters: number;
 }
 
 export interface MoonCardData {
@@ -81,6 +89,16 @@ export interface SkyAnchorCard {
   mercury: HorizontalPosition | null;
   /** FORMULAS.md §12 — Moon's position, illumination %, phase name, and rise/set times. Pure math, non-nullable. */
   moon: MoonCardData;
+  /**
+   * Cloud cover / visibility for this observer, current hour through the
+   * next few — an observer-specific, per-request Open-Meteo fetch made by
+   * the HTTP layer and passed in, the same shape as the ISS's `nextPass`
+   * (see `iss-card.ts` and DECISIONS.md), not the poller's global store:
+   * cloud cover genuinely differs by location, unlike every `PollerState`
+   * entry. Null when the fetch failed or returned no usable hourly data —
+   * never a fabricated reading.
+   */
+  cloudCover: CloudCoverHour[] | null;
 }
 
 /**
@@ -129,11 +147,47 @@ function resolvePlanetPosition(
     : null;
 }
 
+/** How many hourly rows to expose, starting at the one nearest `now` — current hour plus the next few. */
+const CLOUD_COVER_FORECAST_HOURS = 6;
+
+/**
+ * Cloud cover / visibility from the hourly row nearest `now` (not assumed
+ * pre-sorted, same posture as `selectNearestEntry` above) through the next
+ * few rows. Open-Meteo's `hourly` array already *is* the per-hour forecast,
+ * so this is a slice, not a recomputation. Null when there is no hourly
+ * data at all (fetch failed or degraded to `hourly: null`).
+ */
+function resolveCloudCoverForecast(
+  openMeteo: OpenMeteoData | null,
+  now: Date,
+): CloudCoverHour[] | null {
+  const hourly = openMeteo?.hourly;
+  if (hourly == null || hourly.length === 0) return null;
+
+  const nowMs = now.getTime();
+  let nearestIdx = 0;
+  let nearestDiffMs = Infinity;
+  hourly.forEach((entry, i) => {
+    const diffMs = Math.abs(new Date(entry.time).getTime() - nowMs);
+    if (diffMs < nearestDiffMs) {
+      nearestDiffMs = diffMs;
+      nearestIdx = i;
+    }
+  });
+
+  return hourly.slice(nearestIdx, nearestIdx + CLOUD_COVER_FORECAST_HOURS).map((h) => ({
+    timeUtc: h.time,
+    cloudCoverPercent: h.cloudCoverPercent,
+    visibilityMeters: h.visibilityMeters,
+  }));
+}
+
 export function buildSkyAnchorCard(
   observerLatDeg: number,
   observerLonDeg: number,
   now: Date,
   planetEphemerides: PlanetEphemerides,
+  openMeteo: OpenMeteoData | null,
 ): SkyAnchorCard {
   const sun = sunHorizontalPosition(now, observerLatDeg, observerLonDeg);
   const sunAltDeg = sun.altitudeDeg;
@@ -165,5 +219,6 @@ export function buildSkyAnchorCard(
       nextRiseUtc: moonRiseSet.riseUtc ? moonRiseSet.riseUtc.toISOString() : null,
       nextSetUtc: moonRiseSet.setUtc ? moonRiseSet.setUtc.toISOString() : null,
     },
+    cloudCover: resolveCloudCoverForecast(openMeteo, now),
   };
 }

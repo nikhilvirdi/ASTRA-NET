@@ -6,6 +6,7 @@ import { createApp } from '../app.js';
 import { createPrismaClient } from '../db/client.js';
 import { resetStore, setSourceState } from '../poller/store.js';
 import type { N2yoVisualPassesData } from '../clients/n2yo/index.js';
+import type { OpenMeteoData } from '../clients/open-meteo/index.js';
 import type { DailyBrief } from '../brief/build-brief.js';
 
 // Never connects: these tests exercise a route that doesn't touch the
@@ -38,6 +39,16 @@ const visualPassesSuccess: N2yoVisualPassesData = {
   fetchedAt: new Date().toISOString(),
 };
 
+const cloudCoverSuccess: OpenMeteoData = {
+  latitude: 45,
+  longitude: -75,
+  hourly: [{ time: new Date().toISOString(), cloudCoverPercent: 62, visibilityMeters: 9500 }],
+  fetchedAt: new Date().toISOString(),
+};
+
+/** Every test below composes a real Brief, so Open-Meteo always needs a mock — same reason `fetchN2yoVisualPasses` is never left to its real default. */
+const fetchOpenMeteoDefault = () => vi.fn().mockResolvedValue(cloudCoverSuccess);
+
 describe('GET /api/brief', () => {
   beforeEach(() => {
     resetStore();
@@ -57,7 +68,12 @@ describe('GET /api/brief', () => {
 
   it('200s with a resolved Brief for valid coordinates, including a live-fetched next pass', async () => {
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      fetchN2yoVisualPasses,
+      fetchOpenMeteo: fetchOpenMeteoDefault(),
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -99,7 +115,12 @@ describe('GET /api/brief', () => {
       true,
     );
     const fetchN2yoVisualPasses = vi.fn().mockRejectedValue(new Error('N2YO down'));
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      fetchN2yoVisualPasses,
+      fetchOpenMeteo: fetchOpenMeteoDefault(),
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -110,6 +131,50 @@ describe('GET /api/brief', () => {
     expect(body.iss.status).toBe('ok');
     expect(body.iss.data?.position?.latitude).toBe(1);
     expect(body.iss.data?.nextPass).toBeNull();
+  });
+
+  it('200s with a resolved Brief including a live-fetched cloud cover forecast', async () => {
+    const fetchOpenMeteo = vi.fn().mockResolvedValue(cloudCoverSuccess);
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+      fetchOpenMeteo,
+    });
+
+    const res = await request(app).get('/api/brief?lat=45&lon=-75');
+    const body = res.body as DailyBrief;
+
+    expect(res.status).toBe(200);
+    expect(body.skyAnchor.status).toBe('ok');
+    expect(body.skyAnchor.data?.cloudCover).toEqual([
+      {
+        timeUtc: cloudCoverSuccess.hourly![0]!.time,
+        cloudCoverPercent: 62,
+        visibilityMeters: 9500,
+      },
+    ]);
+    expect(fetchOpenMeteo).toHaveBeenCalledWith({ latitude: 45, longitude: -75 }, expect.any(Date));
+  });
+
+  it('still 200s and degrades only cloud cover when that fetch rejects, leaving the rest of Sky Anchor intact', async () => {
+    const fetchOpenMeteo = vi.fn().mockRejectedValue(new Error('Open-Meteo down'));
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+      fetchOpenMeteo,
+    });
+
+    const res = await request(app).get('/api/brief?lat=45&lon=-75');
+    const body = res.body as DailyBrief;
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe('ok');
+    expect(body.skyAnchor.status).toBe('ok');
+    expect(body.skyAnchor.data?.cloudCover).toBeNull();
+    // Never a fabricated reading — real null, not a plausible-looking number.
+    expect(body.skyAnchor.data?.sunAltitudeDeg).toBeDefined();
   });
 
   it('reflects live poller state in the response', async () => {
@@ -132,7 +197,12 @@ describe('GET /api/brief', () => {
     );
 
     const fetchN2yoVisualPasses = vi.fn().mockResolvedValue(visualPassesSuccess);
-    const app = createApp({ n2yoApiKey: 'TEST_KEY', prisma, fetchN2yoVisualPasses });
+    const app = createApp({
+      n2yoApiKey: 'TEST_KEY',
+      prisma,
+      fetchN2yoVisualPasses,
+      fetchOpenMeteo: fetchOpenMeteoDefault(),
+    });
 
     const res = await request(app).get('/api/brief?lat=45&lon=-75');
     const body = res.body as DailyBrief;
@@ -245,6 +315,7 @@ describe('GET /api/brief — prediction persistence + f_hist (real Postgres)', (
       n2yoApiKey: 'TEST_KEY',
       prisma: realPrisma,
       fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+      fetchOpenMeteo: fetchOpenMeteoDefault(),
     });
   }
 
@@ -455,6 +526,7 @@ describe('GET /api/brief — degradation when a DB call fails', () => {
       n2yoApiKey: 'TEST_KEY',
       prisma: prismaLike as Parameters<typeof createApp>[0]['prisma'],
       fetchN2yoVisualPasses: vi.fn().mockResolvedValue(null),
+      fetchOpenMeteo: fetchOpenMeteoDefault(),
     });
   }
 

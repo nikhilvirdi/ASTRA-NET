@@ -13,6 +13,13 @@ export interface MoonCardData {
   nextSetUtc: string | null;
 }
 
+/** One hour of the Open-Meteo forecast for this observer — mirrors the API's `CloudCoverHour`. */
+export interface CloudCoverHour {
+  timeUtc: string;
+  cloudCoverPercent: number;
+  visibilityMeters: number;
+}
+
 export interface SkyAnchorCardData {
   sunAltitudeDeg: number;
   sunAzimuthDeg: number;
@@ -25,6 +32,8 @@ export interface SkyAnchorCardData {
   saturn: { azimuthDeg: number; altitudeDeg: number } | null;
   mercury: { azimuthDeg: number; altitudeDeg: number } | null;
   moon?: MoonCardData | null;
+  /** Cloud cover / visibility for this observer, current hour through the next few. Null when unavailable. */
+  cloudCover: CloudCoverHour[] | null;
 }
 
 export interface IssPositionField {

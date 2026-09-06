@@ -13,6 +13,7 @@ import {
   type PlanetEphemerides,
 } from './sky-anchor-card';
 import type { HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
+import type { OpenMeteoData } from '../clients/open-meteo/index.js';
 import type { SourceState } from '../poller/store.js';
 
 const NO_EPHEMERIS: SourceState<HorizonsRaDecData> = {
@@ -20,6 +21,8 @@ const NO_EPHEMERIS: SourceState<HorizonsRaDecData> = {
   fetchedAt: null,
   healthy: false,
 };
+
+const NO_OPEN_METEO: OpenMeteoData | null = null;
 
 const NO_PLANETS: PlanetEphemerides = {
   jupiter: NO_EPHEMERIS,
@@ -55,7 +58,13 @@ describe('classifyTwilightPhase', () => {
 
 describe('buildSkyAnchorCard', () => {
   it('never throws and always returns a resolved card, even with no planet ephemerides', () => {
-    const card = buildSkyAnchorCard(999, 999, new Date('2026-07-17T00:00:00Z'), NO_PLANETS);
+    const card = buildSkyAnchorCard(
+      999,
+      999,
+      new Date('2026-07-17T00:00:00Z'),
+      NO_PLANETS,
+      NO_OPEN_METEO,
+    );
     expect(card).toBeDefined();
     expect(Number.isFinite(card.sunAltitudeDeg)).toBe(true);
     expect(card.jupiter).toBeNull();
@@ -73,7 +82,7 @@ describe('buildSkyAnchorCard', () => {
     const latDeg = 34.08;
     const lonDeg = 74.8;
 
-    const card = buildSkyAnchorCard(latDeg, lonDeg, now, NO_PLANETS);
+    const card = buildSkyAnchorCard(latDeg, lonDeg, now, NO_PLANETS, NO_OPEN_METEO);
     const expected = sunHorizontalPosition(now, latDeg, lonDeg);
 
     // Both halves come from the one Sun-position call — never null (pure math,
@@ -94,7 +103,7 @@ describe('buildSkyAnchorCard', () => {
     const lstBase = localSiderealTimeDeg(jd, 0);
     const lonEastDeg = mod(raDeg - lstBase, 360);
 
-    const card = buildSkyAnchorCard(decDeg, lonEastDeg, now, NO_PLANETS);
+    const card = buildSkyAnchorCard(decDeg, lonEastDeg, now, NO_PLANETS, NO_OPEN_METEO);
     expect(card.sunAltitudeDeg).toBeCloseTo(90, 3);
     expect(card.twilightPhase).toBe('day');
     expect(card.isDarkEnoughForIssOrAurora).toBe(false);
@@ -112,7 +121,13 @@ describe('buildSkyAnchorCard', () => {
     const antipodalLatDeg = -decDeg;
     const antipodalLonEastDeg = mod(subsolarLonEastDeg + 180, 360);
 
-    const card = buildSkyAnchorCard(antipodalLatDeg, antipodalLonEastDeg, now, NO_PLANETS);
+    const card = buildSkyAnchorCard(
+      antipodalLatDeg,
+      antipodalLonEastDeg,
+      now,
+      NO_PLANETS,
+      NO_OPEN_METEO,
+    );
     expect(card.sunAltitudeDeg).toBeCloseTo(-90, 3);
     expect(card.twilightPhase).toBe('night');
     expect(card.isDarkEnoughForIssOrAurora).toBe(true);
@@ -133,10 +148,16 @@ describe('buildSkyAnchorCard', () => {
       const lonDeg = 74.8;
       const entry = { timestampUtcMs: now.getTime(), raDeg: 129.42611, decDeg: 18.09309 };
 
-      const card = buildSkyAnchorCard(latDeg, lonDeg, now, {
-        ...NO_PLANETS,
-        [planet]: ephemerisState([entry]),
-      });
+      const card = buildSkyAnchorCard(
+        latDeg,
+        lonDeg,
+        now,
+        {
+          ...NO_PLANETS,
+          [planet]: ephemerisState([entry]),
+        },
+        NO_OPEN_METEO,
+      );
 
       const expected = equatorialToHorizontal(
         entry.raDeg,
@@ -156,10 +177,16 @@ describe('buildSkyAnchorCard', () => {
       const farEntry = { timestampUtcMs: now.getTime() + 5 * 3_600_000, raDeg: 200, decDeg: -5 };
       const nearEntry = { timestampUtcMs: now.getTime() - 20 * 60_000, raDeg: 129.4, decDeg: 18.1 };
 
-      const card = buildSkyAnchorCard(34.08, 74.8, now, {
-        ...NO_PLANETS,
-        [planet]: ephemerisState([farEntry, nearEntry]),
-      });
+      const card = buildSkyAnchorCard(
+        34.08,
+        74.8,
+        now,
+        {
+          ...NO_PLANETS,
+          [planet]: ephemerisState([farEntry, nearEntry]),
+        },
+        NO_OPEN_METEO,
+      );
 
       const expected = equatorialToHorizontal(
         nearEntry.raDeg,
@@ -173,10 +200,16 @@ describe('buildSkyAnchorCard', () => {
   );
 
   it.each(PLANETS)('degrades %s to null when its ephemeris has null entries', (planet) => {
-    const card = buildSkyAnchorCard(34.08, 74.8, new Date(), {
-      ...NO_PLANETS,
-      [planet]: ephemerisState(null),
-    });
+    const card = buildSkyAnchorCard(
+      34.08,
+      74.8,
+      new Date(),
+      {
+        ...NO_PLANETS,
+        [planet]: ephemerisState(null),
+      },
+      NO_OPEN_METEO,
+    );
     expect(card[planet]).toBeNull();
     expect(Number.isFinite(card.sunAltitudeDeg)).toBe(true);
   });
@@ -185,10 +218,16 @@ describe('buildSkyAnchorCard', () => {
     const now = new Date('2026-07-17T21:00:00Z');
     const entry = { timestampUtcMs: now.getTime(), raDeg: 129.42611, decDeg: 18.09309 };
 
-    const card = buildSkyAnchorCard(34.08, 74.8, now, {
-      ...NO_PLANETS,
-      [planet]: ephemerisState([entry]),
-    });
+    const card = buildSkyAnchorCard(
+      34.08,
+      74.8,
+      now,
+      {
+        ...NO_PLANETS,
+        [planet]: ephemerisState([entry]),
+      },
+      NO_OPEN_METEO,
+    );
 
     for (const other of PLANETS) {
       if (other === planet) {
@@ -197,5 +236,103 @@ describe('buildSkyAnchorCard', () => {
         expect(card[other]).toBeNull();
       }
     }
+  });
+
+  describe('cloudCover', () => {
+    const now = new Date('2026-07-17T21:20:00Z');
+
+    it('is null when the Open-Meteo fetch failed (hourly: null)', () => {
+      const openMeteo: OpenMeteoData = {
+        latitude: 34.08,
+        longitude: 74.8,
+        hourly: null,
+        fetchedAt: now.toISOString(),
+      };
+      const card = buildSkyAnchorCard(34.08, 74.8, now, NO_PLANETS, openMeteo);
+      expect(card.cloudCover).toBeNull();
+    });
+
+    it('is null when there was no Open-Meteo fetch at all', () => {
+      const card = buildSkyAnchorCard(34.08, 74.8, now, NO_PLANETS, null);
+      expect(card.cloudCover).toBeNull();
+    });
+
+    it('starts at the hourly row nearest now, regardless of row order, and takes the next few forward', () => {
+      const openMeteo: OpenMeteoData = {
+        latitude: 34.08,
+        longitude: 74.8,
+        hourly: [
+          // Deliberately out of order and including rows before/after `now`.
+          {
+            time: new Date(now.getTime() + 3 * 3_600_000).toISOString(),
+            cloudCoverPercent: 30,
+            visibilityMeters: 9000,
+          },
+          {
+            time: new Date(now.getTime() - 3 * 3_600_000).toISOString(),
+            cloudCoverPercent: 90,
+            visibilityMeters: 2000,
+          },
+          {
+            time: new Date(now.getTime() - 10 * 60_000).toISOString(),
+            cloudCoverPercent: 40,
+            visibilityMeters: 8000,
+          },
+          {
+            time: new Date(now.getTime() + 50 * 60_000).toISOString(),
+            cloudCoverPercent: 45,
+            visibilityMeters: 7500,
+          },
+          {
+            time: new Date(now.getTime() + 110 * 60_000).toISOString(),
+            cloudCoverPercent: 50,
+            visibilityMeters: 7000,
+          },
+        ],
+        fetchedAt: now.toISOString(),
+      };
+      const card = buildSkyAnchorCard(34.08, 74.8, now, NO_PLANETS, openMeteo);
+
+      expect(card.cloudCover).not.toBeNull();
+      // Nearest row is the one 10 minutes before `now` (40%), not the one
+      // 3 hours before it (90%) despite that row appearing earlier in the array.
+      expect(card.cloudCover?.[0]).toEqual({
+        timeUtc: openMeteo.hourly![2]!.time,
+        cloudCoverPercent: 40,
+        visibilityMeters: 8000,
+      });
+      // Forward from there: the two future rows follow, in time order —
+      // the row 3h before `now` never appears (that's in the past).
+      expect(card.cloudCover?.map((h) => h.cloudCoverPercent)).toEqual([40, 45, 50]);
+    });
+
+    it('caps at 6 hours even when Open-Meteo returns many more', () => {
+      const hourly = Array.from({ length: 48 }, (_, i) => ({
+        time: new Date(now.getTime() + i * 3_600_000).toISOString(),
+        cloudCoverPercent: i,
+        visibilityMeters: 10_000,
+      }));
+      const openMeteo: OpenMeteoData = {
+        latitude: 34.08,
+        longitude: 74.8,
+        hourly,
+        fetchedAt: now.toISOString(),
+      };
+      const card = buildSkyAnchorCard(34.08, 74.8, now, NO_PLANETS, openMeteo);
+
+      expect(card.cloudCover).toHaveLength(6);
+      expect(card.cloudCover?.map((h) => h.cloudCoverPercent)).toEqual([0, 1, 2, 3, 4, 5]);
+    });
+
+    it('is empty-safe: an empty hourly array degrades to null, not a crash', () => {
+      const openMeteo: OpenMeteoData = {
+        latitude: 34.08,
+        longitude: 74.8,
+        hourly: [],
+        fetchedAt: now.toISOString(),
+      };
+      const card = buildSkyAnchorCard(34.08, 74.8, now, NO_PLANETS, openMeteo);
+      expect(card.cloudCover).toBeNull();
+    });
   });
 });

@@ -18,6 +18,10 @@ import {
   fetchN2yoVisualPasses as defaultFetchN2yoVisualPasses,
   type N2yoVisualPassesData,
 } from '../clients/n2yo/index.js';
+import {
+  fetchOpenMeteo as defaultFetchOpenMeteo,
+  type OpenMeteoData,
+} from '../clients/open-meteo/index.js';
 import { fetchVisualPassesCached } from './visual-passes-cache.js';
 
 /** Same real-world ISS NORAD ID already used by the fast-tier poller (DECISIONS.md, 2026-07-16). */
@@ -36,6 +40,7 @@ export interface ComposeBriefDeps {
   prisma: PrismaClient;
   n2yoApiKey: string;
   fetchN2yoVisualPasses?: typeof defaultFetchN2yoVisualPasses;
+  fetchOpenMeteo?: typeof defaultFetchOpenMeteo;
 }
 
 export async function composeBriefForObserver(
@@ -45,6 +50,7 @@ export async function composeBriefForObserver(
   now: Date,
 ): Promise<DailyBrief> {
   const fetchVisualPasses = deps.fetchN2yoVisualPasses ?? defaultFetchN2yoVisualPasses;
+  const fetchCloudCover = deps.fetchOpenMeteo ?? defaultFetchOpenMeteo;
   const pollerState = getAllSourceStates();
 
   // f_hist is global, not per-request (DECISIONS.md), but only worth a
@@ -93,5 +99,18 @@ export async function composeBriefForObserver(
     visualPasses = null;
   }
 
-  return buildBrief(pollerState, latDeg, lonDeg, now, visualPasses, history);
+  let openMeteo: OpenMeteoData | null;
+  try {
+    // Direct per-request call, no TTL cache in front of it (unlike N2YO's
+    // visual-passes above): Open-Meteo is keyless with a ~10k/day fair-use
+    // limit (API_SOURCES.md), nowhere near N2YO's 100/hr, so there is no
+    // rate-limit pressure justifying that extra layer here.
+    openMeteo = await fetchCloudCover({ latitude: latDeg, longitude: lonDeg }, now);
+  } catch {
+    // fetchOpenMeteo is documented to never throw, but this guard mirrors
+    // the same belt-and-suspenders posture as the N2YO call above.
+    openMeteo = null;
+  }
+
+  return buildBrief(pollerState, latDeg, lonDeg, now, visualPasses, openMeteo, history);
 }
