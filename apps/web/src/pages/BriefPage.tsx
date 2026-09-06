@@ -5,10 +5,8 @@ import { twilightStateForSunAltitude } from '@astranet/shared';
 import { fetchBrief, DEFAULT_OBSERVER_LOCATION, type DailyBrief } from '@/lib/api';
 import { useAppStore } from '@/store';
 import { HorizonBand } from '@/components/brief/HorizonBand';
-import { SunAltitudeGauge } from '@/components/brief/SunAltitudeGauge';
 import { MoonPhaseGraphic } from '@/components/brief/MoonPhaseGraphic';
 import { MoonTimeline } from '@/components/brief/MoonTimeline';
-import { IssElevationGauge } from '@/components/brief/IssElevationGauge';
 import { IssTrajectoryArc } from '@/components/brief/IssTrajectoryArc';
 import { CausalChainFlow } from '@/components/brief/CausalChainFlow';
 import { SolarWindTelemetry } from '@/components/brief/SolarWindTelemetry';
@@ -109,6 +107,15 @@ function formatMoonPhase(phaseName: string): string {
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .toUpperCase();
+}
+
+/** Same thresholds/wording as the removed IssElevationGauge's own quality rating. */
+function issPassQuality(clampedElevDeg: number): string {
+  return clampedElevDeg >= 60
+    ? 'HIGH OVERHEAD PASS'
+    : clampedElevDeg >= 30
+      ? 'CLEAR VIEW PASS'
+      : 'LOW HORIZON PASS';
 }
 
 export function BriefPage(): React.ReactElement {
@@ -284,11 +291,30 @@ export function BriefPage(): React.ReactElement {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-              {/* Sun Altitude Radial Gauge */}
-              <SunAltitudeGauge
-                altitudeDeg={brief?.skyAnchor.data?.sunAltitudeDeg}
-                loading={loading}
-              />
+              {/* Sun Altitude — position/arc now lives on the Horizon Band above; this keeps only the numeric readout. */}
+              <div>
+                <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
+                  SUN ALTITUDE
+                </span>
+                <div className="flex flex-col">
+                  <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
+                    {loading || sunAltDeg == null ? '—' : `${sunAltDeg.toFixed(1)}°`}
+                  </span>
+                  <span className="font-sans text-xs text-brass-400/90 font-medium uppercase tracking-wide">
+                    {loading || sunAltDeg == null
+                      ? '—'
+                      : sunAltDeg >= 0
+                        ? 'ABOVE HORIZON'
+                        : sunAltDeg >= -6
+                          ? 'CIVIL TWILIGHT'
+                          : sunAltDeg >= -12
+                            ? 'NAUTICAL TWILIGHT'
+                            : sunAltDeg >= -18
+                              ? 'ASTRO TWILIGHT'
+                              : 'ASTRONOMICAL NIGHT'}
+                  </span>
+                </div>
+              </div>
 
               {/* Twilight Phase */}
               <div>
@@ -427,7 +453,23 @@ export function BriefPage(): React.ReactElement {
                 </div>
 
                 <div>
-                  <IssElevationGauge maxElevationDeg={brief.iss.data.nextPass.maxElevationDeg} />
+                  {/* Peak elevation — position/arc now lives on the Horizon Band above; this keeps only the numeric readout. */}
+                  <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
+                    PEAK ALTITUDE
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-sans text-3xl sm:text-4xl text-sky-100 font-semibold tracking-tight">
+                      {Math.max(0, Math.min(90, brief.iss.data.nextPass.maxElevationDeg)).toFixed(
+                        0,
+                      )}
+                      °
+                    </span>
+                    <span className="font-sans text-[10px] text-brass-400/90 font-medium whitespace-nowrap uppercase tracking-wide">
+                      {issPassQuality(
+                        Math.max(0, Math.min(90, brief.iss.data.nextPass.maxElevationDeg)),
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 <div>
