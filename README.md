@@ -99,4 +99,4 @@ Everything else â€” Sun and Moon position, twilight phase, star coordinates
 
 ## Built by
 
-**Nikhil Virdi** â€” [github.com/nikhilvirdi](https://github.com/nikhilvirdi)
+**Nikhil Virdi**  [github.com/nikhilvirdi](https://github.com/nikhilvirdi)
