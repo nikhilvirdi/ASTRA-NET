@@ -3,8 +3,6 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { sunHorizontalPosition, moonHorizontalPosition } from '@astranet/shared';
-import { computeOrbitTrailPositions } from '@/lib/orbit-trails';
 import type { DailyBrief } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
 import {
@@ -95,15 +93,7 @@ type MarkerPhase = 'live' | 'out';
 const ORBITAL_COLOR = '#A8B4BC';
 const BRASS_LINE_COLOR = '#C9B187';
 
-// Sun and Moon orbit trails: --color-solar (#d9a05b) and --color-sky-100 (#eef1f1)
-const SUN_TRAIL_COLOR = '#D9A05B';
-const MOON_TRAIL_COLOR = '#EEF1F1';
-
-export function altAzToVector3(
-  altDeg: number,
-  azDeg: number,
-  radius = MARKER_RADIUS,
-): THREE.Vector3 {
+function altAzToVector3(altDeg: number, azDeg: number, radius = MARKER_RADIUS): THREE.Vector3 {
   const rAlt = altDeg * (Math.PI / 180);
   const rAz = azDeg * (Math.PI / 180);
   const x = radius * Math.cos(rAlt) * Math.sin(rAz);
@@ -826,100 +816,6 @@ function ShellMarker({
   );
 }
 
-// ─── Sun and Moon Orbit Trails ───────────────────────────────────────────────
-
-const R3FLine = 'line' as unknown as React.ComponentType<{
-  geometry: THREE.BufferGeometry;
-  children?: React.ReactNode;
-}>;
-
-function CelestialOrbitTrails({
-  brief,
-  currentTime,
-}: {
-  brief: DailyBrief | null;
-  currentTime: Date;
-}): React.ReactElement | null {
-  const sunRuns = useMemo(() => {
-    if (!brief?.observer) return null;
-    return computeOrbitTrailPositions(
-      currentTime,
-      brief.observer.latDeg,
-      brief.observer.lonDeg,
-      sunHorizontalPosition,
-      altAzToVector3,
-    );
-  }, [brief, currentTime]);
-
-  const moonRuns = useMemo(() => {
-    if (!brief?.observer) return null;
-    return computeOrbitTrailPositions(
-      currentTime,
-      brief.observer.latDeg,
-      brief.observer.lonDeg,
-      moonHorizontalPosition,
-      altAzToVector3,
-    );
-  }, [brief, currentTime]);
-
-  const sunGeometries = useMemo(() => {
-    if (!sunRuns) return [];
-    return sunRuns.map((positions) => {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      return geo;
-    });
-  }, [sunRuns]);
-
-  const moonGeometries = useMemo(() => {
-    if (!moonRuns) return [];
-    return moonRuns.map((positions) => {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      return geo;
-    });
-  }, [moonRuns]);
-
-  useEffect(() => {
-    return () => {
-      sunGeometries.forEach((geo) => geo.dispose());
-    };
-  }, [sunGeometries]);
-
-  useEffect(() => {
-    return () => {
-      moonGeometries.forEach((geo) => geo.dispose());
-    };
-  }, [moonGeometries]);
-
-  if (sunGeometries.length === 0 && moonGeometries.length === 0) return null;
-
-  return (
-    <group>
-      {sunGeometries.map((geo, idx) => (
-        <R3FLine key={`sun-trail-${idx}`} geometry={geo}>
-          <lineBasicMaterial
-            color={SUN_TRAIL_COLOR}
-            transparent={true}
-            opacity={0.35}
-            depthWrite={false}
-          />
-        </R3FLine>
-      ))}
-      {moonGeometries.map((geo, idx) => (
-        <R3FLine key={`moon-trail-${idx}`} geometry={geo}>
-          <lineBasicMaterial
-            color={MOON_TRAIL_COLOR}
-            transparent={true}
-            opacity={0.35}
-            depthWrite={false}
-          />
-        </R3FLine>
-      ))}
-    </group>
-  );
-}
-
 // ─── The marker layer ───────────────────────────────────────────────────────
 
 function renderableKey(r: SkyRenderable): string {
@@ -1313,7 +1209,6 @@ export function CelestialMarkers({
 
   return (
     <group>
-      <CelestialOrbitTrails brief={brief} currentTime={currentTime} />
       {aggregation.renderables.map((r) => renderOne(r, 'live'))}
       {leaving.filter((r) => !liveKeys.has(renderableKey(r))).map((r) => renderOne(r, 'out'))}
     </group>
