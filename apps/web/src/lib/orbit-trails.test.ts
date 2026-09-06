@@ -3,6 +3,7 @@ import { sunHorizontalPosition, moonHorizontalPosition } from '@astranet/shared'
 import { HORIZON_REFRACTION_DEG } from './semantic-zoom';
 import {
   computeOrbitTrailPositions,
+  computeOrbitTrailRuns,
   sampleTrailPoints,
   TRAIL_STEP_MINUTES,
   TRAIL_WINDOW_HOURS,
@@ -42,7 +43,7 @@ describe('sampleTrailPoints', () => {
   });
 });
 
-describe('computeOrbitTrailPositions', () => {
+describe('computeOrbitTrailPositions & computeOrbitTrailRuns', () => {
   it('returns null if the body is below the horizon across the entire window', () => {
     const now = new Date('2026-09-06T12:00:00Z');
     const result = computeOrbitTrailPositions(
@@ -56,7 +57,7 @@ describe('computeOrbitTrailPositions', () => {
     expect(result).toBeNull();
   });
 
-  it('generates continuous segment pairs when body is always above the horizon', () => {
+  it('generates a single continuous polyline run when body is always above the horizon', () => {
     const now = new Date('2026-09-06T12:00:00Z');
     const result = computeOrbitTrailPositions(
       now,
@@ -71,8 +72,9 @@ describe('computeOrbitTrailPositions', () => {
     );
 
     expect(result).not.toBeNull();
-    // 97 points -> 96 segments -> 96 * 6 = 576 floats
-    expect(result?.length).toBe(96 * 6);
+    // 1 continuous run of 97 sequential vertices -> 97 * 3 = 291 floats
+    expect(result?.length).toBe(1);
+    expect(result?.[0]?.length).toBe(97 * 3);
   });
 
   it('clips trail to the horizon threshold when body rises and sets', () => {
@@ -91,14 +93,42 @@ describe('computeOrbitTrailPositions', () => {
     );
 
     expect(result).not.toBeNull();
-    expect(result!.length % 6).toBe(0);
+    expect(result?.length).toBe(1);
+
+    const run = result![0]!;
+    expect(run.length % 3).toBe(0);
 
     // Verify all vertex altitudes (y coordinates) are at or above the horizon threshold
     // y = 950 * sin(alt). For alt >= -HORIZON_REFRACTION_DEG:
     const minY = 950 * Math.sin((-HORIZON_REFRACTION_DEG * Math.PI) / 180);
-    for (let i = 1; i < result!.length; i += 3) {
-      const y = result![i]!;
+    for (let i = 1; i < run.length; i += 3) {
+      const y = run[i]!;
       expect(y).toBeGreaterThanOrEqual(minY - 1e-2);
+    }
+  });
+
+  it('produces two disjoint runs when body sets and rises again within 24h', () => {
+    const now = new Date('2026-09-06T18:00:00Z'); // Nighttime
+    const runs = computeOrbitTrailRuns(
+      now,
+      32.73,
+      74.87,
+      sunHorizontalPosition,
+      mockAltAzToVector3,
+    );
+
+    // At night in Jammu, the Sun was up earlier (setting run) and rises tomorrow morning (rising run)
+    expect(runs.length).toBe(2);
+    expect(runs[0]!.length).toBeGreaterThanOrEqual(6);
+    expect(runs[1]!.length).toBeGreaterThanOrEqual(6);
+
+    // Each run has valid vertices with coordinates at or above horizon
+    const minY = 950 * Math.sin((-HORIZON_REFRACTION_DEG * Math.PI) / 180);
+    for (const run of runs) {
+      expect(run.length % 3).toBe(0);
+      for (let i = 1; i < run.length; i += 3) {
+        expect(run[i]!).toBeGreaterThanOrEqual(minY - 1e-2);
+      }
     }
   });
 
@@ -112,12 +142,13 @@ describe('computeOrbitTrailPositions', () => {
       mockAltAzToVector3,
     );
 
-    // During the 24h window around 15:35 UTC, the Sun was up earlier today
     expect(result).not.toBeNull();
-    expect(result!.length % 6).toBe(0);
-    // All numbers should be finite
-    for (let i = 0; i < result!.length; i++) {
-      expect(Number.isFinite(result![i])).toBe(true);
+    expect(result!.length).toBeGreaterThanOrEqual(1);
+    for (const run of result!) {
+      expect(run.length % 3).toBe(0);
+      for (let i = 0; i < run.length; i++) {
+        expect(Number.isFinite(run[i])).toBe(true);
+      }
     }
   });
 
@@ -131,11 +162,13 @@ describe('computeOrbitTrailPositions', () => {
       mockAltAzToVector3,
     );
 
-    // The Moon rises later tonight within +12h
     expect(result).not.toBeNull();
-    expect(result!.length % 6).toBe(0);
-    for (let i = 0; i < result!.length; i++) {
-      expect(Number.isFinite(result![i])).toBe(true);
+    expect(result!.length).toBeGreaterThanOrEqual(1);
+    for (const run of result!) {
+      expect(run.length % 3).toBe(0);
+      for (let i = 0; i < run.length; i++) {
+        expect(Number.isFinite(run[i])).toBe(true);
+      }
     }
   });
 });

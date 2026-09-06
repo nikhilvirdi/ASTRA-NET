@@ -828,6 +828,11 @@ function ShellMarker({
 
 // ─── Sun and Moon Orbit Trails ───────────────────────────────────────────────
 
+const R3FLine = 'line' as unknown as React.ComponentType<{
+  geometry: THREE.BufferGeometry;
+  children?: React.ReactNode;
+}>;
+
 function CelestialOrbitTrails({
   brief,
   currentTime,
@@ -835,7 +840,7 @@ function CelestialOrbitTrails({
   brief: DailyBrief | null;
   currentTime: Date;
 }): React.ReactElement | null {
-  const sunPositions = useMemo(() => {
+  const sunRuns = useMemo(() => {
     if (!brief?.observer) return null;
     return computeOrbitTrailPositions(
       currentTime,
@@ -846,7 +851,7 @@ function CelestialOrbitTrails({
     );
   }, [brief, currentTime]);
 
-  const moonPositions = useMemo(() => {
+  const moonRuns = useMemo(() => {
     if (!brief?.observer) return null;
     return computeOrbitTrailPositions(
       currentTime,
@@ -857,47 +862,60 @@ function CelestialOrbitTrails({
     );
   }, [brief, currentTime]);
 
-  const sunGeometry = useMemo(() => {
-    if (!sunPositions) return null;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(sunPositions, 3));
-    return geo;
-  }, [sunPositions]);
+  const sunGeometries = useMemo(() => {
+    if (!sunRuns) return [];
+    return sunRuns.map((positions) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      return geo;
+    });
+  }, [sunRuns]);
 
-  const moonGeometry = useMemo(() => {
-    if (!moonPositions) return null;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(moonPositions, 3));
-    return geo;
-  }, [moonPositions]);
+  const moonGeometries = useMemo(() => {
+    if (!moonRuns) return [];
+    return moonRuns.map((positions) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      return geo;
+    });
+  }, [moonRuns]);
 
-  useEffect(() => () => sunGeometry?.dispose(), [sunGeometry]);
-  useEffect(() => () => moonGeometry?.dispose(), [moonGeometry]);
+  useEffect(() => {
+    return () => {
+      sunGeometries.forEach((geo) => geo.dispose());
+    };
+  }, [sunGeometries]);
 
-  if (!sunGeometry && !moonGeometry) return null;
+  useEffect(() => {
+    return () => {
+      moonGeometries.forEach((geo) => geo.dispose());
+    };
+  }, [moonGeometries]);
+
+  if (sunGeometries.length === 0 && moonGeometries.length === 0) return null;
 
   return (
     <group>
-      {sunGeometry && (
-        <lineSegments geometry={sunGeometry}>
+      {sunGeometries.map((geo, idx) => (
+        <R3FLine key={`sun-trail-${idx}`} geometry={geo}>
           <lineBasicMaterial
             color={SUN_TRAIL_COLOR}
             transparent={true}
             opacity={0.35}
             depthWrite={false}
           />
-        </lineSegments>
-      )}
-      {moonGeometry && (
-        <lineSegments geometry={moonGeometry}>
+        </R3FLine>
+      ))}
+      {moonGeometries.map((geo, idx) => (
+        <R3FLine key={`moon-trail-${idx}`} geometry={geo}>
           <lineBasicMaterial
             color={MOON_TRAIL_COLOR}
             transparent={true}
             opacity={0.35}
             depthWrite={false}
           />
-        </lineSegments>
-      )}
+        </R3FLine>
+      ))}
     </group>
   );
 }
