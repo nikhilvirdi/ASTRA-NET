@@ -12,6 +12,7 @@ import { CausalChainFlow } from '@/components/brief/CausalChainFlow';
 import { SolarWindTelemetry } from '@/components/brief/SolarWindTelemetry';
 import { NeoDistanceScale } from '@/components/brief/NeoDistanceScale';
 import { NeoSizeComparison } from '@/components/brief/NeoSizeComparison';
+import { MeteorShowerCard } from '@/components/brief/MeteorShowerCard';
 import { spaceWeatherUiState, formatLastSeen } from '@/lib/space-weather-status';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
@@ -591,7 +592,14 @@ export function BriefPage(): React.ReactElement {
             )}
           </article>
 
-          {/* ── Entry 5: Learning Moment (Serif Pull Quote) ───────────────────── */}
+          {/* ── Entry 5: Meteor Shower (active showers only) ────────────────── */}
+          <MeteorShowerCard
+            date={nowBucketed}
+            observerLonEastDeg={location.lon}
+            moonIlluminatedFraction={brief?.skyAnchor.data?.moon?.illuminatedFraction ?? null}
+          />
+
+          {/* ── Entry 6: Learning Moment (Serif Pull Quote) ───────────────────── */}
           <article className="py-8 sm:py-12 flex flex-col gap-4">
             <h2 className="font-jost text-xl sm:text-2xl md:text-3xl text-white font-medium tracking-tight">
               Learning Moment
