@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { useAppStore } from '@/store';
 import { getEffectiveLocation, fetchBrief, type DailyBrief } from '@/lib/api';
 import { StarField } from '@/components/explore/StarField';
+import { ConstellationLines } from '@/components/explore/ConstellationLines';
 import { SkyDome } from '@/components/explore/SkyDome';
 import {
   CameraController,
@@ -30,6 +31,7 @@ export function ExplorePage(): React.ReactElement {
   const setNavVisible = useAppStore((s) => s.setNavVisible);
 
   const [sceneTime, setSceneTime] = useState(new Date());
+  const [constellationsVisible, setConstellationsVisible] = useState<boolean>(true);
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [selectedObject, setSelectedObject] = useState<CelestialObject | null>(null);
   const [activeObjects, setActiveObjects] = useState<CelestialObject[]>([]);
@@ -237,6 +239,12 @@ export function ExplorePage(): React.ReactElement {
           pointerPos={pointerPos}
         />
         <StarField observerLat={loc.lat} observerLon={loc.lon} currentTime={sceneTime} />
+        <ConstellationLines
+          observerLat={loc.lat}
+          observerLon={loc.lon}
+          currentTime={sceneTime}
+          visible={constellationsVisible}
+        />
         <SkyDome />
         <CelestialMarkers
           brief={brief}
@@ -264,6 +272,43 @@ export function ExplorePage(): React.ReactElement {
       {openingActive && (
         <OpeningSequence overlayText={overlayText} onDone={() => setOpeningActive(false)} />
       )}
+
+      {/* Constellation Overlay Toggle (reusing SettingsPage segmented pill button pattern) */}
+      <div className="absolute bottom-4 left-4 z-20 pointer-events-auto">
+        <div
+          role="group"
+          aria-label="Constellation lines overlay toggle"
+          className="inline-flex rounded-sm border border-sky-800/80 bg-sky-950/90 backdrop-blur-sm p-0.5 items-center shadow-lg"
+        >
+          <span className="px-2 font-jost text-[10px] sm:text-xs uppercase tracking-wider text-sky-400 select-none">
+            Constellations
+          </span>
+          <button
+            type="button"
+            aria-pressed={constellationsVisible}
+            onClick={() => setConstellationsVisible(true)}
+            className={`px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
+              constellationsVisible
+                ? 'bg-brass-400 text-sky-950 font-bold shadow-xs'
+                : 'text-sky-400 hover:text-sky-200'
+            }`}
+          >
+            ON
+          </button>
+          <button
+            type="button"
+            aria-pressed={!constellationsVisible}
+            onClick={() => setConstellationsVisible(false)}
+            className={`px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
+              !constellationsVisible
+                ? 'bg-brass-400 text-sky-950 font-bold shadow-xs'
+                : 'text-sky-400 hover:text-sky-200'
+            }`}
+          >
+            OFF
+          </button>
+        </div>
+      </div>
 
       {/* DESIGN_SPEC.md §11 - Tethered Info Panel (Static 2-Part Card: Object heading, sentence description, ALT/AZ coordinates) */}
       {selectedObject && selectedPos && selectedPos.inView && (
