@@ -1,6 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { twilightStateForSunAltitude, surfaceColorForTwilight } from '@astranet/shared';
+import {
+  moonHorizontalPosition,
+  sunHorizontalPosition,
+  surfaceColorForTwilight,
+  twilightStateForSunAltitude,
+} from '@astranet/shared';
 import type { DailyBrief } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
 import {
@@ -217,15 +222,24 @@ export function HorizonBand({
 
     // 1. Sun — omitted entirely when below the horizon. The band answers
     // "where do I look?", and a Sun 14deg down is not an answer to that.
+    // Position is recomputed for `effectiveTime` via the shared engine (§4)
+    // against the same observer the brief itself was generated for, so the
+    // marker actually moves as the scrubber moves instead of sitting frozen
+    // at its "now" position.
     const sunAnchor = brief?.skyAnchor?.data ?? null;
-    if (sunAnchor && belongsOnBand(sunAnchor.sunAltitudeDeg)) {
+    if (brief && sunAnchor && belongsOnBand(sunAnchor.sunAltitudeDeg)) {
+      const sunPos = sunHorizontalPosition(
+        effectiveTime,
+        brief.observer.latDeg,
+        brief.observer.lonDeg,
+      );
       list.push({
         id: 'sun',
         label: 'SUN',
         sublabel: formatAltitude(sunAnchor.sunAltitudeDeg),
         type: 'sun',
-        azimuthDeg: sunAnchor.sunAzimuthDeg,
-        altitudeDeg: sunAnchor.sunAltitudeDeg,
+        azimuthDeg: sunPos.azimuthDeg,
+        altitudeDeg: sunPos.altitudeDeg,
         colorClass: 'text-solar',
         available: true,
       });
@@ -253,7 +267,13 @@ export function HorizonBand({
       }
     }
 
-    // 3. Jupiter (Representative bright planet marker).
+    // 3. Jupiter (Representative bright planet marker). Stays at its live
+    // position regardless of scrub: no local ephemeris formula exists in this
+    // codebase for planets other than the Sun/Moon (§4 covers only those two).
+    // Jupiter's position comes from JPL Horizons, fetched server-side for
+    // "now" only — recomputing it for an arbitrary scrubbed time would need
+    // either a new API call or an invented approximation, and neither is
+    // acceptable under this project's real-data-only rule.
     const jupiter = brief?.skyAnchor?.data?.jupiter ?? null;
     if (jupiter && belongsOnBand(jupiter.altitudeDeg)) {
       list.push({
@@ -276,14 +296,19 @@ export function HorizonBand({
     // glyph (vs. Jupiter's ringed circle) already differentiates them by
     // shape, per §8.3's "no information by hue alone."
     const moon = brief?.skyAnchor?.data?.moon ?? null;
-    if (moon && belongsOnBand(moon.altitudeDeg)) {
+    if (brief && moon && belongsOnBand(moon.altitudeDeg)) {
+      const moonPos = moonHorizontalPosition(
+        effectiveTime,
+        brief.observer.latDeg,
+        brief.observer.lonDeg,
+      );
       list.push({
         id: 'moon',
         label: 'MOON',
         sublabel: formatAltitude(moon.altitudeDeg),
         type: 'moon',
-        azimuthDeg: moon.azimuthDeg,
-        altitudeDeg: moon.altitudeDeg,
+        azimuthDeg: moonPos.azimuthDeg,
+        altitudeDeg: moonPos.altitudeDeg,
         colorClass: 'text-brass-300',
         available: true,
       });
@@ -318,6 +343,14 @@ export function HorizonBand({
     currentSunAltDeg === null ? 3 : twilightStateForSunAltitude(currentSunAltDeg).value;
   const zenithFillColor = surfaceColorForTwilight(twilightValue);
   const horizonFillColor = surfaceColorForTwilight(Math.max(0, twilightValue - 1.2));
+
+  // Marker red treatment (2026-09-06, see DECISIONS.md): a deliberate
+  // exception to --color-ember-*'s "alerts only" rule, by explicit product
+  // decision. Same bright/dark split as the twilight fill above (reusing
+  // its own `twilightValue`, not a second brightness calculation) — the
+  // darker ember-800 reads against the band's near-white day fill, the
+  // lighter ember-400 reads against its near-black night fill.
+  const markerColorClass = twilightValue < 1.5 ? 'text-ember-800' : 'text-ember-400';
 
   const gridline0 = useMemo(() => arcGridlinePath(0), []);
   const gridline45 = useMemo(() => arcGridlinePath(45), []);
@@ -476,13 +509,15 @@ export function HorizonBand({
                 <div
                   className={`flex items-center justify-center transition-transform duration-150 ${
                     isHovered ? 'scale-125' : 'group-hover:scale-110'
-                  } ${m.colorClass}`}
+                  } ${markerColorClass}`}
                 >
                   <ObjectGlyph type={m.type} className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
 
                 {/* Inline label below the glyph */}
-                <span className="font-sans text-[10px] text-brass-300 font-medium tracking-wider uppercase opacity-90 block text-center mt-1">
+                <span
+                  className={`font-sans text-[10px] font-medium tracking-wider uppercase opacity-90 block text-center mt-1 ${markerColorClass}`}
+                >
                   {m.label}
                 </span>
               </div>
