@@ -159,14 +159,14 @@ function useMarkerFade(
 
 /**
  * Self-hosted textures (Solar System Scope CC-BY 4.0, 4K JPEGs) placed in
- * apps/web/public/textures/. Moon reuses the three.js CDN URL matching
- * Hero.tsx's RealisticMoon for consistency.
+ * apps/web/public/textures/. Moon uses the local moon_1024.jpg, same file as
+ * Hero.tsx's RealisticMoon — no CDN involved.
  */
 const PLANET_TEXTURE_URLS: Partial<Record<CelestialObject['type'], string>> = {
   sun: '/textures/sun.jpg',
   mercury: '/textures/mercury.jpg',
   venus: '/textures/venus.jpg',
-  moon: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
+  moon: '/textures/moon_1024.jpg',
   mars: '/textures/mars.jpg',
   jupiter: '/textures/jupiter.jpg',
   saturn: '/textures/saturn.jpg',
