@@ -11,7 +11,6 @@ import {
   sphericalCentroid,
   ZOOM_FOV_MIDPOINTS_DEG,
   type SkyObjectInput,
-  type ZoomLevel,
 } from './semantic-zoom';
 
 describe('isAboveHorizon', () => {
@@ -30,8 +29,6 @@ describe('isAboveHorizon', () => {
     expect(isAboveHorizon(-36.5)).toBe(false);
   });
 });
-
-const LEVELS: ZoomLevel[] = [0, 1, 2];
 
 function sat(id: string, azimuthDeg: number, altitudeDeg: number, pinned = false): SkyObjectInput {
   return { id, kind: 'satellite', azimuthDeg, altitudeDeg, pinned };
@@ -89,13 +86,19 @@ describe('drillFovDeg', () => {
 });
 
 describe('mergeRadiusDeg', () => {
-  it('shrinks as the camera zooms in, so clusters resolve', () => {
+  // Orphaned from aggregateSkyObjects — satellites no longer cluster at all,
+  // so there is no merge radius of any kind anymore (semantic-zoom.ts's file
+  // header / DECISIONS.md 2026-09-07) — but still a real, correctly-behaved
+  // pure function worth its own coverage.
+  it('shrinks as the camera zooms in', () => {
     expect(mergeRadiusDeg(0)).toBeLessThan(mergeRadiusDeg(1));
     expect(mergeRadiusDeg(1)).toBeLessThan(mergeRadiusDeg(2));
   });
 });
 
 describe('angularSeparationDeg', () => {
+  // Also orphaned from aggregateSkyObjects (see above) — kept for its own
+  // standalone coverage as a general-purpose geometry utility.
   it('is zero for identical positions', () => {
     expect(
       angularSeparationDeg(
@@ -128,6 +131,8 @@ describe('angularSeparationDeg', () => {
 });
 
 describe('sphericalCentroid', () => {
+  // Also orphaned from aggregateSkyObjects (no more cluster centroids to
+  // compute) — kept for its own standalone coverage.
   it('returns the midpoint of a symmetric pair', () => {
     const c = sphericalCentroid([
       { azimuthDeg: 80, altitudeDeg: 30 },
@@ -154,156 +159,127 @@ describe('sphericalCentroid', () => {
   });
 });
 
-describe('aggregateSkyObjects — under the cap', () => {
-  it("today's real roster (3 objects) passes through untouched at every level", () => {
-    for (const level of LEVELS) {
-      const result = aggregateSkyObjects(anchors(), level);
-      expect(result.regime).toBe('individual');
-      expect(result.renderables).toHaveLength(3);
-      expect(result.renderables.every((r) => r.kind === 'object')).toBe(true);
-      expect(result.clickableCount).toBe(3);
-    }
+describe('aggregateSkyObjects — everything renders individually', () => {
+  it("today's real roster (3 anchors) passes through untouched", () => {
+    const result = aggregateSkyObjects(anchors());
+    expect(result.regime).toBe('individual');
+    expect(result.renderables).toHaveLength(3);
+    expect(result.renderables.every((r) => r.kind === 'object')).toBe(true);
+    expect(result.clickableCount).toBe(3);
   });
 
-  it('exactly 7 objects stay individual even when packed tightly', () => {
-    const packed = Array.from({ length: 7 }, (_, i) => sat(`s${i}`, 100 + i * 0.5, 45));
-    for (const level of LEVELS) {
-      const result = aggregateSkyObjects(packed, level);
-      expect(result.regime).toBe('individual');
-      expect(result.renderables).toHaveLength(7);
-    }
+  it('widely-spaced satellites render individually', () => {
+    const spaced = Array.from({ length: 7 }, (_, i) => sat(`s${i}`, i * 40, 0));
+    const result = aggregateSkyObjects(spaced);
+    expect(result.regime).toBe('individual');
+    expect(result.renderables).toHaveLength(7);
+  });
+
+  it('satellites packed within a fraction of a degree of each other still render individually — no clustering, ever', () => {
+    // This exact fixture used to merge into one cluster renderable under the
+    // prior fixed-radius clustering behavior. Clustering has been removed
+    // entirely: it must now produce 7 separate individual renderables.
+    const packed = Array.from({ length: 7 }, (_, i) => sat(`s${i}`, 100 + i * 0.1, 0));
+    const result = aggregateSkyObjects(packed);
+    expect(result.regime).toBe('individual');
+    expect(result.renderables).toHaveLength(7);
+    expect(result.renderables.every((r) => r.kind === 'object')).toBe(true);
   });
 
   it('an empty scene aggregates to an empty scene', () => {
-    const result = aggregateSkyObjects([], 1);
+    const result = aggregateSkyObjects([]);
     expect(result.renderables).toHaveLength(0);
     expect(result.clickableCount).toBe(0);
   });
 });
 
-describe('aggregateSkyObjects — clustered regime', () => {
-  // Two tight knots of 4 satellites each + the 3 real anchors = 11 objects.
-  // Knots are ~1.5° wide (inside every level's radius), 90° apart (outside
-  // any escalated radius), so the expected result is exactly 2 clusters.
-  function twoKnots(): SkyObjectInput[] {
-    const knotA = [0, 1, 2, 3].map((i) => sat(`a${i}`, 60 + i * 0.5, 50 + (i % 2) * 0.5));
-    const knotB = [0, 1, 2, 3].map((i) => sat(`b${i}`, 150 + i * 0.5, 50 + (i % 2) * 0.5));
-    return [...anchors(), ...knotA, ...knotB];
-  }
+describe('aggregateSkyObjects — no clustering, no shell, under any population shape', () => {
+  // Fixtures that specifically used to trigger clustering (tight knots) or
+  // the chain-rejection path, back when satellites could merge. Confirms
+  // none of that machinery is reachable anymore.
 
-  it('merges tight knots into constellation clusters and obeys the cap', () => {
-    for (const level of LEVELS) {
-      const result = aggregateSkyObjects(twoKnots(), level);
-      expect(result.regime).toBe('clustered');
-      const clusters = result.renderables.filter((r) => r.kind === 'cluster');
-      expect(clusters).toHaveLength(2);
-      expect(clickables(result)).toBe(5);
-      expect(result.clickableCount).toBe(5);
-    }
+  it('a tight knot of satellites (formerly one cluster) renders as that many individuals', () => {
+    const knot = [0, 1, 2, 3].map((i) => sat(`a${i}`, 60 + i * 0.1, 0));
+    const result = aggregateSkyObjects([...anchors(), ...knot]);
+    expect(result.regime).toBe('individual');
+    expect(result.renderables.every((r) => r.kind === 'object')).toBe(true);
+    expect(result.renderables).toHaveLength(anchors().length + knot.length);
   });
 
-  it('cluster centroids sit inside their knot, members are the real objects sorted by id', () => {
-    const result = aggregateSkyObjects(twoKnots(), 1);
-    const clusterA = result.renderables.find((r) => r.kind === 'cluster' && r.id === 'cluster:a0');
-    expect(clusterA).toBeDefined();
-    if (clusterA?.kind !== 'cluster') throw new Error('unreachable');
-    expect(clusterA.members.map((m) => m.id)).toEqual(['a0', 'a1', 'a2', 'a3']);
-    expect(clusterA.azimuthDeg).toBeGreaterThan(59);
-    expect(clusterA.azimuthDeg).toBeLessThan(62);
+  it('two separate tight knots (formerly two clusters) render as that many individuals', () => {
+    const knotA = [0, 1, 2, 3].map((i) => sat(`a${i}`, 60 + i * 0.1, 0));
+    const knotB = [0, 1, 2, 3].map((i) => sat(`b${i}`, 150 + i * 0.1, 0));
+    const result = aggregateSkyObjects([...anchors(), ...knotA, ...knotB]);
+    expect(result.regime).toBe('individual');
+    expect(result.renderables.every((r) => r.kind === 'object')).toBe(true);
+    expect(result.renderables).toHaveLength(anchors().length + knotA.length + knotB.length);
   });
 
-  it('anchors (pinned ISS, planets, Sun) are never absorbed into a cluster', () => {
-    // Put a satellite knot directly on top of the pinned ISS.
-    const onIss = [0, 1, 2, 3, 4].map((i) => sat(`x${i}`, 120 + i * 0.3, 40 + i * 0.3));
-    const result = aggregateSkyObjects([...anchors(), ...onIss], 2);
+  it('anchors are unaffected by nearby satellite proximity — a satellite knot positioned on the pinned ISS', () => {
+    const onIss = [0, 1, 2, 3, 4].map((i) => sat(`x${i}`, 120 + i * 0.1, 40));
+    const result = aggregateSkyObjects([...anchors(), ...onIss]);
     const individualIds = result.renderables
       .filter((r) => r.kind === 'object')
       .map((r) => (r.kind === 'object' ? r.object.id : ''));
     expect(individualIds).toContain('iss');
     expect(individualIds).toContain('jupiter');
     expect(individualIds).toContain('sun');
-    const cluster = result.renderables.find((r) => r.kind === 'cluster');
-    expect(cluster?.kind === 'cluster' && cluster.members.some((m) => m.id === 'iss')).toBe(false);
+    for (const x of onIss) expect(individualIds).toContain(x.id);
+    expect(result.renderables).toHaveLength(anchors().length + onIss.length);
   });
 
   it('is deterministic and input-order independent', () => {
     const population = [...anchors(), ...scatteredSats(24, 7)];
     const shuffled = [...population].reverse();
-    for (const level of LEVELS) {
-      expect(aggregateSkyObjects(shuffled, level)).toEqual(aggregateSkyObjects(population, level));
-    }
+    expect(aggregateSkyObjects(shuffled)).toEqual(aggregateSkyObjects(population));
   });
 
-  it('cluster ids are stable when unrelated satellites appear elsewhere', () => {
-    const base = aggregateSkyObjects(twoKnots(), 1);
-    const withExtra = aggregateSkyObjects([...twoKnots(), sat('zz-far', 300, 10)], 1);
-    const baseIds = base.renderables.filter((r) => r.kind === 'cluster').map((r) => r.id);
-    const nextIds = withExtra.renderables.filter((r) => r.kind === 'cluster').map((r) => r.id);
-    for (const id of baseIds) expect(nextIds).toContain(id);
-  });
-
-  it('zooming in resolves an aggregate into finer structure', () => {
-    // Three 3-satellite knots with ~8.5° gaps between neighbouring knots:
-    // inside level 2's 12° merge radius (one compact cluster), outside
-    // level 0's 5.6° radius (three separate clusters).
-    const knots = [100, 114, 128].flatMap((az, k) =>
-      [0, 1, 2].map((i) => sat(`k${k}-${i}`, az + i, 45)),
-    );
-    const population = [...anchors(), ...knots];
-    const wide = aggregateSkyObjects(population, 2);
-    const close = aggregateSkyObjects(population, 0);
-    expect(wide.renderables.filter((r) => r.kind === 'cluster')).toHaveLength(1);
-    expect(close.renderables.filter((r) => r.kind === 'cluster')).toHaveLength(3);
-    expect(close.renderables.length).toBeGreaterThan(wide.renderables.length);
-  });
-});
-
-describe('aggregateSkyObjects — shell regime', () => {
-  it('collapses a large spread population into the single orbital shell', () => {
-    // 40 satellites spread evenly around the compass at varying altitudes:
-    // no bounded radius widening can fit them into the budget of 4.
+  it('a large spread population renders as individuals, never the shell', () => {
     const spread = Array.from({ length: 40 }, (_, i) =>
       sat(`s${String(i).padStart(2, '0')}`, i * 9, 10 + (i % 5) * 15),
     );
-    const result = aggregateSkyObjects([...anchors(), ...spread], 2);
-    expect(result.regime).toBe('shell');
-    const shell = result.renderables.find((r) => r.kind === 'shell');
-    expect(shell?.kind === 'shell' && shell.count).toBe(40);
-    expect(result.clickableCount).toBe(4);
+    const result = aggregateSkyObjects([...anchors(), ...spread]);
+    expect(result.regime).not.toBe('shell');
+    expect(result.renderables.some((r) => r.kind === 'shell')).toBe(false);
+    const individualSatIds = result.renderables
+      .filter((r) => r.kind === 'object' && r.object.kind === 'satellite' && !r.object.pinned)
+      .map((r) => (r.kind === 'object' ? r.object.id : ''));
+    expect(individualSatIds).toHaveLength(40);
   });
 
-  it('keeps the shell clickable-core comfortably above the horizon', () => {
-    const lowSats = Array.from({ length: 30 }, (_, i) => sat(`s${i}`, i * 12, 2));
-    const result = aggregateSkyObjects([...anchors(), ...lowSats], 2);
-    const shell = result.renderables.find((r) => r.kind === 'shell');
-    expect(shell?.kind === 'shell' && shell.altitudeDeg >= 15).toBe(true);
+  it('never produces the shell regime, for any satellite population size or seed', () => {
+    for (const seed of [1, 42, 1337, 2026]) {
+      for (const n of [0, 1, 4, 5, 8, 12, 20, 40, 60, 100, 174]) {
+        const result = aggregateSkyObjects([...anchors(), ...scatteredSats(n, seed)]);
+        expect(result.regime).not.toBe('shell');
+        expect(result.regime).toBe('individual');
+      }
+    }
   });
 });
 
-describe('aggregateSkyObjects — the Rule of 7 invariant', () => {
-  it('never exceeds 7 clickables for any population size, seed, or level', () => {
+describe('aggregateSkyObjects — anchors and accounting', () => {
+  it('every anchor in the input is rendered as an individual object', () => {
     for (const seed of [1, 42, 1337, 2026]) {
       for (const n of [0, 1, 4, 5, 8, 12, 20, 40, 60, 100]) {
-        for (const level of LEVELS) {
-          const result = aggregateSkyObjects([...anchors(), ...scatteredSats(n, seed)], level);
-          expect(clickables(result)).toBeLessThanOrEqual(MAX_CLICKABLE_OBJECTS);
-          expect(result.clickableCount).toBe(clickables(result));
-        }
+        const result = aggregateSkyObjects([...anchors(), ...scatteredSats(n, seed)]);
+        const individualIds = result.renderables
+          .filter((r) => r.kind === 'object')
+          .map((r) => (r.kind === 'object' ? r.object.id : ''));
+        for (const a of anchors()) expect(individualIds).toContain(a.id);
       }
     }
   });
 
-  it('aggregates rather than hides: every satellite is accounted for', () => {
-    for (const level of LEVELS) {
-      const population = [...anchors(), ...scatteredSats(35, 5)];
-      const result = aggregateSkyObjects(population, level);
-      let accounted = 0;
-      for (const r of result.renderables) {
-        if (r.kind === 'object') accounted += 1;
-        else if (r.kind === 'cluster') accounted += r.members.length;
-        else accounted += r.count;
-      }
-      expect(accounted).toBe(population.length);
-    }
+  it('MAX_CLICKABLE_OBJECTS still bounds the (fixed, small) anchor roster', () => {
+    expect(anchors().length).toBeLessThanOrEqual(MAX_CLICKABLE_OBJECTS);
+  });
+
+  it('every object in the input becomes exactly one renderable — nothing is aggregated', () => {
+    const population = [...anchors(), ...scatteredSats(35, 5)];
+    const result = aggregateSkyObjects(population);
+    expect(result.renderables).toHaveLength(population.length);
+    expect(clickables(result)).toBe(population.length);
+    expect(result.clickableCount).toBe(population.length);
   });
 });

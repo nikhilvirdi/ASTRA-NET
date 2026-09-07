@@ -10,7 +10,6 @@ import {
   drillFovDeg,
   fovToZoomLevel,
   isAboveHorizon,
-  type ClusterRenderable,
   type ShellRenderable,
   type SkyObjectInput,
   type SkyRenderable,
@@ -64,7 +63,7 @@ export interface ScreenPos {
   altitudeDeg?: number;
 }
 
-/** A semantic-zoom drill-in request (cluster/shell click). */
+/** A semantic-zoom drill-in request (shell click). */
 export interface DrillTarget {
   id: string;
   azimuthDeg: number;
@@ -79,7 +78,7 @@ interface CelestialMarkersProps {
   selectedId: string | null;
   onSelect: (obj: CelestialObject | null) => void;
   onUpdateScreenPos?: (posMap: Record<string, ScreenPos>) => void;
-  /** Cluster/shell click → cinematic zoom-in one level (semantic zoom). */
+  /** Shell click → cinematic zoom-in one level (semantic zoom). */
   onDrill?: (target: DrillTarget) => void;
   onObjectsChange?: (objects: CelestialObject[]) => void;
 }
@@ -399,6 +398,11 @@ function IndividualMarker({
   const wireMat = useRef<THREE.MeshBasicMaterial>(null);
   const coreMat = useRef<THREE.Material>(null);
   const ringMat = useRef<THREE.Material>(null);
+  // Satellites only: with ~170 of them now routinely rendering individually
+  // (semantic-zoom.ts's Rule-of-7 exemption, DECISIONS.md 2026-09-07), an
+  // always-on label per satellite would carpet the scene in text. Sun/Moon/
+  // planets/ISS are always few and keep their persistent label unchanged.
+  const [satelliteLabelVisible, setSatelliteLabelVisible] = useState(false);
 
   // Core sphere participates in regime crossfade (live → 1.0, out → 0.0).
   // Saturn's rings ride the same tween rather than a timer of their own, so
@@ -435,7 +439,7 @@ function IndividualMarker({
          * depthTest against. At default zoom the r=12 wireframe projects to
          * ~17px — dense enough to blank the ~8px core outright, which is why
          * the sphere only reappeared once zoomed in far enough for the wires
-         * to spread apart. Same reason on the cluster/shell affordances below.
+         * to spread apart. Same reason on the shell affordance below.
          */}
         <mesh
           onPointerOver={(e) => {
@@ -443,11 +447,13 @@ function IndividualMarker({
             e.stopPropagation();
             document.body.style.cursor = 'pointer';
             if (wireMat.current) wireMat.current.opacity = 0.5;
+            if (obj.type === 'satellite') setSatelliteLabelVisible(true);
           }}
           onPointerOut={() => {
             if (!interactive) return;
             document.body.style.cursor = 'auto';
             if (wireMat.current) wireMat.current.opacity = isSelected ? 0.7 : 0;
+            if (obj.type === 'satellite') setSatelliteLabelVisible(false);
           }}
           onClick={(e) => {
             if (!interactive) return;
@@ -534,7 +540,7 @@ function IndividualMarker({
         )}
       </group>
 
-      {phase === 'live' && (
+      {phase === 'live' && (obj.type !== 'satellite' || satelliteLabelVisible || isSelected) && (
         <DiegeticText
           text={obj.name}
           position={[pos.x, pos.y - 34, pos.z]}
@@ -542,118 +548,6 @@ function IndividualMarker({
           fontUrl={JOST_BOLD_FONT_URL}
           colorToken="--color-sky-100"
           colorFallback="#eef1f1"
-          opacity={0.7}
-        />
-      )}
-    </group>
-  );
-}
-
-// ─── Constellation-shaped cluster (§11: satellites merge into clusters) ─────
-
-function ClusterMarker({
-  cluster,
-  zoomLevel,
-  phase,
-  onDrill,
-}: {
-  cluster: ClusterRenderable;
-  zoomLevel: ZoomLevel;
-  phase: MarkerPhase;
-  onDrill?: (target: DrillTarget) => void;
-}): React.ReactElement {
-  const coreMat = useRef<THREE.MeshBasicMaterial>(null);
-  const lineMat = useRef<THREE.LineBasicMaterial>(null);
-  // One material shared by every member dot so the whole glyph fades as one.
-  const dotMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: ORBITAL_COLOR, transparent: true, opacity: 0 }),
-    [],
-  );
-  useEffect(() => () => dotMaterial.dispose(), [dotMaterial]);
-  const dotMatRef = useRef<THREE.Material>(dotMaterial);
-  useMarkerFade(phase, [
-    { ref: coreMat, base: 0.7 },
-    { ref: dotMatRef, base: 0.8 },
-    { ref: lineMat, base: 0.35 },
-  ]);
-
-  const centroidPos = useMemo(
-    () => altAzToVector3(cluster.altitudeDeg, cluster.azimuthDeg),
-    [cluster.altitudeDeg, cluster.azimuthDeg],
-  );
-
-  // The constellation glyph: hairlines from the clickable core out to each
-  // member's real position — the shape IS the real geometry, not an icon.
-  const lineGeometry = useMemo(() => {
-    const positions = new Float32Array(cluster.members.length * 6);
-    cluster.members.forEach((m, i) => {
-      const p = altAzToVector3(m.altitudeDeg, m.azimuthDeg);
-      positions.set([centroidPos.x, centroidPos.y, centroidPos.z, p.x, p.y, p.z], i * 6);
-    });
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
-  }, [cluster.members, centroidPos]);
-  useEffect(() => () => lineGeometry.dispose(), [lineGeometry]);
-
-  const interactive = phase === 'live';
-  const handleDrill = (): void => {
-    onDrill?.({
-      id: cluster.id,
-      azimuthDeg: cluster.azimuthDeg,
-      altitudeDeg: cluster.altitudeDeg,
-      fovDeg: drillFovDeg(zoomLevel),
-    });
-  };
-
-  return (
-    <group>
-      <lineSegments geometry={lineGeometry}>
-        <lineBasicMaterial ref={lineMat} color={BRASS_LINE_COLOR} transparent opacity={0} />
-      </lineSegments>
-
-      {/* Member dots at their real positions — ambient, not clickable. */}
-      {cluster.members.map((m) => (
-        <mesh key={m.id} position={altAzToVector3(m.altitudeDeg, m.azimuthDeg)}>
-          <sphereGeometry args={[3.5, 8, 8]} />
-          <primitive object={dotMaterial} attach="material" />
-        </mesh>
-      ))}
-
-      {/* The one clickable: drill in a zoom level, resolving the cluster. */}
-      <mesh
-        position={centroidPos}
-        onPointerOver={(e) => {
-          if (!interactive) return;
-          e.stopPropagation();
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          if (!interactive) return;
-          document.body.style.cursor = 'auto';
-        }}
-        onClick={(e) => {
-          if (!interactive) return;
-          e.stopPropagation();
-          handleDrill();
-        }}
-      >
-        <octahedronGeometry args={[14, 0]} />
-        <meshBasicMaterial
-          ref={coreMat}
-          color={ORBITAL_COLOR}
-          wireframe
-          transparent
-          opacity={0}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {phase === 'live' && (
-        <DiegeticText
-          text={`${cluster.members.length} SATELLITES`}
-          position={[centroidPos.x, centroidPos.y - 34, centroidPos.z]}
-          fontSize={14}
           opacity={0.7}
         />
       )}
@@ -1032,8 +926,8 @@ export function CelestialMarkers({
 
   const realSats = useSatellites();
 
-  // DEV-only simulated satellite population (?simSats=N) so the semantic
-  // zoom's cluster/shell regimes can be exercised visually.
+  // DEV-only simulated satellite population (?simSats=N) so a large
+  // individual population's rendering/overlap can be exercised visually.
   const simObjects = useMemo<CelestialObject[]>(() => {
     const count = simSatCountFromSearch(window.location.search);
     return simulatedSatellites(count).map((s, i) => ({
@@ -1091,16 +985,15 @@ export function CelestialMarkers({
       kind: kindOf(o.type),
       azimuthDeg: o.azimuthDeg,
       altitudeDeg: o.altitudeDeg,
-      // The ISS is pinned: hero object of §11's opening sequence and camera
-      // lock — it never merges into a cluster.
+      // `pinned` no longer changes aggregation (nothing clusters anymore —
+      // see semantic-zoom.ts). Kept: ISS's hero-object treatment (§11's
+      // opening sequence, camera lock) is driven by `type === 'iss'`
+      // elsewhere, but this field still documents it as the pinned object.
       pinned: o.type === 'iss',
     }));
   }, [allObjects]);
 
-  const aggregation = useMemo(
-    () => aggregateSkyObjects(skyInputs, zoomLevel),
-    [skyInputs, zoomLevel],
-  );
+  const aggregation = useMemo(() => aggregateSkyObjects(skyInputs), [skyInputs]);
 
   // ── §7.1 transition-class crossfade between regimes: renderables that
   // left the aggregation stay mounted briefly, fading out. ──
@@ -1186,17 +1079,6 @@ export function CelestialMarkers({
           isSelected={selectedId === rich.id}
           phase={phase}
           onSelect={onSelect}
-        />
-      );
-    }
-    if (r.kind === 'cluster') {
-      return (
-        <ClusterMarker
-          key={key}
-          cluster={r}
-          zoomLevel={zoomLevel}
-          phase={phase}
-          onDrill={onDrill}
         />
       );
     }

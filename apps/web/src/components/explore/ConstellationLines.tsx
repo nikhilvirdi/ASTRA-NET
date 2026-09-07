@@ -77,7 +77,7 @@ export function ConstellationLines({
   }, [built, observerLat, currentTime]);
 
   // Floating labels: compute only for constellations currently at least partially above horizon.
-  // Positioned in scene units facing the observer, matching ClusterMarker in CelestialMarkers.tsx.
+  // Positioned in scene units facing the observer, matching IndividualMarker in CelestialMarkers.tsx.
   const visibleLabels = useMemo(() => {
     if (!data || !visible) return [];
     return computeVisibleConstellationLabels(data, observerLat, observerLon, currentTime);

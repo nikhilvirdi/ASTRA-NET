@@ -9,10 +9,12 @@ import type { SkyObjectInput } from './semantic-zoom';
  * no-fictional-objects rule; a labeled instrument in a dev build does not.
  * Every marker generated here is explicitly labeled SIMULATED in its id.
  *
- * The real satellite population arrives with the Phase 8 "clickable
+ * The real satellite population arrives via the Phase 8 "clickable
  * ISS/satellites" workstream (CelesTrak group + client-side satellite.js
- * propagation, both named in ARCHITECTURE.md/API_SOURCES.md); this rig
- * exists so the cluster/shell states are visually verifiable before then.
+ * propagation, both named in ARCHITECTURE.md/API_SOURCES.md), and is live in
+ * production; this rig remains useful for exercising a large individual
+ * population's rendering/overlap behavior on demand, without depending on
+ * real satellites being above the horizon right now.
  */
 
 /** mulberry32 — tiny seeded PRNG; deterministic across reloads. */

@@ -1,36 +1,26 @@
 /**
- * Semantic zoom / Rule of 7 aggregation (DESIGN_SPEC.md §11: "never more
- * than seven clickable objects at any zoom level. Everything else is
- * ambient. Enforced by the semantic zoom system, which aggregates rather
- * than hides: satellites merge into constellation-shaped clusters, then into
- * a single orbital shell glow.")
+ * Semantic zoom / sky-object presentation.
  *
  * Pure presentation policy over the scene's clickable-object list — no
  * physics, no FORMULAS.md constants — so it lives beside
  * `pass-interpolation.ts` in apps/web/src/lib, not in packages/shared.
  *
- * How the spec's three regimes fall out:
+ * DESIGN_SPEC.md §11 ("never more than seven clickable objects at any zoom
+ * level... satellites merge into constellation-shaped clusters, then into a
+ * single orbital shell glow") no longer governs the satellite population at
+ * all — see DECISIONS.md, 2026-09-07 "Satellite clustering removed
+ * entirely". Every object — anchor or satellite — always renders as its own
+ * individual object, unconditionally. Overlapping icons on screen when
+ * satellites are genuinely close together is expected and accepted; it is
+ * not solved by merging them into an aggregate marker.
  *
- *   1. INDIVIDUAL — total clickables ≤ 7: nothing aggregates. The Rule of 7
- *      is the trigger, not proximity; below the cap every object stays
- *      individually clickable ("aggregates rather than hides" is the
- *      *enforcement* mechanism, not ambient decluttering).
- *   2. CLUSTERED — over the cap, unpinned satellites within a zoom-dependent
- *      angular radius merge into constellation-shaped clusters (union-find
- *      connected components — deterministic and order-independent). If the
- *      first radius still leaves too many clickables, the radius widens
- *      geometrically a bounded number of times.
- *   3. SHELL — if no bounded widening fits the budget, every unpinned
- *      satellite collapses into the single orbital-shell glow (one
- *      clickable).
- *
- * Scope note: the rule is enforced scene-wide (all-sky), not per-viewport —
- * the engine sees zoom level but not camera direction. Scene-wide is
- * strictly stronger than §11's per-view wording, so it can never violate it.
- *
- * Zoom levels are discrete FOV bands (§11 itself speaks of "any zoom
- * level"), which also gives the renderer natural hysteresis: aggregation
- * only recomputes when the camera crosses a band edge, never per frame.
+ * The SHELL regime (`ShellRenderable`/`ShellMarker`) still exists in the
+ * type system and renderer but nothing here produces one — flagged in
+ * DECISIONS.md rather than deleted, since removing a designed, tested
+ * visual feature wasn't part of this change. The CLUSTERED regime that
+ * previously sat between INDIVIDUAL and SHELL has been removed entirely,
+ * along with `ClusterRenderable`/`ClusterMarker` — see DECISIONS.md,
+ * 2026-09-07.
  */
 
 /**
@@ -57,14 +47,22 @@ export interface SkyObjectInput {
   azimuthDeg: number;
   altitudeDeg: number;
   /**
-   * Never aggregated (still counts toward the 7). The ISS is pinned: it is
-   * the product's hero object — §11's opening sequence tethers, cursor
-   * gravity, and camera lock all address it individually.
+   * Historical: marked the ISS as exempt from clustering back when
+   * satellites could cluster. Nothing clusters anymore (see file header),
+   * so this no longer changes any aggregation behavior — kept because the
+   * ISS is still the product's hero object (§11's opening sequence tethers,
+   * cursor gravity, camera lock), all driven by `type === 'iss'` elsewhere,
+   * not by this field. Not removed outright — see DECISIONS.md, 2026-09-07.
    */
   pinned?: boolean;
 }
 
-/** DESIGN_SPEC.md §11 — the Rule of 7. */
+/**
+ * DESIGN_SPEC.md §11 — the Rule of 7. Still governs anchors (Sun/Moon/
+ * planets, pinned ISS), which stay individually clickable unconditionally;
+ * no longer governs the satellite population, which is no longer aggregated
+ * at all (see file header, DECISIONS.md 2026-09-07).
+ */
 export const MAX_CLICKABLE_OBJECTS = 7;
 
 /**
@@ -85,9 +83,9 @@ export function fovToZoomLevel(fovDeg: number): ZoomLevel {
 }
 
 /**
- * Drill-in target FOV for a cluster/shell click at `level`: the midpoint of
- * the next band in — clicking an aggregate zooms the camera to where that
- * aggregate resolves further. Already at level 0 → stay at level 0's mid.
+ * Drill-in target FOV for a shell click at `level`: the midpoint of the
+ * next band in — clicking the shell zooms the camera to where it resolves
+ * further. Already at level 0 → stay at level 0's mid.
  */
 export function drillFovDeg(level: ZoomLevel): number {
   return ZOOM_FOV_MIDPOINTS_DEG[Math.max(0, level - 1) as ZoomLevel];
@@ -103,28 +101,15 @@ export function drillFovDeg(level: ZoomLevel): number {
  */
 const APPARENT_SEPARATION_FRACTION = 0.15;
 
+/**
+ * Not called by `aggregateSkyObjects` anymore (satellites no longer cluster
+ * at all, so there is no merge radius of any kind — see file header). Kept
+ * and still exported/tested as a standalone pure function; orphaned from
+ * production — see DECISIONS.md, 2026-09-07.
+ */
 export function mergeRadiusDeg(level: ZoomLevel): number {
   return APPARENT_SEPARATION_FRACTION * ZOOM_FOV_MIDPOINTS_DEG[level];
 }
-
-/**
- * Bounded escalation before giving up and going to the shell: radius ×1.5
- * per extra attempt, 3 extra attempts (up to ~3.4× the base radius).
- */
-const ESCALATION_FACTOR = 1.5;
-const MAX_ESCALATION_STEPS = 3;
-
-/**
- * A cluster is only "constellation-shaped" (§11) while it stays compact —
- * beyond ~15° from centroid to farthest member (~30° across, the span of a
- * large real constellation) the glyph stops reading as one asterism.
- * Union-find chains can otherwise link an evenly-spread population into one
- * sky-wide component, which would satisfy the cap while being illegible.
- * Widening the radius only grows extent, so an over-extended component at
- * any step escalates straight to the shell. Invented presentation constant —
- * flagged in DECISIONS.md.
- */
-const MAX_CLUSTER_EXTENT_DEG = 15;
 
 // ─── Angular math (same alt/az sphere mapping as the scene) ─────────────────
 
@@ -134,6 +119,12 @@ function toUnitVector(altitudeDeg: number, azimuthDeg: number): [number, number,
   return [Math.cos(alt) * Math.sin(az), Math.sin(alt), -Math.cos(alt) * Math.cos(az)];
 }
 
+/**
+ * Not called by `aggregateSkyObjects` anymore (nothing clusters, so nothing
+ * needs a pairwise angular distance — see file header). Kept and still
+ * exported/tested as a standalone pure function; orphaned from production
+ * — see DECISIONS.md, 2026-09-07.
+ */
 export function angularSeparationDeg(
   a: { altitudeDeg: number; azimuthDeg: number },
   b: { altitudeDeg: number; azimuthDeg: number },
@@ -148,6 +139,11 @@ export function angularSeparationDeg(
  * Spherical centroid (normalized mean unit vector) of a set of positions.
  * Degenerate case (vectors cancel, e.g. antipodal pair): falls back to the
  * first member's position rather than dividing by ~zero.
+ *
+ * Not called by `aggregateSkyObjects` anymore (there are no cluster
+ * centroids to compute — see file header). Kept and still exported/tested
+ * as a standalone pure function; orphaned from production — see
+ * DECISIONS.md, 2026-09-07.
  */
 export function sphericalCentroid(
   members: readonly { altitudeDeg: number; azimuthDeg: number }[],
@@ -179,16 +175,6 @@ export interface IndividualRenderable {
   object: SkyObjectInput;
 }
 
-export interface ClusterRenderable {
-  kind: 'cluster';
-  /** Stable across small membership changes: keyed by the first member id. */
-  id: string;
-  azimuthDeg: number;
-  altitudeDeg: number;
-  /** Sorted by id — the constellation glyph draws these real positions. */
-  members: SkyObjectInput[];
-}
-
 export interface ShellRenderable {
   kind: 'shell';
   id: 'orbital-shell';
@@ -200,160 +186,29 @@ export interface ShellRenderable {
   altitudeDeg: number;
 }
 
-export type SkyRenderable = IndividualRenderable | ClusterRenderable | ShellRenderable;
+export type SkyRenderable = IndividualRenderable | ShellRenderable;
 
 export interface AggregationResult {
-  regime: 'individual' | 'clustered' | 'shell';
+  regime: 'individual' | 'shell';
   renderables: SkyRenderable[];
-  /** The number the Rule of 7 caps — always ≤ MAX_CLICKABLE_OBJECTS. */
+  /** Always equal to `renderables.length` — nothing is aggregated, so every
+   * object in the input becomes exactly one renderable. */
   clickableCount: number;
 }
 
-const SHELL_CORE_MIN_ALTITUDE_DEG = 15;
-
-/** Union-find with path compression. */
-function findRoot(parent: number[], i: number): number {
-  let r = i;
-  for (;;) {
-    const p = parent[r];
-    if (p === undefined || p === r) break;
-    r = p;
-  }
-  let cur = i;
-  while (cur !== r) {
-    const next = parent[cur];
-    if (next === undefined) break;
-    parent[cur] = r;
-    cur = next;
-  }
-  return r;
-}
-
-/** Connected components of `sats` under angular threshold, sorted lists. */
-function clusterComponents(sats: SkyObjectInput[], radiusDeg: number): SkyObjectInput[][] {
-  const parent = sats.map((_, i) => i);
-  for (let i = 0; i < sats.length; i++) {
-    const si = sats[i];
-    if (si === undefined) continue;
-    for (let j = i + 1; j < sats.length; j++) {
-      const sj = sats[j];
-      if (sj === undefined) continue;
-      if (angularSeparationDeg(si, sj) <= radiusDeg) {
-        parent[findRoot(parent, i)] = findRoot(parent, j);
-      }
-    }
-  }
-  const byRoot = new Map<number, SkyObjectInput[]>();
-  sats.forEach((s, i) => {
-    const r = findRoot(parent, i);
-    const list = byRoot.get(r);
-    if (list) list.push(s);
-    else byRoot.set(r, [s]);
-  });
-  const components = [...byRoot.values()];
-  components.forEach((c) => c.sort((a, b) => a.id.localeCompare(b.id)));
-  components.sort((a, b) => (a[0]?.id ?? '').localeCompare(b[0]?.id ?? ''));
-  return components;
-}
-
-/** Max member-to-centroid separation — the compactness measure. */
-function clusterExtentDeg(members: SkyObjectInput[]): number {
-  const centroid = sphericalCentroid(members);
-  return members.reduce((max, m) => Math.max(max, angularSeparationDeg(m, centroid)), 0);
-}
-
 /**
- * The Rule of 7 gate. Deterministic: same inputs → same output, regardless
- * of input order (components and members are id-sorted).
- *
- * Anchors (non-satellites + pinned satellites) always render individually;
- * the product's real anchor roster (Sun, planets, pinned ISS) is bounded
- * well under 7, so the budget for satellite renderables is always ≥ 1.
+ * Every object — anchor or satellite — always renders individually.
+ * Deterministic: same inputs → same output, regardless of input order
+ * (sorted by id).
  */
-export function aggregateSkyObjects(
-  objects: readonly SkyObjectInput[],
-  level: ZoomLevel,
-): AggregationResult {
-  const anchors = objects
-    .filter((o) => o.kind !== 'satellite' || o.pinned === true)
-    .sort((a, b) => a.id.localeCompare(b.id));
-  const sats = objects
-    .filter((o) => o.kind === 'satellite' && o.pinned !== true)
-    .sort((a, b) => a.id.localeCompare(b.id));
+export function aggregateSkyObjects(objects: readonly SkyObjectInput[]): AggregationResult {
+  const renderables: SkyRenderable[] = [...objects]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((object) => ({ kind: 'object', object }));
 
-  const anchorRenderables: SkyRenderable[] = anchors.map((object) => ({ kind: 'object', object }));
-
-  // Under the cap: the rule isn't triggered, nothing aggregates.
-  if (objects.length <= MAX_CLICKABLE_OBJECTS) {
-    return {
-      regime: 'individual',
-      renderables: [
-        ...anchorRenderables,
-        ...sats.map<SkyRenderable>((object) => ({ kind: 'object', object })),
-      ],
-      clickableCount: objects.length,
-    };
-  }
-
-  // Over the cap with nothing aggregatable (roster-impossible: anchors are
-  // bounded under 7) — render anchors rather than crash on an empty shell.
-  if (sats.length === 0) {
-    return {
-      regime: 'individual',
-      renderables: anchorRenderables,
-      clickableCount: anchors.length,
-    };
-  }
-
-  const budget = MAX_CLICKABLE_OBJECTS - anchors.length;
-
-  // Over the cap: cluster at the level's radius, widening a bounded number
-  // of times if the component count still busts the budget.
-  if (budget >= 1) {
-    for (let step = 0; step <= MAX_ESCALATION_STEPS; step++) {
-      const radius = mergeRadiusDeg(level) * ESCALATION_FACTOR ** step;
-      const components = clusterComponents(sats, radius);
-      // An over-extended component can't render as a constellation, and
-      // widening only grows extent — stop escalating, go to the shell.
-      if (components.some((c) => c.length > 1 && clusterExtentDeg(c) > MAX_CLUSTER_EXTENT_DEG)) {
-        break;
-      }
-      if (components.length > budget) continue;
-
-      const satRenderables = components.map<SkyRenderable>((members) => {
-        const first = members[0];
-        if (first !== undefined && members.length === 1) {
-          return { kind: 'object', object: first };
-        }
-        const centroid = sphericalCentroid(members);
-        return {
-          kind: 'cluster',
-          id: `cluster:${first?.id ?? ''}`,
-          azimuthDeg: centroid.azimuthDeg,
-          altitudeDeg: centroid.altitudeDeg,
-          members,
-        };
-      });
-      return {
-        regime: satRenderables.some((r) => r.kind === 'cluster') ? 'clustered' : 'individual',
-        renderables: [...anchorRenderables, ...satRenderables],
-        clickableCount: anchors.length + components.length,
-      };
-    }
-  }
-
-  // Widening never fit the budget: the single orbital shell glow.
-  const centroid = sphericalCentroid(sats);
-  const shell: ShellRenderable = {
-    kind: 'shell',
-    id: 'orbital-shell',
-    count: sats.length,
-    azimuthDeg: centroid.azimuthDeg,
-    altitudeDeg: Math.max(SHELL_CORE_MIN_ALTITUDE_DEG, centroid.altitudeDeg),
-  };
   return {
-    regime: 'shell',
-    renderables: [...anchorRenderables, shell],
-    clickableCount: anchors.length + 1,
+    regime: 'individual',
+    renderables,
+    clickableCount: renderables.length,
   };
 }
