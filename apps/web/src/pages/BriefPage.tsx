@@ -13,6 +13,7 @@ import { SolarWindTelemetry } from '@/components/brief/SolarWindTelemetry';
 import { NeoDistanceScale } from '@/components/brief/NeoDistanceScale';
 import { NeoSizeComparison } from '@/components/brief/NeoSizeComparison';
 import { MeteorShowerCard } from '@/components/brief/MeteorShowerCard';
+import { SkyQualityStatus } from '@/components/brief/SkyQualityStatus';
 import { spaceWeatherUiState, formatLastSeen } from '@/lib/space-weather-status';
 import { FreshnessIndicator } from '@/components/common/FreshnessIndicator';
 import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
@@ -339,6 +340,7 @@ export function BriefPage(): React.ReactElement {
                       ? 'Dark enough for ISS & Aurora observations.'
                       : 'Civil twilight — sky retains residual scatter.'}
                 </p>
+                {!loading && <SkyQualityStatus bortle={brief?.skyAnchor?.data?.skyQualityBortle} />}
               </div>
             </div>
 
