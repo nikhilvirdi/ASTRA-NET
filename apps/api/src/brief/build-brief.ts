@@ -63,6 +63,15 @@ export function buildBrief(
    */
   openMeteo: OpenMeteoData | null,
   /**
+   * Pre-looked-up by the HTTP layer, not by this pure core — Sky Quality
+   * (Bortle scale) is observer-specific and comes from a self-hosted static
+   * grid lookup (`bortleAt`), the same "fetched outside, passed in" shape
+   * as `openMeteo`/`issVisualPasses` above, just synchronous rather than a
+   * network call. See `sky-anchor-card.ts`'s `SkyAnchorCard.skyQualityBortle`
+   * and DECISIONS.md.
+   */
+  skyQualityBortle: number | null,
+  /**
    * Real rolling accuracy-loop hits/trials (FORMULAS.md §9), queried by
    * the HTTP layer (`predictions/history.ts`) — global scope, not
    * per-user (DECISIONS.md). Same "fetched outside, passed in" shape as
@@ -87,6 +96,7 @@ export function buildBrief(
         mercury: pollerState.horizonsMercury,
       },
       openMeteo,
+      skyQualityBortle,
     ),
   );
 

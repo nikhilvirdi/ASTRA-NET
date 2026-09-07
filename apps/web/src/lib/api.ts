@@ -34,6 +34,14 @@ export interface SkyAnchorCardData {
   moon?: MoonCardData | null;
   /** Cloud cover / visibility for this observer, current hour through the next few. Null when unavailable. */
   cloudCover: CloudCoverHour[] | null;
+  /**
+   * Sky Quality: a Bortle-scale (1-9, 1=pristine dark, 9=inner-city)
+   * light-pollution estimate for this observer, from a self-hosted static
+   * grid (~11km resolution, luma-approximation off NASA's Black Marble
+   * night-lights composite — an honest estimate, not a precise measurement).
+   * Null when the grid is unavailable.
+   */
+  skyQualityBortle: number | null;
 }
 
 export interface IssPositionField {

@@ -39,6 +39,7 @@ function quietBrief(): DailyBrief {
           nextSetUtc: null,
         },
         cloudCover: null,
+        skyQualityBortle: null,
       },
     },
     iss: { status: 'ok', data: { position: null, nextPass: null } },

@@ -22,6 +22,7 @@ import {
   fetchOpenMeteo as defaultFetchOpenMeteo,
   type OpenMeteoData,
 } from '../clients/open-meteo/index.js';
+import { bortleAt as defaultBortleAt } from '../clients/static/light-pollution.client.js';
 import { fetchVisualPassesCached } from './visual-passes-cache.js';
 
 /** Same real-world ISS NORAD ID already used by the fast-tier poller (DECISIONS.md, 2026-07-16). */
@@ -41,6 +42,7 @@ export interface ComposeBriefDeps {
   n2yoApiKey: string;
   fetchN2yoVisualPasses?: typeof defaultFetchN2yoVisualPasses;
   fetchOpenMeteo?: typeof defaultFetchOpenMeteo;
+  bortleAt?: typeof defaultBortleAt;
 }
 
 export async function composeBriefForObserver(
@@ -51,6 +53,7 @@ export async function composeBriefForObserver(
 ): Promise<DailyBrief> {
   const fetchVisualPasses = deps.fetchN2yoVisualPasses ?? defaultFetchN2yoVisualPasses;
   const fetchCloudCover = deps.fetchOpenMeteo ?? defaultFetchOpenMeteo;
+  const bortleAt = deps.bortleAt ?? defaultBortleAt;
   const pollerState = getAllSourceStates();
 
   // f_hist is global, not per-request (DECISIONS.md), but only worth a
@@ -112,5 +115,26 @@ export async function composeBriefForObserver(
     openMeteo = null;
   }
 
-  return buildBrief(pollerState, latDeg, lonDeg, now, visualPasses, openMeteo, history);
+  let skyQualityBortle: number | null;
+  try {
+    // Synchronous static-grid lookup, not a network call — no TTL cache or
+    // rate-limit concern like N2YO's visual-passes; memoised in-process by
+    // `bortleAt` itself after the first read (see light-pollution.client.ts).
+    skyQualityBortle = bortleAt(latDeg, lonDeg);
+  } catch {
+    // bortleAt is documented to never throw, but this guard mirrors the
+    // same belt-and-suspenders posture as the other per-request calls above.
+    skyQualityBortle = null;
+  }
+
+  return buildBrief(
+    pollerState,
+    latDeg,
+    lonDeg,
+    now,
+    visualPasses,
+    openMeteo,
+    skyQualityBortle,
+    history,
+  );
 }

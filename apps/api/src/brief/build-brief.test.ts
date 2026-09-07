@@ -163,6 +163,7 @@ function fullPollerState(): PollerState {
 
 const NO_VISUAL_PASSES: N2yoVisualPassesData | null = null;
 const NO_CLOUD_COVER: OpenMeteoData | null = null;
+const NO_SKY_QUALITY: number | null = null;
 const NEUTRAL_HISTORY = { hits: 0, trials: 0 };
 
 describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
@@ -174,6 +175,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -233,6 +235,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       visualPasses,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -255,6 +258,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       openMeteo,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -279,11 +283,45 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       openMeteo,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
     expect(brief.skyAnchor.status).toBe('ok');
     expect(brief.skyAnchor.data?.cloudCover).toBeNull();
+    expect(brief.skyAnchor.data?.jupiter).not.toBeNull();
+  });
+
+  it('includes an on-demand Sky Quality (Bortle) lookup when the HTTP layer supplies one', () => {
+    const brief = buildBrief(
+      fullPollerState(),
+      45,
+      -75,
+      NOW,
+      NO_VISUAL_PASSES,
+      NO_CLOUD_COVER,
+      7,
+      NEUTRAL_HISTORY,
+    );
+
+    expect(brief.skyAnchor.status).toBe('ok');
+    expect(brief.skyAnchor.data?.skyQualityBortle).toBe(7);
+  });
+
+  it('degrades Sky Quality to null without affecting the rest of Sky Anchor when the grid is unavailable', () => {
+    const brief = buildBrief(
+      fullPollerState(),
+      45,
+      -75,
+      NOW,
+      NO_VISUAL_PASSES,
+      NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
+      NEUTRAL_HISTORY,
+    );
+
+    expect(brief.skyAnchor.status).toBe('ok');
+    expect(brief.skyAnchor.data?.skyQualityBortle).toBeNull();
     expect(brief.skyAnchor.data?.jupiter).not.toBeNull();
   });
 
@@ -299,6 +337,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -320,6 +359,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -357,6 +397,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -384,6 +425,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -421,7 +463,16 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       fetchedAt: NOW.toISOString(),
     };
 
-    const brief = buildBrief(state, 45, -75, NOW, visualPasses, NO_CLOUD_COVER, NEUTRAL_HISTORY);
+    const brief = buildBrief(
+      state,
+      45,
+      -75,
+      NOW,
+      visualPasses,
+      NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
+      NEUTRAL_HISTORY,
+    );
 
     expect(brief.iss.status).toBe('ok');
     expect(brief.iss.data?.position).toBeNull();
@@ -439,6 +490,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 
@@ -455,6 +507,7 @@ describe('buildBrief — degradation contract (ARCHITECTURE.md §5)', () => {
       NOW,
       NO_VISUAL_PASSES,
       NO_CLOUD_COVER,
+      NO_SKY_QUALITY,
       NEUTRAL_HISTORY,
     );
 

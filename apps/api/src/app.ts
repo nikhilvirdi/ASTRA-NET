@@ -25,6 +25,7 @@ export interface CreateAppDeps {
   prisma: PrismaClient;
   fetchN2yoVisualPasses?: BriefRouteDeps['fetchN2yoVisualPasses'];
   fetchOpenMeteo?: BriefRouteDeps['fetchOpenMeteo'];
+  bortleAt?: BriefRouteDeps['bortleAt'];
   /**
    * The deployed frontend's real origin (ARCHITECTURE.md §9: Cloudflare
    * Pages, a different domain from this API's own VPS in production) —

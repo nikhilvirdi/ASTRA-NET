@@ -99,6 +99,20 @@ export interface SkyAnchorCard {
    * never a fabricated reading.
    */
   cloudCover: CloudCoverHour[] | null;
+  /**
+   * Sky Quality: a Bortle-scale (1-9, 1=pristine dark, 9=inner-city) light-
+   * pollution estimate for this observer, looked up from the self-hosted
+   * `bortle-grid.bin` (0.1° / ~11km resolution, derived from NASA's public-
+   * domain Black Marble 2016 night-lights composite — see DECISIONS.md).
+   * This is a luma-approximation off a rendered poster image, not
+   * calibrated VIIRS radiance — an honest estimate, not a precise
+   * measurement, and coarser than any single city block. A location-
+   * dependent static lookup made by the HTTP layer and passed in, the same
+   * "fetched outside, passed in" shape as `cloudCover` (not the poller's
+   * global store — light pollution genuinely differs by location). Null
+   * when the grid file is unavailable — never a fabricated value.
+   */
+  skyQualityBortle: number | null;
 }
 
 /**
@@ -188,6 +202,7 @@ export function buildSkyAnchorCard(
   now: Date,
   planetEphemerides: PlanetEphemerides,
   openMeteo: OpenMeteoData | null,
+  skyQualityBortle: number | null,
 ): SkyAnchorCard {
   const sun = sunHorizontalPosition(now, observerLatDeg, observerLonDeg);
   const sunAltDeg = sun.altitudeDeg;
@@ -220,5 +235,6 @@ export function buildSkyAnchorCard(
       nextSetUtc: moonRiseSet.setUtc ? moonRiseSet.setUtc.toISOString() : null,
     },
     cloudCover: resolveCloudCoverForecast(openMeteo, now),
+    skyQualityBortle,
   };
 }
