@@ -69,6 +69,12 @@ export async function fetchCelestrakOmm(
   try {
     const raw = await fetchWithRetry(url.toString());
     const records = parseCelestrakOmm(raw);
+    if (records === null) {
+      console.error(
+        '[celestrak] fetch succeeded but response failed schema validation:',
+        url.toString(),
+      );
+    }
     return { records, fetchedAt: now.toISOString() };
   } catch (err) {
     console.error('[celestrak] fetch failed:', err);
@@ -132,6 +138,12 @@ export async function fetchCelestrakTle(
   try {
     const raw = await fetchWithRetry<string>(url.toString(), (r) => r.text(), 20_000);
     const records = parseCelestrakTleText(raw);
+    if (records === null) {
+      console.error(
+        '[celestrak] TLE fetch succeeded but response body did not parse into valid records:',
+        url.toString(),
+      );
+    }
     return { records, fetchedAt: now.toISOString() };
   } catch (err) {
     console.error('[celestrak] TLE fetch failed:', err);
