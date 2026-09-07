@@ -1,7 +1,6 @@
-/**
- * Horizon Band layout and culling (DESIGN_SPEC.md §9 — curved dome arc).
- */
-
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import {
   ARC_VIEW_HEIGHT,
@@ -16,9 +15,13 @@ import {
   azAltToArcPoint,
   azimuthFraction,
   belongsOnBand,
+  cloudCoverOpacity,
   formatAltitude,
+  selectNearestCloudCover,
 } from './horizon-band';
 import { HORIZON_REFRACTION_DEG } from './semantic-zoom';
+import type { DailyBrief } from './api';
+import { HorizonBand } from '../components/brief/HorizonBand';
 
 describe('COMPASS_POINTS', () => {
   it('names all eight principal points exactly once', () => {
@@ -182,5 +185,165 @@ describe('arcGridlinePath / arcFillPath', () => {
 
   it('the fill path closes back to its start (Z)', () => {
     expect(arcFillPath().endsWith('Z')).toBe(true);
+  });
+});
+
+describe('cloudCoverOpacity', () => {
+  it('returns null when cloud cover data is null, undefined, or NaN', () => {
+    expect(cloudCoverOpacity(null)).toBeNull();
+    expect(cloudCoverOpacity(undefined)).toBeNull();
+    expect(cloudCoverOpacity(Number.NaN)).toBeNull();
+  });
+
+  it('scales cloud cover percent linearly between 0 and 1', () => {
+    expect(cloudCoverOpacity(0)).toBe(0);
+    expect(cloudCoverOpacity(25)).toBe(0.25);
+    expect(cloudCoverOpacity(50)).toBe(0.5);
+    expect(cloudCoverOpacity(75)).toBe(0.75);
+    expect(cloudCoverOpacity(100)).toBe(1);
+  });
+
+  it('clamps out-of-range values between 0 and 1', () => {
+    expect(cloudCoverOpacity(-10)).toBe(0);
+    expect(cloudCoverOpacity(150)).toBe(1);
+  });
+});
+
+describe('selectNearestCloudCover', () => {
+  const forecast = [
+    { timeUtc: '2026-09-07T00:00:00.000Z', cloudCoverPercent: 10, visibilityMeters: 20000 },
+    { timeUtc: '2026-09-07T01:00:00.000Z', cloudCoverPercent: 40, visibilityMeters: 18000 },
+    { timeUtc: '2026-09-07T02:00:00.000Z', cloudCoverPercent: 90, visibilityMeters: 12000 },
+  ];
+
+  it('returns null when cloud cover list is null or empty', () => {
+    expect(selectNearestCloudCover(null, new Date('2026-09-07T00:00:00.000Z'))).toBeNull();
+    expect(selectNearestCloudCover([], new Date('2026-09-07T00:00:00.000Z'))).toBeNull();
+  });
+
+  it('picks the forecast hour closest to effective time', () => {
+    expect(
+      selectNearestCloudCover(forecast, new Date('2026-09-07T00:10:00.000Z'))?.cloudCoverPercent,
+    ).toBe(10);
+    expect(
+      selectNearestCloudCover(forecast, new Date('2026-09-07T00:50:00.000Z'))?.cloudCoverPercent,
+    ).toBe(40);
+    expect(
+      selectNearestCloudCover(forecast, new Date('2026-09-07T01:45:00.000Z'))?.cloudCoverPercent,
+    ).toBe(90);
+  });
+
+  it('clamps to boundary entries when effective time is outside forecast range', () => {
+    expect(
+      selectNearestCloudCover(forecast, new Date('2026-09-06T20:00:00.000Z'))?.cloudCoverPercent,
+    ).toBe(10);
+    expect(
+      selectNearestCloudCover(forecast, new Date('2026-09-07T10:00:00.000Z'))?.cloudCoverPercent,
+    ).toBe(90);
+  });
+});
+
+describe('HorizonBand cloud cover overlay rendering', () => {
+  it('does not render cloud overlay when cloud cover data is null or unavailable', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          cloudCover: null,
+        }),
+      ),
+    );
+    expect(html).not.toContain('data-testid="horizon-cloud-overlay"');
+    expect(html).not.toContain('horizon-band-clouds');
+  });
+
+  it('renders cloud overlay with 0 opacity when cloud cover is 0%', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          cloudCover: [
+            { timeUtc: '2026-09-07T00:00:00Z', cloudCoverPercent: 0, visibilityMeters: 10000 },
+          ],
+        }),
+      ),
+    );
+    expect(html).toContain('data-testid="horizon-cloud-overlay"');
+    expect(html).toContain('horizon-band-clouds');
+    expect(html).toContain('opacity="0"');
+  });
+
+  it('renders cloud overlay with 0.5 opacity when cloud cover is 50%', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          cloudCover: [
+            { timeUtc: '2026-09-07T00:00:00Z', cloudCoverPercent: 50, visibilityMeters: 8000 },
+          ],
+        }),
+      ),
+    );
+    expect(html).toContain('data-testid="horizon-cloud-overlay"');
+    expect(html).toContain('opacity="0.5"');
+  });
+
+  it('renders cloud overlay with 1 opacity when cloud cover is 100%', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          cloudCover: [
+            { timeUtc: '2026-09-07T00:00:00Z', cloudCoverPercent: 100, visibilityMeters: 3000 },
+          ],
+        }),
+      ),
+    );
+    expect(html).toContain('data-testid="horizon-cloud-overlay"');
+    expect(html).toContain('opacity="1"');
+  });
+
+  it('updates overlay opacity when scrubbed across forecast hours', () => {
+    const forecast = [
+      { timeUtc: '2026-09-07T00:00:00.000Z', cloudCoverPercent: 20, visibilityMeters: 20000 },
+      { timeUtc: '2026-09-07T02:00:00.000Z', cloudCoverPercent: 80, visibilityMeters: 10000 },
+    ];
+    const briefBase = {
+      generatedAt: '2026-09-07T00:00:00.000Z',
+      iss: { status: 'ok', data: null },
+      spaceWeather: { status: 'ok', data: null },
+      neoImagery: { status: 'ok', data: null },
+      skyAnchor: { status: 'ok', data: null },
+    } as unknown as DailyBrief;
+
+    const htmlNow = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          brief: briefBase,
+          cloudCover: forecast,
+          scrubHours: 0,
+        }),
+      ),
+    );
+    expect(htmlNow).toContain('opacity="0.2"');
+
+    const htmlScrubbed = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(HorizonBand, {
+          brief: briefBase,
+          cloudCover: forecast,
+          scrubHours: 2,
+        }),
+      ),
+    );
+    expect(htmlScrubbed).toContain('opacity="0.8"');
   });
 });

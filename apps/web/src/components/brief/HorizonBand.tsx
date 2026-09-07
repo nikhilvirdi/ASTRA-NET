@@ -6,7 +6,7 @@ import {
   surfaceColorForTwilight,
   twilightStateForSunAltitude,
 } from '@astranet/shared';
-import type { DailyBrief } from '@/lib/api';
+import type { DailyBrief, CloudCoverHour } from '@/lib/api';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
 import {
   COMPASS_POINTS,
@@ -18,7 +18,9 @@ import {
   azAltToArcPercent,
   azimuthFraction,
   belongsOnBand,
+  cloudCoverOpacity,
   formatAltitude,
+  selectNearestCloudCover,
   type ArcSweep,
 } from '@/lib/horizon-band';
 
@@ -38,6 +40,8 @@ interface HorizonBandProps {
   markers?: HorizonBandMarker[];
   loading?: boolean;
   hideScrubber?: boolean;
+  cloudCover?: CloudCoverHour[] | null;
+  scrubHours?: number;
 }
 
 interface MarkerItem {
@@ -172,9 +176,13 @@ export function HorizonBand({
   markers: customMarkers,
   loading,
   hideScrubber = false,
+  cloudCover: customCloudCover,
+  scrubHours: customScrubHours,
 }: HorizonBandProps): React.ReactElement {
   const navigate = useNavigate();
-  const [scrubHours, setScrubHours] = useState<number>(0);
+  const [internalScrubHours, setInternalScrubHours] = useState<number>(0);
+  const scrubHours = customScrubHours !== undefined ? customScrubHours : internalScrubHours;
+  const setScrubHours = setInternalScrubHours;
   const [hoveredMarker, setHoveredMarker] = useState<MarkerItem | null>(null);
 
   // §9 / Part V: full 360deg sweep only at the Ultrawide (1920px+) breakpoint,
@@ -319,13 +327,13 @@ export function HorizonBand({
 
   // Degraded unavailable notices & halted status
   const unavailableNotes: string[] = [];
-  if (brief && brief.iss.status === 'unavailable') {
+  if (brief && brief.iss?.status === 'unavailable') {
     unavailableNotes.push('ISS · POSITION UNAVAILABLE');
   }
-  if (brief && brief.spaceWeather.status === 'unavailable') {
+  if (brief && brief.spaceWeather?.status === 'unavailable') {
     unavailableNotes.push('AURORA · FORECAST UNAVAILABLE');
   }
-  if (brief && brief.neoImagery.status === 'unavailable') {
+  if (brief && brief.neoImagery?.status === 'unavailable') {
     unavailableNotes.push('NEO · DATA UNAVAILABLE');
   }
   const isHalted = Boolean(
@@ -351,6 +359,16 @@ export function HorizonBand({
   // darker ember-800 reads against the band's near-white day fill, the
   // lighter ember-400 reads against its near-black night fill.
   const markerColorClass = twilightValue < 1.5 ? 'text-ember-800' : 'text-ember-400';
+
+  // Cloud cover overlay — translucent gradient fill representing sky obscuration.
+  // Responds to the Time Scrub slider (effectiveTime) across the 6-hour forecast window.
+  const effectiveCloudCover =
+    customCloudCover !== undefined
+      ? customCloudCover
+      : (brief?.skyAnchor?.data?.cloudCover ?? null);
+  const activeCloudHour = selectNearestCloudCover(effectiveCloudCover, effectiveTime);
+  const currentCloudCoverPercent = activeCloudHour?.cloudCoverPercent ?? null;
+  const cloudOpacity = cloudCoverOpacity(currentCloudCoverPercent);
 
   const gridline0 = useMemo(() => arcGridlinePath(0), []);
   const gridline45 = useMemo(() => arcGridlinePath(45), []);
@@ -402,10 +420,28 @@ export function HorizonBand({
               <stop offset="0%" stopColor={zenithFillColor} stopOpacity={0.5} />
               <stop offset="100%" stopColor={horizonFillColor} stopOpacity={0.85} />
             </linearGradient>
+            {cloudOpacity !== null && (
+              <linearGradient id="horizon-band-clouds" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="white" stopOpacity={0.5} />
+                <stop offset="100%" stopColor="white" stopOpacity={0.85} />
+              </linearGradient>
+            )}
           </defs>
 
           {/* Twilight-phase gradient fill, real not decorative — §9 */}
           <path d={fillPath} fill="url(#horizon-band-twilight)" stroke="none" />
+
+          {/* Cloud cover overlay — translucent gradient fill representing sky obscuration */}
+          {cloudOpacity !== null && (
+            <path
+              d={fillPath}
+              data-testid="horizon-cloud-overlay"
+              fill="url(#horizon-band-clouds)"
+              stroke="none"
+              opacity={cloudOpacity}
+              className="pointer-events-none"
+            />
+          )}
 
           {/* Faint 90deg (zenith) and 45deg gridline arcs */}
           <path

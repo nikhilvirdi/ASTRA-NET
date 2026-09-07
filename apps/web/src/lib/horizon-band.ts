@@ -12,6 +12,8 @@
  * packages/shared's frozen engines.
  */
 
+import { clamp } from '@astranet/shared';
+import type { CloudCoverHour } from './api';
 import { isAboveHorizon } from './semantic-zoom';
 
 export interface CompassPoint {
@@ -204,4 +206,39 @@ export function arcFillPath(samples = 48): string {
   }
   top.reverse();
   return `M ${bottom.join(' L ')} L ${top.join(' L ')} Z`;
+}
+
+/**
+ * Selects the cloud cover forecast entry nearest in time to the scrubbed/effective time.
+ * Returns null if the list is empty or unavailable.
+ */
+export function selectNearestCloudCover(
+  cloudCover: CloudCoverHour[] | null | undefined,
+  effectiveTime: Date,
+): CloudCoverHour | null {
+  if (!cloudCover || cloudCover.length === 0) return null;
+  const first = cloudCover[0];
+  if (!first) return null;
+  const targetMs = effectiveTime.getTime();
+  let nearest: CloudCoverHour = first;
+  let minDiff = Math.abs(new Date(first.timeUtc).getTime() - targetMs);
+  for (let i = 1; i < cloudCover.length; i++) {
+    const entry = cloudCover[i];
+    if (!entry) continue;
+    const diff = Math.abs(new Date(entry.timeUtc).getTime() - targetMs);
+    if (diff < minDiff) {
+      minDiff = diff;
+      nearest = entry;
+    }
+  }
+  return nearest;
+}
+
+/**
+ * Calculates the opacity for the Horizon Band cloud cover overlay.
+ * Returns null when cloud cover data is unavailable, or a clamped fraction [0, 1].
+ */
+export function cloudCoverOpacity(cloudCoverPercent: number | null | undefined): number | null {
+  if (cloudCoverPercent == null || Number.isNaN(cloudCoverPercent)) return null;
+  return clamp(cloudCoverPercent / 100, 0, 1);
 }
