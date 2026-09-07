@@ -1,8 +1,7 @@
 import { API_BASE } from '@/lib/config';
 import { useState, useEffect, useRef } from 'react';
 import * as satellite from 'satellite.js';
-import { isVisiblePass, julianDay, sunAltitudeDeg, sunEquatorialPosition } from '@astranet/shared';
-import type { SkyObjectInput } from '@/lib/semantic-zoom';
+import { isAboveHorizon, type SkyObjectInput } from '@/lib/semantic-zoom';
 import { useAppStore } from '@/store';
 
 export interface SatelliteElementSet {
@@ -102,23 +101,6 @@ export function useSatellites(): PropagatedSatellite[] {
         height: 0,
       };
 
-      // Same FORMULAS.md §5 visible-pass test the ISS card already applies
-      // (packages/shared's isVisiblePass: elevation >= 10deg AND observer in
-      // darkness AND satellite outside Earth's shadow) — reused, not
-      // reimplemented, so both surfaces agree on what "visible" means.
-      // Observer darkness and the Sun's direction are the same for every
-      // satellite this tick, so computed once here rather than per-satellite.
-      const sunAltObserverDeg = sunAltitudeDeg(now, loc.lat, loc.lon);
-      const jd = julianDay(now);
-      const { raDeg, decDeg } = sunEquatorialPosition(jd);
-      const raRad = satellite.degreesToRadians(raDeg);
-      const decRad = satellite.degreesToRadians(decDeg);
-      const sunUnitVector = {
-        x: Math.cos(decRad) * Math.cos(raRad),
-        y: Math.cos(decRad) * Math.sin(raRad),
-        z: Math.sin(decRad),
-      };
-
       const results: PropagatedSatellite[] = [];
       for (const { id, name, satrec } of satrecsRef.current) {
         const positionAndVelocity = satellite.propagate(satrec, now);
@@ -130,10 +112,11 @@ export function useSatellites(): PropagatedSatellite[] {
         const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
         const altitudeDeg = satellite.radiansToDegrees(lookAngles.elevation);
 
-        // Below the visible-pass bar (too low, observer not dark enough, or
-        // the satellite itself is in Earth's shadow): not actually seeable,
-        // so it isn't shown — same standard the ISS pass already applies.
-        if (!isVisiblePass(altitudeDeg, sunAltObserverDeg, positionEci, sunUnitVector)) continue;
+        // Same horizon test every other body in Explore uses (Sun, Moon,
+        // planets, ISS) — real position regardless of time of day or
+        // eclipse state. Naked-eye visibility gating (isVisiblePass) is
+        // Home's "ISS Visible Pass" card's concern, not Explore's.
+        if (!isAboveHorizon(altitudeDeg)) continue;
 
         results.push({
           id,
