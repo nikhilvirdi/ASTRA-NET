@@ -71,6 +71,10 @@ interface CameraControllerProps {
   gravityTargets?: GravityTarget[];
   /** Pointer position in client coordinates for cursor gravity. */
   pointerPos?: { x: number; y: number } | null;
+  /** Whether device orientation (gyro) input is active. */
+  orientationActive?: boolean;
+  /** Device orientation reading. */
+  orientationReading?: { heading: number; pitch: number } | null;
 }
 
 /** Camera yaw (YXZ order, radians) that looks toward an azimuth, nearest-turn from `fromYaw`. */
@@ -91,6 +95,8 @@ export function CameraController({
   onFocusRelease,
   gravityTargets = [],
   pointerPos = null,
+  orientationActive = false,
+  orientationReading = null,
 }: CameraControllerProps): React.ReactElement | null {
   const { camera, gl } = useThree();
 
@@ -123,6 +129,9 @@ export function CameraController({
   const focusTween = useRef<gsap.core.Tween | null>(null);
   const onFocusReleaseRef = useRef(onFocusRelease);
   onFocusReleaseRef.current = onFocusRelease;
+
+  const orientationActiveRef = useRef(orientationActive);
+  orientationActiveRef.current = orientationActive;
 
   const releaseFocus = useRef((reason: FocusReleaseReason): void => {
     if (focusPhase.current === 'idle') return;
@@ -241,6 +250,7 @@ export function CameraController({
     };
 
     const handlePointerDown = (e: PointerEvent) => {
+      if (orientationActiveRef.current) return;
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       releaseFocus('user-break');
       activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -263,6 +273,7 @@ export function CameraController({
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (orientationActiveRef.current) return;
       if (activePointers.has(e.pointerId)) {
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       }
@@ -306,7 +317,9 @@ export function CameraController({
       if (activePointers.size === 1) {
         const remaining = Array.from(activePointers.values())[0]!;
         previousPointer.current = { x: remaining.x, y: remaining.y };
-        isDragging.current = true;
+        if (!orientationActiveRef.current) {
+          isDragging.current = true;
+        }
       } else if (activePointers.size === 0) {
         isDragging.current = false;
       }
@@ -358,7 +371,17 @@ export function CameraController({
       }
     }
 
-    if (!isDragging.current && focusPhase.current === 'idle') {
+    if (orientationActive && orientationReading) {
+      // Apply orientation reading directly to camera targets.
+      targetYaw.current = -(orientationReading.heading * Math.PI) / 180;
+      targetPitch.current = Math.max(
+        minPitch,
+        Math.min(maxPitch, (orientationReading.pitch * Math.PI) / 180),
+      );
+      // Suppress momentum while orientation mode is active.
+      velocityYaw.current = 0;
+      velocityPitch.current = 0;
+    } else if (!isDragging.current && focusPhase.current === 'idle') {
       targetYaw.current += velocityYaw.current;
       targetPitch.current = Math.max(
         minPitch,

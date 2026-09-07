@@ -26,6 +26,7 @@ import { OpeningSequence } from '@/components/explore/OpeningSequence';
 import { hasSeenOpeningSequence } from '@/lib/opening-sequence';
 import { useSpaceWeather } from '@/hooks/useSpaceWeather';
 import { calculateCycleIndex } from '@/lib/explore-interaction';
+import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 export function ExplorePage(): React.ReactElement {
   const setNavVisible = useAppStore((s) => s.setNavVisible);
@@ -50,6 +51,31 @@ export function ExplorePage(): React.ReactElement {
   // Live fast-tier Kp + solar wind over SSE — one connection feeds both the
   // Auroral Ring and the Heliosphere Pulse.
   const spaceWeather = useSpaceWeather();
+
+  // Device orientation ("point your phone at the sky") — POINT mode.
+  // `orientationModeActive` is the user's intent; the hook manages permission flow.
+  const [orientationModeActive, setOrientationModeActive] = useState(false);
+  const orientation = useDeviceOrientation(orientationModeActive);
+
+  // When orientation mode is toggled on, request permission on iOS (no-op on Android/others).
+  const handleOrientationToggle = (): void => {
+    if (orientationModeActive) {
+      // Turn off.
+      setOrientationModeActive(false);
+      return;
+    }
+    // Turn on: trigger permission request, then activate.
+    orientation
+      .requestPermission()
+      .then((state) => {
+        if (state === 'granted') {
+          setOrientationModeActive(true);
+        }
+      })
+      .catch(() => {
+        // Permission rejected — stay off.
+      });
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setSceneTime(new Date()), 60000);
@@ -237,6 +263,8 @@ export function ExplorePage(): React.ReactElement {
           onFocusRelease={() => setFocusTarget(null)}
           gravityTargets={gravityTargets}
           pointerPos={pointerPos}
+          orientationActive={orientationModeActive && orientation.permissionState === 'granted'}
+          orientationReading={orientation.reading}
         />
         <StarField observerLat={loc.lat} observerLon={loc.lon} currentTime={sceneTime} />
         <ConstellationLines
@@ -274,7 +302,7 @@ export function ExplorePage(): React.ReactElement {
       )}
 
       {/* Constellation Overlay Toggle (reusing SettingsPage segmented pill button pattern) */}
-      <div className="absolute bottom-4 left-4 z-20 pointer-events-auto">
+      <div className="absolute bottom-4 left-4 z-20 pointer-events-auto flex flex-col gap-2 items-start">
         <div
           role="group"
           aria-label="Constellation lines overlay toggle"
@@ -308,6 +336,36 @@ export function ExplorePage(): React.ReactElement {
             OFF
           </button>
         </div>
+
+        {/* POINT (device-orientation) mode toggle — hidden entirely on unsupported devices */}
+        {orientation.supported && (
+          <div className="inline-flex rounded-sm border border-sky-800/80 bg-sky-950/90 backdrop-blur-sm p-0.5 items-center shadow-lg gap-0.5">
+            <button
+              id="explore-point-mode-toggle"
+              type="button"
+              aria-pressed={orientationModeActive}
+              onClick={handleOrientationToggle}
+              className={`px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
+                orientationModeActive
+                  ? 'bg-brass-400 text-sky-950 font-bold shadow-xs'
+                  : 'text-sky-400 hover:text-sky-200'
+              }`}
+            >
+              ⊙ Point
+            </button>
+            {orientationModeActive && orientation.permissionState === 'granted' && (
+              <button
+                id="explore-point-mode-recenter"
+                type="button"
+                onClick={orientation.recenter}
+                className="px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer text-sky-400 hover:text-sky-200"
+                aria-label="Recenter compass heading"
+              >
+                ↺
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* DESIGN_SPEC.md §11 - Tethered Info Panel (Static 2-Part Card: Object heading, sentence description, ALT/AZ coordinates) */}
