@@ -5,14 +5,10 @@
  * Validates with Zod, applies timeout+retry, never throws.
  */
 
-import {
-  CelestrakData,
-  CelestrakOmmRecord,
-  CelestrakTleData,
-  CelestrakTleRecord,
-} from './celestrak.types.js';
-import { CelestrakOmmResponseSchema, CelestrakTleRecordsSchema } from './celestrak.schemas.js';
+import { CelestrakData, CelestrakOmmRecord, CelestrakTleData } from './celestrak.types.js';
+import { CelestrakOmmResponseSchema } from './celestrak.schemas.js';
 import { fetchWithRetry } from '../../lib/fetch-with-retry.js';
+import { parseTleText } from '../../lib/tle.js';
 
 const BASE = 'https://celestrak.org/NORAD/elements/gp.php';
 
@@ -83,37 +79,6 @@ export async function fetchCelestrakOmm(
 }
 
 /**
- * Splits CelesTrak's FORMAT=tle plain-text response into name/line1/line2
- * triples. Each satellite is three lines (name, then the two fixed-column
- * element lines); trailing blank lines from the response are dropped before
- * chunking. Returns null if the text doesn't chunk evenly into triples —
- * a truncated/corrupt response, treated the same as any other parse failure.
- */
-function parseCelestrakTleText(raw: string): CelestrakTleRecord[] | null {
-  const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0 || lines.length % 3 !== 0) return null;
-
-  const candidates: unknown[] = [];
-  for (let i = 0; i < lines.length; i += 3) {
-    candidates.push({
-      name: lines[i]?.trim() ?? '',
-      line1: lines[i + 1]?.trimEnd() ?? '',
-      line2: lines[i + 2]?.trimEnd() ?? '',
-    });
-  }
-
-  const result = CelestrakTleRecordsSchema.safeParse(candidates);
-  if (!result.success) return null;
-
-  return result.data.map((entry) => ({
-    name: entry.name,
-    noradCatId: Number.parseInt(entry.line1.slice(2, 7), 10),
-    line1: entry.line1,
-    line2: entry.line2,
-  }));
-}
-
-/**
  * Fetch raw TLE (two-line element) text from CelesTrak for a GROUP or CATNR
  * — the format satellite.js's `twoline2satrec` consumes directly. Sibling
  * to `fetchCelestrakOmm` (same retry/timeout pipeline, same endpoint, only
@@ -137,7 +102,7 @@ export async function fetchCelestrakTle(
 
   try {
     const raw = await fetchWithRetry<string>(url.toString(), (r) => r.text(), 20_000);
-    const records = parseCelestrakTleText(raw);
+    const records = parseTleText(raw);
     if (records === null) {
       console.error(
         '[celestrak] TLE fetch succeeded but response body did not parse into valid records:',
