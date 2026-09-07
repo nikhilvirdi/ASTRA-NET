@@ -52,6 +52,14 @@ const WIND_SPEED_MAX_KMS = 800;
 const PULSE_PERIOD_MAX_S = 20;
 const PULSE_PERIOD_MIN_S = 4;
 
+/**
+ * Peak opacity multiplier for the expanding wash. Intentionally tunable
+ * presentation constant: solar wind is an invisible physical phenomenon, so
+ * the effect should read as a faint, barely-there atmospheric presence
+ * rather than a distinct light-like glow or wash.
+ */
+const PULSE_MAX_ALPHA = 0.04;
+
 /** Map live wind speed onto a wash period inside the ambient band. */
 function pulsePeriodSeconds(speedKmS: number): number {
   const t = clamp(
@@ -91,7 +99,7 @@ const fragmentShader = `
     float wash = exp(-(d * d) / (2.0 * sigma * sigma));
     float fade = 1.0 - 0.65 * uPhase;
 
-    gl_FragColor = vec4(uColor, 0.10 * uOpacity * wash * fade);
+    gl_FragColor = vec4(uColor, ${PULSE_MAX_ALPHA.toFixed(2)} * uOpacity * wash * fade);
   }
 `;
 
