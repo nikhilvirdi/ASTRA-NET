@@ -639,6 +639,95 @@ describe('runSlowTierTick', () => {
   });
 });
 
+describe('Space-Track fallback (fetchAllSatelliteGroups via runSlowTierTick)', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  it('does NOT call fetchSpaceTrackTle when CelesTrak succeeds for all categories', async () => {
+    const fetchSpaceTrackTle = vi.fn();
+    const clients = makeClients({ fetchSpaceTrackTle });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(fetchSpaceTrackTle).not.toHaveBeenCalled();
+  });
+
+  it('calls fetchSpaceTrackTle for a category when CelesTrak returns null records for it', async () => {
+    const starlinkFailure: CelestrakTleData = { records: null, fetchedAt: NOW_ISO };
+    const starlinkSpaceTrack: CelestrakTleData = {
+      records: [
+        { name: 'STARLINK-ST-1', noradCatId: 99999, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 },
+      ],
+      fetchedAt: NOW_ISO,
+    };
+    const fetchSpaceTrackTle = vi.fn().mockResolvedValue(starlinkSpaceTrack);
+    const fetchCelestrakTle = vi
+      .fn()
+      .mockImplementation((params: { group?: string; catnr?: number }) =>
+        Promise.resolve(
+          params.group === 'starlink' ? starlinkFailure : celestrakSuccessFor(params),
+        ),
+      );
+
+    const clients = makeClients({ fetchCelestrakTle, fetchSpaceTrackTle });
+    await runSlowTierTick(clients, NOW);
+
+    expect(fetchSpaceTrackTle).toHaveBeenCalledTimes(1);
+    expect(fetchSpaceTrackTle).toHaveBeenCalledWith('starlink', NOW, 200);
+  });
+
+  it('stores satellites healthy when Space-Track fills in a category CelesTrak missed', async () => {
+    const starlinkFailure: CelestrakTleData = { records: null, fetchedAt: NOW_ISO };
+    const starlinkSpaceTrack: CelestrakTleData = {
+      records: [
+        { name: 'STARLINK-ST-1', noradCatId: 99999, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 },
+      ],
+      fetchedAt: NOW_ISO,
+    };
+    const fetchSpaceTrackTle = vi.fn().mockResolvedValue(starlinkSpaceTrack);
+    const fetchCelestrakTle = vi
+      .fn()
+      .mockImplementation((params: { group?: string; catnr?: number }) =>
+        Promise.resolve(
+          params.group === 'starlink' ? starlinkFailure : celestrakSuccessFor(params),
+        ),
+      );
+
+    const clients = makeClients({ fetchCelestrakTle, fetchSpaceTrackTle });
+    await runSlowTierTick(clients, NOW);
+
+    const stored = getSourceState('satellites');
+    expect(stored.healthy).toBe(true);
+    const starlinkRecord = stored.data?.records?.find((r) => r.name === 'STARLINK-ST-1');
+    expect(starlinkRecord).toBeDefined();
+    expect(starlinkRecord?.category).toBe('starlink');
+  });
+
+  it('degrades gracefully when both CelesTrak and Space-Track fail for all categories', async () => {
+    const fetchSpaceTrackTle = vi.fn().mockResolvedValue({ records: null, fetchedAt: NOW_ISO });
+    const clients = makeClients({
+      fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesFailure),
+      fetchSpaceTrackTle,
+    });
+
+    await runSlowTierTick(clients, NOW);
+
+    const stored = getSourceState('satellites');
+    expect(stored.healthy).toBe(false);
+    expect(stored.data?.records).toBeNull();
+  });
+
+  it('does not attempt Space-Track fallback when fetchSpaceTrackTle is not provided', async () => {
+    const clients = makeClients({
+      fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesFailure),
+    });
+
+    await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
+    expect(getSourceState('satellites').healthy).toBe(false);
+  });
+});
+
 describe('startSlowTierLoop', () => {
   beforeEach(() => {
     resetStore();

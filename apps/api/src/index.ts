@@ -17,6 +17,7 @@ import { fetchSwpcFast, fetchSwpcSlow } from './clients/swpc/index.js';
 import { fetchNasaDonki, fetchNasaNeows } from './clients/nasa/index.js';
 import { fetchHorizons, fetchHorizonsRaDec } from './clients/jpl-horizons/index.js';
 import { fetchCelestrakTle } from './clients/celestrak/index.js';
+import { fetchSpaceTrackTle } from './clients/space-track/index.js';
 
 /**
  * `.env` is loaded on a best-effort basis: local dev relies on it, but
@@ -74,6 +75,7 @@ startSlowTierLoop({
   fetchHorizonsRaDec,
   fetchSwpcSlow,
   fetchCelestrakTle,
+  fetchSpaceTrackTle,
   nasaApiKey,
 });
 startCacheSweepLoop({ prisma, sweepExpiredCache });

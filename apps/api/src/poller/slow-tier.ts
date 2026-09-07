@@ -59,6 +59,7 @@ import type { SwpcSlowData } from '../clients/swpc/index.js';
 import type { GibsLayerOptions } from '../clients/gibs/index.js';
 import type { fetchCelestrakTle } from '../clients/celestrak/index.js';
 import type { CelestrakTleData, CelestrakTleRecord } from '../clients/celestrak/index.js';
+import type { fetchSpaceTrackTle } from '../clients/space-track/index.js';
 import { getSourceState, setSourceState } from './store.js';
 
 /** ARCHITECTURE.md §4: slow tier polls every 5-15min. */
@@ -174,6 +175,13 @@ export interface SlowTierClients {
   fetchHorizonsRaDec: typeof fetchHorizonsRaDec;
   fetchSwpcSlow: typeof fetchSwpcSlow;
   fetchCelestrakTle: typeof fetchCelestrakTle;
+  /**
+   * Space-Track TLE fallback — called per category only when CelesTrak
+   * failed for that category. Never called when CelesTrak succeeds.
+   * Optional so existing tests that don't exercise fallback don't need to
+   * supply it; defaults to a no-op returning null records.
+   */
+  fetchSpaceTrackTle?: typeof fetchSpaceTrackTle;
   nasaApiKey: string;
 }
 
@@ -288,54 +296,103 @@ function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
 }
 
 /**
- * Fetches every CelesTrak group/catnr this app tracks (`SATELLITE_GROUP_FETCHES`
- * + `DEBRIS_GROUP_NAMES` + Hubble) in parallel — one network round trip per
- * source, all within this same slow-tier tick (CelesTrak's polite-use
- * guidance: no faster schedule just because there are now more sources) —
- * tags each record with its category, caps each source independently at
- * `MAX_SATELLITES_PER_SOURCE`, and merges everything into one combined list.
- * A source that fails contributes nothing to the merge rather than failing
- * the whole batch — the same one-source-down-doesn't-block-others contract
- * every other card in this codebase already follows. Only degrades to a
- * total failure (`records: null`) if every single source failed.
+ * Fetches every satellite group/catnr this app tracks in parallel, trying
+ * CelesTrak first for each category. If CelesTrak succeeds for a category
+ * (records non-null), that result is used and Space-Track is never called for
+ * it. If CelesTrak fails for a category, the equivalent Space-Track query is
+ * tried as a fallback — same category-tagged records, same per-source cap,
+ * same merge step.
+ *
+ * "Fallback-only" is strictly enforced: Space-Track is never called when
+ * CelesTrak succeeds, respecting Space-Track's stricter rate limits. If both
+ * sources fail for a category, that category contributes nothing to the
+ * merge — the same one-source-down-doesn't-block-others contract every other
+ * card in this codebase already follows. Only degrades to a total failure
+ * (`records: null`) if every single category failed on both sources.
  */
 async function fetchAllSatelliteGroups(
-  clients: Pick<SlowTierClients, 'fetchCelestrakTle'>,
+  clients: Pick<SlowTierClients, 'fetchCelestrakTle' | 'fetchSpaceTrackTle'>,
   now: Date,
 ): Promise<CelestrakTleData> {
-  const sources: { category: SatelliteCategory; promise: Promise<CelestrakTleData> }[] = [
+  const sources: { category: SatelliteCategory; celestrakPromise: Promise<CelestrakTleData> }[] = [
     ...SATELLITE_GROUP_FETCHES.map(({ group, category }) => ({
       category,
-      promise: clients.fetchCelestrakTle({ group }, now),
+      celestrakPromise: clients.fetchCelestrakTle({ group }, now),
     })),
     ...DEBRIS_GROUP_NAMES.map((group) => ({
       category: 'debris' as const,
-      promise: clients.fetchCelestrakTle({ group }, now),
+      celestrakPromise: clients.fetchCelestrakTle({ group }, now),
     })),
     {
       category: 'hubble' as const,
-      promise: clients.fetchCelestrakTle({ catnr: HUBBLE_CATNR }, now),
+      celestrakPromise: clients.fetchCelestrakTle({ catnr: HUBBLE_CATNR }, now),
     },
   ];
 
-  const settled = await Promise.allSettled(sources.map((s) => s.promise));
+  const celestrakSettled = await Promise.allSettled(sources.map((s) => s.celestrakPromise));
+
+  // For each category where CelesTrak failed, collect a Space-Track fallback promise.
+  const fallbackWork: {
+    index: number;
+    category: SatelliteCategory;
+    promise: Promise<CelestrakTleData>;
+  }[] = [];
+
+  celestrakSettled.forEach((result, i) => {
+    const { category } = sources[i]!;
+    const celestrakFailed = result.status === 'rejected' || result.value.records === null;
+
+    if (celestrakFailed && clients.fetchSpaceTrackTle) {
+      console.warn(
+        `[poller/slow-tier] CelesTrak (${category}) failed — trying Space-Track fallback.`,
+      );
+      fallbackWork.push({
+        index: i,
+        category,
+        promise: clients.fetchSpaceTrackTle(category, now, MAX_SATELLITES_PER_SOURCE),
+      });
+    }
+  });
+
+  // Run fallback queries (if any) in parallel, then merge all results.
+  const fallbackSettled = await Promise.allSettled(fallbackWork.map((f) => f.promise));
+  const fallbackByIndex = new Map<number, CelestrakTleData>();
+  fallbackSettled.forEach((result, fi) => {
+    const work = fallbackWork[fi]!;
+    if (result.status === 'fulfilled') {
+      fallbackByIndex.set(work.index, result.value);
+    } else {
+      console.error(
+        `[poller/slow-tier] Space-Track fallback (${work.category}) threw unexpectedly:`,
+        result.reason,
+      );
+    }
+  });
 
   const merged: CelestrakTleRecord[] = [];
   let anySucceeded = false;
-  settled.forEach((result, i) => {
+
+  celestrakSettled.forEach((celestrakResult, i) => {
     const { category } = sources[i]!;
-    if (result.status === 'fulfilled') {
-      if (result.value.records !== null) {
-        anySucceeded = true;
-        for (const record of result.value.records.slice(0, MAX_SATELLITES_PER_SOURCE)) {
-          merged.push({ ...record, category });
-        }
-      }
-    } else {
+
+    // Prefer CelesTrak; if it failed, use the Space-Track fallback if available.
+    const celestrakRecords =
+      celestrakResult.status === 'fulfilled' ? celestrakResult.value.records : null;
+
+    if (celestrakResult.status === 'rejected') {
       console.error(
         `[poller/slow-tier] CelesTrak (${category}) threw unexpectedly:`,
-        result.reason,
+        celestrakResult.reason,
       );
+    }
+
+    const effectiveRecords = celestrakRecords ?? fallbackByIndex.get(i)?.records ?? null;
+
+    if (effectiveRecords !== null) {
+      anySucceeded = true;
+      for (const record of effectiveRecords.slice(0, MAX_SATELLITES_PER_SOURCE)) {
+        merged.push({ ...record, category });
+      }
     }
   });
 
