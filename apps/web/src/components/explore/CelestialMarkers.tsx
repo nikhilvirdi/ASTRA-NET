@@ -4,7 +4,9 @@ import { Billboard, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import type { DailyBrief } from '@/lib/api';
+import type { IssLivePosition } from '@/hooks/useSpaceWeather';
 import { interpolatePassPosition } from '@/lib/pass-interpolation';
+import { computeIssTopocentricPosition } from '@/lib/iss-position';
 import {
   aggregateSkyObjects,
   drillFovDeg,
@@ -73,8 +75,10 @@ export interface DrillTarget {
 
 interface CelestialMarkersProps {
   brief: DailyBrief | null;
-  /** Scene clock from ExplorePage — drives the ISS along its pass window. */
+  /** Scene clock from ExplorePage. */
   currentTime: Date;
+  /** ISS's real live geodetic position (useSpaceWeather's SSE stream), or null while connecting/unavailable. */
+  issLivePosition: IssLivePosition | null;
   selectedId: string | null;
   onSelect: (obj: CelestialObject | null) => void;
   onUpdateScreenPos?: (posMap: Record<string, ScreenPos>) => void;
@@ -719,6 +723,7 @@ function renderableKey(r: SkyRenderable): string {
 export function CelestialMarkers({
   brief,
   currentTime,
+  issLivePosition,
   selectedId,
   onSelect,
   onUpdateScreenPos,
@@ -732,31 +737,57 @@ export function CelestialMarkers({
     if (!brief) return [];
     const list: CelestialObject[] = [];
 
-    // 1. ISS Marker — position interpolated along the next visible pass via
-    // the shared `@/lib/pass-interpolation` (same source as the Horizon
-    // Band); outside the pass window there is no real position, so no marker.
-    // The pass itself is already sunlit/dark-sky filtered server-side (N2YO's
-    // visual-pass semantics), but interpolation can still land below the
-    // horizon right at a pass's start/end edge, so the same horizon check
-    // applies here as everywhere else.
-    const issPass = brief.iss?.status === 'ok' ? brief.iss.data?.nextPass : null;
-    if (issPass) {
-      const pos = interpolatePassPosition(issPass, currentTime.getTime() / 1000);
-      if (pos && isAboveHorizon(pos.altitudeDeg)) {
-        list.push({
-          id: 'iss',
-          name: 'ISS (ZARYA)',
-          type: 'iss',
-          azimuthDeg: pos.azimuthDeg,
-          altitudeDeg: pos.altitudeDeg,
-          color: '#A8B4BC', // --color-orbital
-          sentence:
-            'Seven people are inside, moving at 27,600 km/h. It laps your city every 90 minutes.',
-          measurements: `ALT: ${pos.altitudeDeg.toFixed(0)}° · PASS: ${issPass.startAzimuthCompass} → ${issPass.maxAzimuthCompass} · MAG: ${issPass.magnitude}`,
-          linkText: 'View ISS Transit Details',
-          linkHref: '/',
-        });
-      }
+    // 1. ISS Marker.
+    //
+    // Primary source: the ISS's real live geodetic position (lat/lon/altitude
+    // from N2YO's positions endpoint, via useSpaceWeather's SSE stream — see
+    // computeIssTopocentricPosition), converted to this observer's real
+    // topocentric altitude/azimuth the same way useSatellites.ts converts
+    // every other satellite. Shown whenever geometrically above the horizon,
+    // matching the Sun, Moon, planets, and every satellite — no naked-eye-
+    // visibility gating (that gating is a real, separate, deliberately-kept
+    // feature: Home's "visible pass" ISS card / Horizon Band, still driven
+    // by N2YO's visualpasses prediction, untouched by this).
+    //
+    // Fallback: if the live SSE position isn't available yet (still
+    // connecting, or the fast-tier source is briefly down), the one-shot
+    // Brief's predicted visible-pass window is used instead — a pass
+    // prediction is still a real position, just a narrower, gated one, and
+    // this was the only source before this fix.
+    //
+    // Either way, when the current instant genuinely falls inside a
+    // predicted visible pass, the measurement text is enriched with the
+    // pass's compass headings/magnitude — a real fact worth surfacing when
+    // true, not used to decide the marker's actual position.
+    const issPass = brief.iss?.status === 'ok' ? (brief.iss.data?.nextPass ?? null) : null;
+    const passPos = issPass ? interpolatePassPosition(issPass, currentTime.getTime() / 1000) : null;
+    const livePos = issLivePosition
+      ? computeIssTopocentricPosition(
+          issLivePosition.latitudeDeg,
+          issLivePosition.longitudeDeg,
+          issLivePosition.altitudeKm,
+          brief.observer.latDeg,
+          brief.observer.lonDeg,
+        )
+      : null;
+    const issRenderPos = livePos ?? passPos;
+
+    if (issRenderPos && isAboveHorizon(issRenderPos.altitudeDeg)) {
+      list.push({
+        id: 'iss',
+        name: 'ISS (ZARYA)',
+        type: 'iss',
+        azimuthDeg: issRenderPos.azimuthDeg,
+        altitudeDeg: issRenderPos.altitudeDeg,
+        color: '#A8B4BC', // --color-orbital
+        sentence:
+          'Seven people are inside, moving at 27,600 km/h. It laps your city every 90 minutes.',
+        measurements: passPos
+          ? `ALT: ${issRenderPos.altitudeDeg.toFixed(0)}° · PASS: ${issPass!.startAzimuthCompass} → ${issPass!.maxAzimuthCompass} · MAG: ${issPass!.magnitude}`
+          : `ALT: ${issRenderPos.altitudeDeg.toFixed(0)}° · AZ: ${issRenderPos.azimuthDeg.toFixed(0)}°`,
+        linkText: 'View ISS Transit Details',
+        linkHref: '/',
+      });
     }
 
     // 2. Jupiter Marker — real altitude, no floor. (A prior `Math.max(2, ...)`
@@ -922,7 +953,7 @@ export function CelestialMarkers({
     }
 
     return list;
-  }, [brief, currentTime]);
+  }, [brief, currentTime, issLivePosition]);
 
   const realSats = useSatellites();
 

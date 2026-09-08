@@ -280,6 +280,7 @@ export function ExplorePage(): React.ReactElement {
         <CelestialMarkers
           brief={brief}
           currentTime={sceneTime}
+          issLivePosition={spaceWeather.issPosition}
           selectedId={selectedObject?.id ?? null}
           onSelect={handleSelect}
           onObjectsChange={(objs) => setActiveObjects(objs)}

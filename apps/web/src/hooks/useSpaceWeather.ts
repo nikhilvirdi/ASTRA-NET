@@ -3,8 +3,12 @@ import { useEffect, useState } from 'react';
 import type { FastTierStreamPayload } from '@/lib/api';
 
 /**
- * Live fast-tier space weather over the SSE `/stream` endpoint — the data
- * feed behind the Auroral Ring (Kp) and Heliosphere Pulse (solar wind speed).
+ * Live fast-tier data over the SSE `/stream` endpoint — the same connection
+ * carries two independent feeds (see `apps/api/src/routes/stream.ts`): SWPC
+ * space weather (the data behind the Auroral Ring and Heliosphere Pulse) and
+ * the ISS's real live geodetic position. One hook, one `EventSource`, so a
+ * second consumer needing the ISS position doesn't open a duplicate
+ * connection to the same endpoint.
  *
  * Honesty contract (DESIGN_SPEC.md §7.3, ARCHITECTURE.md §4): `fetchedAt` and
  * `healthy` are passed through from the source's own envelope untouched —
@@ -17,6 +21,17 @@ import type { FastTierStreamPayload } from '@/lib/api';
  * low" from "no data at all."
  */
 
+export interface IssLivePosition {
+  /** Real geodetic latitude, degrees — independent of any observer. */
+  latitudeDeg: number;
+  /** Real geodetic longitude, degrees. */
+  longitudeDeg: number;
+  /** Real altitude above the geoid, km. */
+  altitudeKm: number;
+  /** Unix timestamp (seconds) of this fix. */
+  timestampUtc: number;
+}
+
 export interface SpaceWeatherLive {
   /** Continuous estimated Kp (FORMULAS.md §7's primary Kp), or null if unavailable. */
   kp: number | null;
@@ -26,6 +41,16 @@ export interface SpaceWeatherLive {
   healthy: boolean;
   /** ISO-8601 timestamp of the last successful SWPC fetch, or null. */
   fetchedAt: string | null;
+  /**
+   * The ISS's real live position (N2YO's positions endpoint), or null when
+   * unavailable. Deliberately does NOT carry N2YO's azimuth/elevation —
+   * those are computed against the poller's own fixed reference point
+   * (0°, 0°), not any real observer, and would be meaningless for whoever is
+   * actually viewing Explore. Consumers convert lat/lon/altitude to a real
+   * observer-relative topocentric position themselves (see
+   * `lib/iss-position.ts`'s `computeIssTopocentricPosition`).
+   */
+  issPosition: IssLivePosition | null;
   /** Whether the SSE transport is currently open. */
   connected: boolean;
 }
@@ -35,6 +60,7 @@ const INITIAL_STATE: SpaceWeatherLive = {
   solarWindSpeedKmS: null,
   healthy: false,
   fetchedAt: null,
+  issPosition: null,
   connected: false,
 };
 
@@ -58,11 +84,22 @@ export function useSpaceWeather(): SpaceWeatherLive {
         return;
       }
       const sw = payload.solarWind;
+      // Same "first position" convention as apps/api's buildIssCard —
+      // ISS_POSITION_PARAMS.seconds is 1, so there is only ever one.
+      const firstPosition = payload.iss.data?.positions?.[0] ?? null;
       setState({
         kp: sw.data?.kpCurrent?.estimatedKp ?? null,
         solarWindSpeedKmS: sw.data?.rtswPlasma?.protonSpeed ?? null,
         healthy: sw.healthy,
         fetchedAt: sw.fetchedAt,
+        issPosition: firstPosition
+          ? {
+              latitudeDeg: firstPosition.latitude,
+              longitudeDeg: firstPosition.longitude,
+              altitudeKm: firstPosition.altitude,
+              timestampUtc: firstPosition.timestamp,
+            }
+          : null,
         connected: true,
       });
     };
