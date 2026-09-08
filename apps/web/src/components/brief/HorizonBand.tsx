@@ -466,8 +466,7 @@ export function HorizonBand({
             x="500"
             y="22"
             textAnchor="middle"
-            className="font-jost fill-white font-medium"
-            style={{ fontSize: '12px', letterSpacing: '0.05em', opacity: 0.95 }}
+            className="font-jost fill-white font-medium text-[16px] sm:text-[14px] md:text-[12px] tracking-[0.25em] sm:tracking-[0.12em] md:tracking-[0.05em] opacity-95"
           >
             ZENITH 90°
           </text>
@@ -475,8 +474,7 @@ export function HorizonBand({
             x="500"
             y="95"
             textAnchor="middle"
-            className="font-jost fill-white font-medium"
-            style={{ fontSize: '12px', letterSpacing: '0.05em', opacity: 0.95 }}
+            className="font-jost fill-white font-medium text-[16px] sm:text-[14px] md:text-[12px] tracking-[0.25em] sm:tracking-[0.12em] md:tracking-[0.05em] opacity-95"
           >
             45° ALTITUDE
           </text>

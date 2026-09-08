@@ -85,7 +85,7 @@ function AnimatedHeadline({ children }: { children: React.ReactNode }): React.Re
 
   return (
     <motion.h1
-      className="type-display-l text-sky-100 max-w-[900px] leading-tight"
+      className="type-display-l text-sky-100 max-w-[900px] leading-tight text-3xl sm:text-4xl md:text-[3.75rem]"
       variants={headlineContainerVariants}
       initial="hidden"
       whileInView="visible"
@@ -292,7 +292,7 @@ export function BriefPage(): React.ReactElement {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 items-start">
               {/* Sun Altitude — position/arc now lives on the Horizon Band above; this keeps only the numeric readout. */}
               <div>
                 <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
@@ -329,7 +329,7 @@ export function BriefPage(): React.ReactElement {
               </div>
 
               {/* Darkness Status */}
-              <div>
+              <div className="col-span-2 md:col-span-1">
                 <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
                   DARKNESS STATUS
                 </span>
@@ -345,9 +345,9 @@ export function BriefPage(): React.ReactElement {
             </div>
 
             {/* Moon Row: Visual Moon Phase & 24h Timeline */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 items-center pt-2">
               {/* Moon Phase with SVG graphic */}
-              <div className="flex items-center gap-3">
+              <div className="col-span-2 md:col-span-1 flex items-center gap-3">
                 {brief?.skyAnchor.data?.moon && (
                   <MoonPhaseGraphic
                     illuminatedFraction={brief.skyAnchor.data.moon.illuminatedFraction}
@@ -369,7 +369,7 @@ export function BriefPage(): React.ReactElement {
               </div>
 
               {/* Moonrise / Moonset Timeline across 2 columns */}
-              <div className="md:col-span-2">
+              <div className="col-span-2 md:col-span-2">
                 <MoonTimeline
                   nextRiseUtc={brief?.skyAnchor.data?.moon?.nextRiseUtc}
                   nextSetUtc={brief?.skyAnchor.data?.moon?.nextSetUtc}
@@ -440,7 +440,7 @@ export function BriefPage(): React.ReactElement {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 items-start">
                 <div>
                   <span className="font-jost text-xs uppercase tracking-wider text-sky-400 block mb-1 font-medium">
                     NEXT PASS TIME

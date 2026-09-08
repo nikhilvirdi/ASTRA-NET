@@ -20,10 +20,10 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
         PASS TRAJECTORY
       </span>
       <div className="w-full h-[56px] border border-sky-800/60 rounded-sm flex flex-col justify-between p-1.5 relative bg-sky-950/30">
-        <svg viewBox="0 0 100 42" className="w-full h-full overflow-visible">
+        <svg viewBox="0 0 160 42" className="w-full h-full overflow-visible">
           {/* Curved trajectory path based on actual pass altitude */}
           <path
-            d={`M 12 36 Q 50 ${peakY.toFixed(1)} 88 36`}
+            d={`M 16 36 Q 80 ${peakY.toFixed(1)} 144 36`}
             fill="none"
             stroke="var(--color-brass-400)"
             strokeWidth="1.5"
@@ -32,7 +32,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
           {/* Directional travel arrow near end */}
           <path
-            d="M 82 33 L 88 36 L 82 39"
+            d="M 138 33 L 144 36 L 138 39"
             fill="none"
             stroke="var(--color-brass-400)"
             strokeWidth="1.5"
@@ -40,7 +40,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
           {/* Start Point */}
           <circle
-            cx="12"
+            cx="16"
             cy="36"
             r="2.5"
             fill="var(--color-sky-300)"
@@ -50,7 +50,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
           {/* Peak Point */}
           <circle
-            cx="50"
+            cx="80"
             cy={peakY}
             r="3.5"
             fill="var(--color-brass-300)"
@@ -60,7 +60,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
           {/* End Point */}
           <circle
-            cx="88"
+            cx="144"
             cy="36"
             r="2.5"
             fill="var(--color-sky-300)"
@@ -70,7 +70,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
 
           {/* Compass and peak labels */}
           <text
-            x="12"
+            x="16"
             y="42"
             textAnchor="middle"
             className="font-sans fill-sky-300"
@@ -79,7 +79,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             {startLabel}
           </text>
           <text
-            x="50"
+            x="80"
             y={Math.max(8, peakY - 4)}
             textAnchor="middle"
             className="font-sans fill-brass-300 font-medium"
@@ -88,7 +88,7 @@ export function IssTrajectoryArc({ pass }: IssTrajectoryArcProps): React.ReactEl
             {maxLabel}
           </text>
           <text
-            x="88"
+            x="144"
             y="42"
             textAnchor="middle"
             className="font-sans fill-sky-300"
