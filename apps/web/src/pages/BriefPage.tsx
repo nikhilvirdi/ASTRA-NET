@@ -20,6 +20,7 @@ import { ConfidenceTicks } from '@/components/common/ConfidenceTicks';
 import { formatTime, formatDistance } from '@/lib/format-preferences';
 import { selectHeadline } from '@/lib/brief-headline';
 import { LEARNING_MOMENT_BUCKET_MS, selectLearningMoment } from '@/lib/learning-moments';
+import { PAGE_LOAD } from '@/lib/motion';
 
 const Hero = lazy(() => import('@/components/brief/Hero'));
 
@@ -59,7 +60,7 @@ const headlineContainerVariants: Variants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.05,
+      staggerChildren: PAGE_LOAD.entriesStagger,
       delayChildren: 0.05,
     },
   },

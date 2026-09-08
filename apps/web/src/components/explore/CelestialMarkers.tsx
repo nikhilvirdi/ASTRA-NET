@@ -1075,6 +1075,7 @@ export function CelestialMarkers({
   // Track and update screen coordinates + zoom level on frame renders
   const vec = useRef(new THREE.Vector3());
   const prevPosMap = useRef<Record<string, ScreenPos>>({});
+  const screenPosFrame = useRef(0);
 
   useFrame(() => {
     if (camera instanceof THREE.PerspectiveCamera) {
@@ -1083,6 +1084,11 @@ export function CelestialMarkers({
     }
 
     if (!onUpdateScreenPos || liveIndividuals.length === 0) return;
+
+    // Throttle screen-position rebuild to roughly every other frame (~30fps)
+    // to reduce trigonometric projection cost at scale (1000+ satellites)
+    screenPosFrame.current = (screenPosFrame.current + 1) % 2;
+    if (screenPosFrame.current !== 0) return;
 
     const width = gl.domElement.clientWidth;
     const height = gl.domElement.clientHeight;
