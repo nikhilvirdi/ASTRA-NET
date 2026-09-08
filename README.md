@@ -26,10 +26,10 @@ ASTRA-NET connects that chain and shows it, in real time, in one place — the r
 
 This is the reasoning core of the product, and it's the part that separates ASTRA-NET from a page that just displays a fetched number. When the app tells you an aurora might be visible tonight, that prediction is the end of a real, traceable chain:
 
-1. **Detection** — a coronal mass ejection (CME) erupts from the Sun, reported by NASA's DONKI system.
-2. **Transit** — the CME's real launch velocity runs through a physics-based drag model (Vršnak 2013) to estimate when it reaches Earth.
-3. **Geomagnetic response** — NOAA's live Kp-index is checked against how strong that CME is expected to be.
-4. **Local outcome** — the predicted Kp is compared against your actual latitude to determine whether the aurora's visibility boundary reaches you.
+1. **Detection** : a coronal mass ejection (CME) erupts from the Sun, reported by NASA's DONKI system.
+2. **Transit** : the CME's real launch velocity runs through a physics-based drag model (Vršnak 2013) to estimate when it reaches Earth.
+3. **Geomagnetic response** : NOAA's live Kp-index is checked against how strong that CME is expected to be.
+4. **Local outcome** : the predicted Kp is compared against your actual latitude to determine whether the aurora's visibility boundary reaches you.
 
 You can see the whole chain, not just the final answer, along with how confident that answer genuinely is.
 
