@@ -5,7 +5,7 @@ import {
   SLOW_TIER_INTERVAL_MS,
   type SlowTierClients,
 } from './slow-tier.js';
-import { getSourceState, resetStore } from './store.js';
+import { getSourceState, getSatelliteCategorySources, resetStore } from './store.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
@@ -706,6 +706,98 @@ describe('Space-Track fallback (fetchAllSatelliteGroups via runSlowTierTick)', (
     const starlinkRecord = stored.data?.records?.find((r) => r.name === 'STARLINK-ST-1');
     expect(starlinkRecord).toBeDefined();
     expect(starlinkRecord?.category).toBe('starlink');
+  });
+
+  it('tracks "celestrak" as every category\'s source when CelesTrak succeeds for all', async () => {
+    const clients = makeClients();
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSatelliteCategorySources()).toEqual({
+      stations: 'celestrak',
+      starlink: 'celestrak',
+      oneweb: 'celestrak',
+      gps: 'celestrak',
+      weather: 'celestrak',
+      geo: 'celestrak',
+      cubesat: 'celestrak',
+      debris: 'celestrak',
+      hubble: 'celestrak',
+    });
+  });
+
+  it('tracks "space-track-fallback" only for the category Space-Track filled in, "celestrak" for the rest', async () => {
+    const starlinkFailure: CelestrakTleData = { records: null, fetchedAt: NOW_ISO };
+    const starlinkSpaceTrack: CelestrakTleData = {
+      records: [
+        { name: 'STARLINK-ST-1', noradCatId: 99999, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 },
+      ],
+      fetchedAt: NOW_ISO,
+    };
+    const fetchSpaceTrackTle = vi.fn().mockResolvedValue(starlinkSpaceTrack);
+    const fetchCelestrakTle = vi
+      .fn()
+      .mockImplementation((params: { group?: string; catnr?: number }) =>
+        Promise.resolve(
+          params.group === 'starlink' ? starlinkFailure : celestrakSuccessFor(params),
+        ),
+      );
+
+    const clients = makeClients({ fetchCelestrakTle, fetchSpaceTrackTle });
+    await runSlowTierTick(clients, NOW);
+
+    const sources = getSatelliteCategorySources();
+    expect(sources.starlink).toBe('space-track-fallback');
+    expect(sources.stations).toBe('celestrak');
+    expect(sources.gps).toBe('celestrak');
+    expect(sources.hubble).toBe('celestrak');
+  });
+
+  it("preserves a category's last-known source when both sources fail for it on a later tick", async () => {
+    // First tick: everything succeeds via CelesTrak.
+    await runSlowTierTick(makeClients(), NOW);
+    expect(getSatelliteCategorySources().starlink).toBe('celestrak');
+
+    // Second tick: starlink fails on both CelesTrak and Space-Track; every
+    // other category still succeeds via CelesTrak.
+    const starlinkFailure: CelestrakTleData = { records: null, fetchedAt: LATER.toISOString() };
+    const fetchCelestrakTle = vi
+      .fn()
+      .mockImplementation((params: { group?: string; catnr?: number }) =>
+        Promise.resolve(
+          params.group === 'starlink' ? starlinkFailure : celestrakSuccessFor(params),
+        ),
+      );
+    const fetchSpaceTrackTle = vi
+      .fn()
+      .mockResolvedValue({ records: null, fetchedAt: LATER.toISOString() });
+
+    await runSlowTierTick(makeClients({ fetchCelestrakTle, fetchSpaceTrackTle }), LATER);
+
+    const sources = getSatelliteCategorySources();
+    // Last-known source preserved, not cleared to null, even though this tick's fetch failed.
+    expect(sources.starlink).toBe('celestrak');
+    expect(sources.gps).toBe('celestrak');
+  });
+
+  it("leaves every category's tracked source null when nothing has ever succeeded", async () => {
+    const clients = makeClients({
+      fetchCelestrakTle: vi.fn().mockResolvedValue(satellitesFailure),
+    });
+
+    await runSlowTierTick(clients, NOW);
+
+    expect(getSatelliteCategorySources()).toEqual({
+      stations: null,
+      starlink: null,
+      oneweb: null,
+      gps: null,
+      weather: null,
+      geo: null,
+      cubesat: null,
+      debris: null,
+      hubble: null,
+    });
   });
 
   it('degrades gracefully when both CelesTrak and Space-Track fail for all categories', async () => {

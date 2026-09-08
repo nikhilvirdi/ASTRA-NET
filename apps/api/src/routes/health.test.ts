@@ -3,7 +3,7 @@ import request from 'supertest';
 import { buildHealthPayload, type HealthPayload } from './health.js';
 import { createApp } from '../app.js';
 import { createPrismaClient } from '../db/client.js';
-import { resetStore, setSourceState } from '../poller/store.js';
+import { resetStore, setSourceState, setSatelliteCategorySources } from '../poller/store.js';
 
 // Never connects: these tests exercise a route that doesn't touch the
 // DB, and Prisma only opens a connection on first query.
@@ -34,7 +34,39 @@ describe('buildHealthPayload', () => {
       horizonsMars: { healthy: false, fetchedAt: null },
       horizonsSaturn: { healthy: false, fetchedAt: null },
       horizonsMercury: { healthy: false, fetchedAt: null },
-      satellites: { healthy: false, fetchedAt: null },
+      satellites: {
+        healthy: false,
+        fetchedAt: null,
+        categorySources: {
+          stations: null,
+          starlink: null,
+          oneweb: null,
+          gps: null,
+          weather: null,
+          geo: null,
+          cubesat: null,
+          debris: null,
+          hubble: null,
+        },
+      },
+    });
+  });
+
+  it('exposes categorySources reflecting which network source served each satellite category', () => {
+    setSatelliteCategorySources({ starlink: 'celestrak', stations: 'space-track-fallback' });
+
+    const payload = buildHealthPayload(NOW);
+
+    expect(payload.sources.satellites.categorySources).toEqual({
+      stations: 'space-track-fallback',
+      starlink: 'celestrak',
+      oneweb: null,
+      gps: null,
+      weather: null,
+      geo: null,
+      cubesat: null,
+      debris: null,
+      hubble: null,
     });
   });
 

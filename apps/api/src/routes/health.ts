@@ -15,12 +15,30 @@
  */
 
 import type { Express, Request, Response } from 'express';
-import { getAllSourceStates, type SourceKey } from '../poller/store.js';
+import {
+  getAllSourceStates,
+  getSatelliteCategorySources,
+  type SourceKey,
+  type SatelliteCategory,
+  type SatelliteSource,
+} from '../poller/store.js';
+
+type BasicSourceHealth = { healthy: boolean; fetchedAt: string | null };
 
 export interface HealthPayload {
   status: 'ok';
   checkedAt: string;
-  sources: Record<SourceKey, { healthy: boolean; fetchedAt: string | null }>;
+  sources: Record<Exclude<SourceKey, 'satellites'>, BasicSourceHealth> & {
+    /**
+     * Which network source served each satellite category's last successful
+     * fetch ("celestrak" or "space-track-fallback"), or `null` if that
+     * category has never once succeeded on either source. See
+     * DECISIONS.md "Per-category satellite source tracking exposed on /health".
+     */
+    satellites: BasicSourceHealth & {
+      categorySources: Record<SatelliteCategory, SatelliteSource | null>;
+    };
+  };
 }
 
 export function buildHealthPayload(now: Date): HealthPayload {
@@ -60,7 +78,11 @@ export function buildHealthPayload(now: Date): HealthPayload {
         healthy: state.horizonsMercury.healthy,
         fetchedAt: state.horizonsMercury.fetchedAt,
       },
-      satellites: { healthy: state.satellites.healthy, fetchedAt: state.satellites.fetchedAt },
+      satellites: {
+        healthy: state.satellites.healthy,
+        fetchedAt: state.satellites.fetchedAt,
+        categorySources: getSatelliteCategorySources(),
+      },
     },
   };
 }

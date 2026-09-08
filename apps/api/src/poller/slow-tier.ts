@@ -60,7 +60,13 @@ import type { GibsLayerOptions } from '../clients/gibs/index.js';
 import type { fetchCelestrakTle } from '../clients/celestrak/index.js';
 import type { CelestrakTleData, CelestrakTleRecord } from '../clients/celestrak/index.js';
 import type { fetchSpaceTrackTle } from '../clients/space-track/index.js';
-import { getSourceState, setSourceState } from './store.js';
+import {
+  getSourceState,
+  setSourceState,
+  setSatelliteCategorySources,
+  type SatelliteCategory,
+  type SatelliteSource,
+} from './store.js';
 
 /** ARCHITECTURE.md §4: slow tier polls every 5-15min. */
 export const SLOW_TIER_INTERVAL_MS = 600_000;
@@ -102,20 +108,12 @@ const HORIZONS_PLANET_STEP = '1 h';
 const GIBS_LAYER = 'VIIRS_SNPP_CorrectedReflectance_TrueColor';
 
 /**
- * The satellite population's real category taxonomy (2026-09-06 widening —
- * see DECISIONS.md): each CelesTrak group/catnr fetched below is tagged with
- * exactly one of these, threaded through `CelestrakTleRecord.category` all
- * the way to the frontend so the population can be filtered/grouped later.
- */
-type SatelliteCategory =
-  'stations' | 'starlink' | 'oneweb' | 'gps' | 'weather' | 'geo' | 'cubesat' | 'debris' | 'hubble';
-
-/**
- * CelesTrak groups fetched every slow-tier tick, each tagged with the
- * category above. Every name here was verified live against
- * celestrak.org/NORAD/elements/index.php's real current GROUP list (and a
- * live gp.php fetch returning real, non-empty data) before use — not
- * assumed from documentation or memory. See DECISIONS.md.
+ * CelesTrak groups fetched every slow-tier tick, each tagged with a
+ * `SatelliteCategory` (`./store.js` — derived from `CelestrakTleRecord.category`,
+ * the 2026-09-06 widening, see DECISIONS.md). Every name here was verified
+ * live against celestrak.org/NORAD/elements/index.php's real current GROUP
+ * list (and a live gp.php fetch returning real, non-empty data) before use —
+ * not assumed from documentation or memory. See DECISIONS.md.
  */
 const SATELLITE_GROUP_FETCHES: readonly { group: string; category: SatelliteCategory }[] = [
   { group: 'stations', category: 'stations' }, // ISS + Tiangong + a handful of others (~20 objects)
@@ -296,6 +294,21 @@ function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
 }
 
 /**
+ * `fetchAllSatelliteGroups`'s result, extended with which source actually
+ * served each category that succeeded this tick — only categories present
+ * here succeeded (via either source); a category that failed on both is
+ * simply absent, so the store (`setSatelliteCategorySources`) leaves its
+ * last-known source untouched rather than clearing it. `debris` maps to
+ * three underlying CelesTrak groups (see `DEBRIS_GROUP_NAMES`); if they
+ * don't all resolve via the same source on a given tick, this reflects
+ * whichever one was processed last — an accepted simplification, since the
+ * exposed field is one source per category, not per underlying group.
+ */
+interface SatelliteGroupsResult extends CelestrakTleData {
+  categorySources: Partial<Record<SatelliteCategory, SatelliteSource>>;
+}
+
+/**
  * Fetches every satellite group/catnr this app tracks in parallel, trying
  * CelesTrak first for each category. If CelesTrak succeeds for a category
  * (records non-null), that result is used and Space-Track is never called for
@@ -313,7 +326,7 @@ function writeSatellitesResult(data: CelestrakTleData, nowIso: string): void {
 async function fetchAllSatelliteGroups(
   clients: Pick<SlowTierClients, 'fetchCelestrakTle' | 'fetchSpaceTrackTle'>,
   now: Date,
-): Promise<CelestrakTleData> {
+): Promise<SatelliteGroupsResult> {
   const sources: { category: SatelliteCategory; celestrakPromise: Promise<CelestrakTleData> }[] = [
     ...SATELLITE_GROUP_FETCHES.map(({ group, category }) => ({
       category,
@@ -371,6 +384,7 @@ async function fetchAllSatelliteGroups(
 
   const seenNoradIds = new Set<number>();
   const merged: CelestrakTleRecord[] = [];
+  const categorySources: Partial<Record<SatelliteCategory, SatelliteSource>> = {};
   let anySucceeded = false;
 
   celestrakSettled.forEach((celestrakResult, i) => {
@@ -391,6 +405,7 @@ async function fetchAllSatelliteGroups(
 
     if (effectiveRecords !== null) {
       anySucceeded = true;
+      categorySources[category] = celestrakRecords !== null ? 'celestrak' : 'space-track-fallback';
       for (const record of effectiveRecords.slice(0, MAX_SATELLITES_PER_SOURCE)) {
         if (!seenNoradIds.has(record.noradCatId)) {
           seenNoradIds.add(record.noradCatId);
@@ -403,6 +418,7 @@ async function fetchAllSatelliteGroups(
   return {
     records: anySucceeded ? merged : null,
     fetchedAt: now.toISOString(),
+    categorySources,
   };
 }
 
@@ -567,7 +583,9 @@ export async function runSlowTierTick(clients: SlowTierClients, now: Date): Prom
   );
 
   if (satellitesResult.status === 'fulfilled') {
-    writeSatellitesResult(satellitesResult.value, nowIso);
+    const { categorySources, ...satelliteData } = satellitesResult.value;
+    writeSatellitesResult(satelliteData, nowIso);
+    setSatelliteCategorySources(categorySources);
   } else {
     console.error('[poller/slow-tier] CelesTrak threw unexpectedly:', satellitesResult.reason);
     writeSatellitesResult({ records: null, fetchedAt: nowIso }, nowIso);
