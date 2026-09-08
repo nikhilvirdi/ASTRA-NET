@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { DataSourcesList } from '@/components/common/DataSourcesList';
 
 export function AboutPage(): React.ReactElement {
   return (
@@ -96,22 +96,10 @@ export function AboutPage(): React.ReactElement {
           The Data Behind It
         </h2>
         <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
-          ISS positions and passes come from N2YO. Space weather and geomagnetic data come from
-          NOAA&apos;s Space Weather Prediction Center. Solar flares and CMEs come from NASA&apos;s
-          DONKI system. Near-Earth objects come from NASA&apos;s NeoWs. Planetary positions come
-          from JPL&apos;s Horizons ephemeris service. The satellite population comes from CelesTrak,
-          with Space-Track.org used as a fallback when CelesTrak is unreachable. Cloud cover comes
-          from Open-Meteo. Sky quality (light pollution) is estimated from NASA&apos;s Black Marble
-          night-lights imagery. Sun, Moon, and star positions are computed live, straight from real
-          astronomical formulas. The full breakdown of every source lives on the{' '}
-          <Link
-            to="/settings"
-            className="text-brass-300 hover:text-sky-100 underline underline-offset-4 transition-colors"
-          >
-            Settings page
-          </Link>
-          .
+          Every number in ASTRA-NET comes from somewhere real — here is every data feed,
+          astronomical calculation, and space weather model powering the app:
         </p>
+        <DataSourcesList />
       </section>
 
       {/* ── Section: No accounts, nothing tracked ── */}
