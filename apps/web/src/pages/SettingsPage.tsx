@@ -64,6 +64,32 @@ const DATA_SOURCES: DataSourceInfo[] = [
       "Computes true heliocentric and geocentric positions for the Sun, Mercury, Venus, Mars, Jupiter, and Saturn using NASA Jet Propulsion Laboratory's Horizons ephemeris computation system. Ephemerides are predictable and cached across multi-hour intervals.",
   },
   {
+    id: 'satellites',
+    category: 'SATELLITES',
+    source: 'CelesTrak / Space-Track.org',
+    summary:
+      'Live positions for satellites, space stations, and debris — Starlink, GPS, weather, geostationary, and more, computed from real orbital elements.',
+    details:
+      "Orbital element sets for satellites, space stations, and tracked debris — Starlink, GPS, weather, geostationary orbit, and more — come from CelesTrak's public catalog. Falls back to Space-Track.org if CelesTrak is unreachable, so satellite positions keep working even when the primary source is down.",
+  },
+  {
+    id: 'cloud-cover',
+    category: 'CLOUD COVER',
+    source: 'Open-Meteo',
+    summary: 'Real-time and forecasted cloud cover and visibility for your exact location.',
+    details:
+      "Hourly cloud cover percentage and visibility, current hour through the next five, fetched live for your exact coordinates from Open-Meteo's free, keyless weather API.",
+  },
+  {
+    id: 'sky-quality',
+    category: 'SKY QUALITY',
+    source: 'NASA Black Marble',
+    summary:
+      "Light pollution estimate (Bortle scale) from NASA's Black Marble night-lights composite.",
+    details:
+      "Estimates Bortle-scale sky darkness (1–9) from a downsampled brightness reading of NASA's Black Marble night-lights composite, at roughly 11km resolution. This is a relative darkness estimate, not a calibrated scientific measurement — city, rural, and open-ocean skies are ranked correctly relative to each other, but the exact value at any one point is approximate.",
+  },
+  {
     id: 'celestial-math',
     category: 'LOCAL SKY DOME & ASTRONOMY',
     source: 'Pure Local Computation',
