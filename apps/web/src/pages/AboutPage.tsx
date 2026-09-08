@@ -37,45 +37,25 @@ export function AboutPage(): React.ReactElement {
           When ASTRA-NET says an aurora might be visible tonight, that&apos;s the end of a real
           chain of physical reasoning, not a single number pulled from somewhere:
         </p>
-        <ol className="space-y-3 pt-2 text-sky-200 font-sans list-none">
-          <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
-              1
-            </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
-              <strong className="text-sky-100 font-semibold">Detection</strong> — NASA&apos;s DONKI
-              system reports a coronal mass ejection (CME) erupting from the Sun.
-            </div>
+        <ol className="space-y-3 pt-2 pl-5 list-disc text-sky-200 font-sans">
+          <li className="type-body text-sm sm:text-base leading-relaxed break-words">
+            <strong className="text-sky-100 font-semibold">Detection</strong> — NASA&apos;s DONKI
+            system reports a coronal mass ejection (CME) erupting from the Sun.
           </li>
-          <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
-              2
-            </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
-              <strong className="text-sky-100 font-semibold">Transit</strong> — the CME&apos;s real
-              launch velocity runs through a physics-based drag model to estimate when it&apos;ll
-              reach Earth, usually a day or more out.
-            </div>
+          <li className="type-body text-sm sm:text-base leading-relaxed break-words">
+            <strong className="text-sky-100 font-semibold">Transit</strong> — the CME&apos;s real
+            launch velocity runs through a physics-based drag model to estimate when it&apos;ll
+            reach Earth, usually a day or more out.
           </li>
-          <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
-              3
-            </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
-              <strong className="text-sky-100 font-semibold">Geomagnetic response</strong> —
-              NOAA&apos;s live Kp index (a measure of geomagnetic disturbance) gets checked against
-              how strong that CME is expected to be.
-            </div>
+          <li className="type-body text-sm sm:text-base leading-relaxed break-words">
+            <strong className="text-sky-100 font-semibold">Geomagnetic response</strong> —
+            NOAA&apos;s live Kp index (a measure of geomagnetic disturbance) gets checked against
+            how strong that CME is expected to be.
           </li>
-          <li className="flex gap-3 items-start">
-            <span className="font-jost text-xs text-brass-300 font-semibold px-2 py-0.5 rounded-sm bg-brass-300/10 border border-brass-400/30 shrink-0 mt-0.5">
-              4
-            </span>
-            <div className="type-body text-sm sm:text-base leading-relaxed min-w-0 break-words">
-              <strong className="text-sky-100 font-semibold">Local outcome</strong> — the Kp value
-              is compared against your actual latitude to figure out whether the aurora&apos;s
-              visibility boundary reaches you.
-            </div>
+          <li className="type-body text-sm sm:text-base leading-relaxed break-words">
+            <strong className="text-sky-100 font-semibold">Local outcome</strong> — the Kp value is
+            compared against your actual latitude to figure out whether the aurora&apos;s visibility
+            boundary reaches you.
           </li>
         </ol>
         <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans pt-2 break-words">
@@ -96,6 +76,20 @@ export function AboutPage(): React.ReactElement {
         </p>
       </section>
 
+      {/* ── Section: A Live Sky Map ── */}
+      <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
+        <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
+          A Live Sky Map
+        </h2>
+        <p className="type-body text-sm sm:text-base text-sky-200 leading-relaxed font-sans break-words">
+          Explore renders the sky as it actually is right now — not just the Sun, Moon, and planets,
+          but over a thousand real satellites, computed live from their actual orbital elements:
+          Starlink, the ISS, GPS, weather satellites, tracked debris. Constellation lines connect
+          real star positions. On a phone, you can point it at the sky and the view follows where
+          you&apos;re actually looking.
+        </p>
+      </section>
+
       {/* ── Section: The data behind it ── */}
       <section className="space-y-3 sm:space-y-4 border-t border-sky-800/40 pt-6 sm:pt-8">
         <h2 className="font-jost text-xl sm:text-2xl text-white font-medium tracking-tight">
@@ -105,9 +99,11 @@ export function AboutPage(): React.ReactElement {
           ISS positions and passes come from N2YO. Space weather and geomagnetic data come from
           NOAA&apos;s Space Weather Prediction Center. Solar flares and CMEs come from NASA&apos;s
           DONKI system. Near-Earth objects come from NASA&apos;s NeoWs. Planetary positions come
-          from JPL&apos;s Horizons ephemeris service. Sun, Moon, and star positions are computed
-          live, straight from real astronomical formulas. The full breakdown of every source lives
-          on the{' '}
+          from JPL&apos;s Horizons ephemeris service. The satellite population comes from CelesTrak,
+          with Space-Track.org used as a fallback when CelesTrak is unreachable. Cloud cover comes
+          from Open-Meteo. Sky quality (light pollution) is estimated from NASA&apos;s Black Marble
+          night-lights imagery. Sun, Moon, and star positions are computed live, straight from real
+          astronomical formulas. The full breakdown of every source lives on the{' '}
           <Link
             to="/settings"
             className="text-brass-300 hover:text-sky-100 underline underline-offset-4 transition-colors"
