@@ -9,7 +9,7 @@ import { getSourceState, resetStore } from './store.js';
 import type { NasaDonkiData, NasaNeowsData } from '../clients/nasa/index.js';
 import type { HorizonsData, HorizonsRaDecData } from '../clients/jpl-horizons/index.js';
 import type { SwpcSlowData } from '../clients/swpc/index.js';
-import type { CelestrakTleData } from '../clients/celestrak/index.js';
+import type { CelestrakTleData, CelestrakTleRecord } from '../clients/celestrak/index.js';
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
@@ -154,10 +154,14 @@ const SATELLITE_SOURCES: {
 /** One distinguishable success record per source, keyed by its group/catnr. */
 function celestrakSuccessFor(params: { group?: string; catnr?: number }): CelestrakTleData {
   const label = params.group ?? `catnr-${params.catnr}`;
+  const idx = SATELLITE_SOURCES.findIndex(
+    (s) =>
+      (params.group !== undefined && s.params.group === params.group) ||
+      (params.catnr !== undefined && s.params.catnr === params.catnr),
+  );
+  const noradCatId = params.catnr ?? (idx >= 0 ? 10000 + idx : 25544);
   return {
-    records: [
-      { name: `TEST-${label}`, noradCatId: 25544, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 },
-    ],
+    records: [{ name: `TEST-${label}`, noradCatId, line1: SAMPLE_LINE1, line2: SAMPLE_LINE2 }],
     fetchedAt: NOW_ISO,
   };
 }
@@ -725,6 +729,36 @@ describe('Space-Track fallback (fetchAllSatelliteGroups via runSlowTierTick)', (
 
     await expect(runSlowTierTick(clients, NOW)).resolves.toBeUndefined();
     expect(getSourceState('satellites').healthy).toBe(false);
+  });
+
+  it('deduplicates satellite records by NORAD ID across overlapping groups', async () => {
+    // Return the same NORAD ID for two distinct groups (e.g. debris overlap)
+    const duplicateRecord: CelestrakTleRecord = {
+      name: 'DEBRIS DUPLICATE',
+      noradCatId: 99999,
+      line1: SAMPLE_LINE1,
+      line2: SAMPLE_LINE2,
+    };
+    const clients = makeClients({
+      fetchCelestrakTle: vi
+        .fn()
+        .mockImplementation((params: { group?: string; catnr?: number }) => {
+          if (params.group === 'cosmos-2251-debris' || params.group === 'iridium-33-debris') {
+            return Promise.resolve({
+              records: [duplicateRecord],
+              fetchedAt: NOW_ISO,
+            });
+          }
+          return Promise.resolve(celestrakSuccessFor(params));
+        }),
+    });
+
+    await runSlowTierTick(clients, NOW);
+
+    const stored = getSourceState('satellites');
+    expect(stored.healthy).toBe(true);
+    const duplicates = stored.data?.records?.filter((r) => r.noradCatId === 99999);
+    expect(duplicates).toHaveLength(1);
   });
 });
 

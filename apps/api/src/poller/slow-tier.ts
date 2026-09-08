@@ -369,6 +369,7 @@ async function fetchAllSatelliteGroups(
     }
   });
 
+  const seenNoradIds = new Set<number>();
   const merged: CelestrakTleRecord[] = [];
   let anySucceeded = false;
 
@@ -391,7 +392,10 @@ async function fetchAllSatelliteGroups(
     if (effectiveRecords !== null) {
       anySucceeded = true;
       for (const record of effectiveRecords.slice(0, MAX_SATELLITES_PER_SOURCE)) {
-        merged.push({ ...record, category });
+        if (!seenNoradIds.has(record.noradCatId)) {
+          seenNoradIds.add(record.noradCatId);
+          merged.push({ ...record, category });
+        }
       }
     }
   });
