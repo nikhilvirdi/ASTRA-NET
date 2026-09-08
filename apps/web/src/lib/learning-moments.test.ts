@@ -69,6 +69,9 @@ describe('selectLearningMoment — category matching', () => {
     'neo-approach': 'neo',
     'planet-high': 'planets',
     'moon-phase': 'moon',
+    'sky-quality': null,
+    'cloud-cover': null,
+    'meteor-shower': null,
     quiet: null,
   };
 

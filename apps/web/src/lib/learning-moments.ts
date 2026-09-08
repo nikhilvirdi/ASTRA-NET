@@ -154,7 +154,14 @@ export const LEARNING_MOMENTS: readonly LearningMoment[] = [
   },
 ];
 
-/** Which fact category each headline event calls for; null means no context match. */
+/**
+ * Which fact category each headline event calls for; null means no context
+ * match, which falls back to rotating the whole bank (same treatment as
+ * `quiet`). sky-quality/cloud-cover/meteor-shower have no learning-moments
+ * category of their own yet — forcing them into `sky-mechanics` would pair
+ * a Bortle-scale headline with an unrelated fact about, say, the magnitude
+ * scale, which is a worse mismatch than no context match at all.
+ */
 const CATEGORY_FOR_HEADLINE: Record<HeadlineKind, FactCategory | null> = {
   'aurora-chance': 'aurora',
   'cme-inbound': 'aurora',
@@ -162,6 +169,9 @@ const CATEGORY_FOR_HEADLINE: Record<HeadlineKind, FactCategory | null> = {
   'neo-approach': 'neo',
   'planet-high': 'planets',
   'moon-phase': 'moon',
+  'sky-quality': null,
+  'cloud-cover': null,
+  'meteor-shower': null,
   quiet: null,
 };
 

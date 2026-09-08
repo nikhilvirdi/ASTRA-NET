@@ -359,7 +359,7 @@ function monthDayKey(month: number, day: number): number {
  * can disagree with a real civil clock by up to ~30min within one
  * standard timezone, but that's far inside a single calendar day.
  */
-function localCalendarDate(
+export function localCalendarDate(
   utcDate: Date,
   observerLonEastDeg: number,
 ): { month: number; day: number } {
@@ -398,6 +398,16 @@ export function isShowerActive(
 /** Every shower whose activity window contains `date` at the observer's location, in table order. */
 export function activeShowers(date: Date, observerLonEastDeg: number): MeteorShower[] {
   return METEOR_SHOWERS.filter((s) => isShowerActive(s, date, observerLonEastDeg));
+}
+
+/** Selects highest-rate shower from active list, matching visibleShowerRadiant's ranking. */
+export function selectPrimaryShower(showers: readonly MeteorShower[]): MeteorShower | null {
+  if (showers.length === 0) return null;
+  return showers.reduce((best, current) => {
+    const currentRate = typeof current.zhr === 'number' ? current.zhr : 5;
+    const bestRate = typeof best.zhr === 'number' ? best.zhr : 5;
+    return currentRate > bestRate ? current : best;
+  });
 }
 
 /** ZHR as a sortable number; 'variable' sorts as a modest but non-zero rate. */

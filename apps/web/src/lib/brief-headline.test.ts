@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyBrief } from './api';
+import type { CloudCoverHour, DailyBrief } from './api';
 import {
+  CLOUD_COVER_SIGNIFICANT_SWING_PCT,
+  CME_URGENT_LEAD_HOURS,
   ISS_PASS_WINDOW_HOURS,
   NEO_NOTABLE_LD,
   PLANET_HIGH_ALTITUDE_DEG,
   selectHeadline,
 } from './brief-headline';
 
-const NOW = new Date(2026, 7, 26, 22, 0, 0); // Aug 26 2026, 22:00 local
+const NOW = new Date(2026, 7, 26, 22, 0, 0); // Aug 26 2026, 22:00 local — no shower is active on this date.
 const clock = (d: Date): string => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 /** A brief with every headline trigger switched off — tests turn on one at a time. */
@@ -133,8 +135,30 @@ const withMoonPhase = (b: DailyBrief, phaseName: string, illum: number): DailyBr
   b.skyAnchor.data!.moon!.illuminatedFraction = illum;
   return b;
 };
+const withBortle = (b: DailyBrief, bortle: number): DailyBrief => {
+  b.skyAnchor.data!.skyQualityBortle = bortle;
+  return b;
+};
+const withCloudCover = (b: DailyBrief, firstPct: number, lastPct: number): DailyBrief => {
+  const hours: CloudCoverHour[] = [
+    { timeUtc: NOW.toISOString(), cloudCoverPercent: firstPct, visibilityMeters: 20_000 },
+    {
+      timeUtc: new Date(NOW.getTime() + 5 * 3_600_000).toISOString(),
+      cloudCoverPercent: lastPct,
+      visibilityMeters: 20_000,
+    },
+  ];
+  b.skyAnchor.data!.cloudCover = hours;
+  return b;
+};
 
 const HOUR = 3_600_000;
+
+// Aug 13 2026 (UTC noon), the Perseids' real peak date — resolves to the same
+// local calendar day at every longitude within a day of NYC's (-74.01°), so
+// this is a deterministic "shower peaks tonight" instant regardless of the
+// test runner's own timezone.
+const METEOR_PEAK_NOW = new Date(Date.UTC(2026, 7, 13, 12, 0, 0));
 
 describe('selectHeadline — each condition on its own', () => {
   it('reports an aurora chance when the storm reaches this latitude', () => {
@@ -148,17 +172,36 @@ describe('selectHeadline — each condition on its own', () => {
     expect(h.emphasis).toBe('1 in 2');
   });
 
-  it('reports an inbound CME when there is no aurora chance here', () => {
-    const h = selectHeadline(withCme(quietBrief(), 42.4), NOW, clock);
+  it('reports an inbound CME arriving within the urgent window', () => {
+    const h = selectHeadline(withCme(quietBrief(), 3), NOW, clock);
     expect(h.kind).toBe('cme-inbound');
-    expect(h.text).toContain('42 hours');
+    expect(h.text).toContain('3 hours');
     expect(h.text).toContain('too far south');
   });
 
-  it('reports an inbound CME without a lead time when none is known', () => {
-    const h = selectHeadline(withCme(quietBrief(), null), NOW, clock);
+  it('takes a CME exactly at the urgent-window boundary', () => {
+    const h = selectHeadline(withCme(quietBrief(), CME_URGENT_LEAD_HOURS), NOW, clock);
     expect(h.kind).toBe('cme-inbound');
-    expect(h.emphasis).toBeNull();
+  });
+
+  it('does NOT surface a CME arriving in over a day (Step 2: staleness fix)', () => {
+    // This is the exact bug: a real but slow CME used to dominate the
+    // headline for the entire multi-day transit. It must no longer even be
+    // a candidate once its lead time is outside the urgent window.
+    const h = selectHeadline(withCme(quietBrief(), 42.4), NOW, clock);
+    expect(h.kind).toBe('quiet');
+  });
+
+  it('does not surface a CME just past the urgent-window boundary', () => {
+    const h = selectHeadline(withCme(quietBrief(), CME_URGENT_LEAD_HOURS + 0.1), NOW, clock);
+    expect(h.kind).toBe('quiet');
+  });
+
+  it('does not surface a CME with no known lead time', () => {
+    // An unknown ETA is not evidence of urgency either — fails safe to quiet
+    // rather than assuming the worst (or best) case.
+    const h = selectHeadline(withCme(quietBrief(), null), NOW, clock);
+    expect(h.kind).toBe('quiet');
   });
 
   it('reports an ISS pass inside the window', () => {
@@ -272,86 +315,138 @@ describe('selectHeadline — each condition on its own', () => {
       'quiet',
     );
   });
+
+  it('reports sky quality when a Bortle reading is available', () => {
+    const h = selectHeadline(withBortle(quietBrief(), 3), NOW, clock);
+    expect(h.kind).toBe('sky-quality');
+    expect(h.text).toContain('Bortle 3');
+    expect(h.text).toContain('rural sky');
+  });
+
+  it('ignores sky quality when no Bortle reading is available', () => {
+    expect(selectHeadline(quietBrief(), NOW, clock).kind).toBe('quiet');
+  });
+
+  it('reports clouds clearing significantly', () => {
+    const h = selectHeadline(withCloudCover(quietBrief(), 90, 20), NOW, clock);
+    expect(h.kind).toBe('cloud-cover');
+    expect(h.text).toContain('clearing');
+  });
+
+  it('reports clouds moving in significantly', () => {
+    const h = selectHeadline(withCloudCover(quietBrief(), 10, 80), NOW, clock);
+    expect(h.kind).toBe('cloud-cover');
+    expect(h.text).toContain('moving in');
+  });
+
+  it('ignores an ordinary, non-significant cloud-cover swing', () => {
+    const h = selectHeadline(
+      withCloudCover(quietBrief(), 50, 50 + CLOUD_COVER_SIGNIFICANT_SWING_PCT - 1),
+      NOW,
+      clock,
+    );
+    expect(h.kind).toBe('quiet');
+  });
+
+  it('takes a cloud-cover swing exactly at the significance threshold', () => {
+    const h = selectHeadline(
+      withCloudCover(quietBrief(), 0, CLOUD_COVER_SIGNIFICANT_SWING_PCT),
+      NOW,
+      clock,
+    );
+    expect(h.kind).toBe('cloud-cover');
+  });
+
+  it('reports an active shower peaking tonight', () => {
+    const h = selectHeadline(quietBrief(), METEOR_PEAK_NOW, clock);
+    expect(h.kind).toBe('meteor-shower');
+    expect(h.text).toContain('Perseids');
+    expect(h.text).toContain('peaks tonight');
+  });
+
+  it('does not surface a shower when nothing is active for the date', () => {
+    expect(selectHeadline(quietBrief(), NOW, clock).kind).toBe('quiet');
+  });
+
+  it('suppresses the shower candidate when moonlight would wash it out', () => {
+    const b = withMoonPhase(quietBrief(), 'full', 0.97);
+    // moon-phase itself is real and valid here — the point is that
+    // meteor-shower must never appear alongside it despite the shower
+    // being genuinely active and at its peak on this date.
+    for (let h = 0; h < 24; h++) {
+      const kind = selectHeadline(b, new Date(METEOR_PEAK_NOW.getTime() + h * HOUR), clock).kind;
+      expect(kind).toBe('moon-phase');
+    }
+  });
+
+  it('keeps the shower candidate when moonlight is exactly at the washout boundary', () => {
+    const h = selectHeadline(
+      withMoonPhase(quietBrief(), 'waxingCrescent', 0.75),
+      METEOR_PEAK_NOW,
+      clock,
+    );
+    expect(h.kind).toBe('meteor-shower');
+  });
 });
 
-describe('selectHeadline — priority ordering', () => {
-  it('aurora beats everything else stacked together', () => {
-    let b = withAurora(quietBrief(), 0.2);
-    b = withCme(b, 20);
-    b = withPass(b, NOW.getTime() + HOUR, NOW.getTime() + HOUR + 600_000);
-    b = withNeo(b, '2026-08-26', 1);
-    b = withPlanet(b, 'jupiter', 70);
-    b = withMoonPhase(b, 'full', 1);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('aurora-chance');
+describe('selectHeadline — hourly rotation among simultaneously-true candidates', () => {
+  /** aurora-chance, planet-high, and moon-phase — three candidates true regardless of `now`. */
+  function threeCandidateBrief(): DailyBrief {
+    return withMoonPhase(withPlanet(withAurora(quietBrief(), 0.2), 'jupiter', 70), 'full', 1);
+  }
+
+  const BASE = Date.UTC(2026, 7, 26, 12, 0, 0); // exactly on an epoch-hour boundary
+
+  it('genuinely varies across hours rather than always returning the same candidate', () => {
+    const b = threeCandidateBrief();
+    const kinds = new Set<string>();
+    for (let h = 0; h < 6; h++) {
+      kinds.add(selectHeadline(b, new Date(BASE + h * HOUR), clock).kind);
+    }
+    expect(kinds.size).toBeGreaterThan(1);
+    // And it only ever picks among the real, valid candidates.
+    for (const kind of kinds) {
+      expect(['aurora-chance', 'planet-high', 'moon-phase']).toContain(kind);
+    }
   });
 
-  it('an inbound CME outranks an ISS pass', () => {
-    let b = withCme(quietBrief(), 30);
-    b = withPass(b, NOW.getTime() + HOUR, NOW.getTime() + HOUR + 600_000);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('cme-inbound');
+  it('wraps back to the same pick every N hours, N = the number of valid candidates', () => {
+    const b = threeCandidateBrief();
+    const first = selectHeadline(b, new Date(BASE), clock).kind;
+    const wrapped = selectHeadline(b, new Date(BASE + 3 * HOUR), clock).kind;
+    expect(wrapped).toBe(first);
   });
 
-  it('an ISS pass outranks a NEO, a planet and the Moon', () => {
-    let b = withPass(quietBrief(), NOW.getTime() + HOUR, NOW.getTime() + HOUR + 600_000);
-    b = withNeo(b, '2026-08-26', 1);
-    b = withPlanet(b, 'jupiter', 70);
-    b = withMoonPhase(b, 'full', 1);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('iss-pass');
+  it('does not change within the same hour bucket', () => {
+    const b = threeCandidateBrief();
+    const start = selectHeadline(b, new Date(BASE), clock).kind;
+    const tenMinLater = selectHeadline(b, new Date(BASE + 10 * 60_000), clock).kind;
+    const justBeforeNextHour = selectHeadline(b, new Date(BASE + HOUR - 1), clock).kind;
+    expect(tenMinLater).toBe(start);
+    expect(justBeforeNextHour).toBe(start);
   });
 
-  it('a NEO outranks a planet and the Moon', () => {
-    let b = withNeo(quietBrief(), '2026-08-26', 1);
-    b = withPlanet(b, 'jupiter', 70);
-    b = withMoonPhase(b, 'full', 1);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('neo-approach');
-  });
-
-  it('a planet outranks the Moon', () => {
-    const b = withMoonPhase(withPlanet(quietBrief(), 'jupiter', 70), 'full', 1);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('planet-high');
-  });
-
-  it('falls through the whole ladder in order as each event is removed', () => {
-    // Build everything on, then strip one layer at a time and watch the
-    // headline step down the priority list exactly once per removal.
-    let b = withMoonPhase(
-      withPlanet(
-        withNeo(
-          withPass(
-            withCme(withAurora(quietBrief(), 0.2), 30),
-            NOW.getTime() + HOUR,
-            NOW.getTime() + HOUR + 600_000,
-          ),
-          '2026-08-26',
-          1,
-        ),
-        'jupiter',
-        70,
-      ),
-      'full',
-      1,
+  it('falls back to quiet once every candidate is removed, one at a time', () => {
+    const b = threeCandidateBrief();
+    expect(['aurora-chance', 'planet-high', 'moon-phase']).toContain(
+      selectHeadline(b, new Date(BASE), clock).kind,
     );
-    expect(selectHeadline(b, NOW, clock).kind).toBe('aurora-chance');
 
     b.spaceWeather.data!.aurora!.strengthFactor = 0;
-    expect(selectHeadline(b, NOW, clock).kind).toBe('cme-inbound');
+    expect(['planet-high', 'moon-phase']).toContain(selectHeadline(b, new Date(BASE), clock).kind);
 
-    b.spaceWeather.data!.aurora!.hasActiveCme = false;
-    expect(selectHeadline(b, NOW, clock).kind).toBe('iss-pass');
+    b.skyAnchor.data!.jupiter = { azimuthDeg: 100, altitudeDeg: 5 };
+    expect(selectHeadline(b, new Date(BASE), clock).kind).toBe('moon-phase');
 
-    b.iss.data!.nextPass = null;
-    expect(selectHeadline(b, NOW, clock).kind).toBe('neo-approach');
+    b.skyAnchor.data!.moon!.phaseName = 'waxingGibbous';
+    expect(selectHeadline(b, new Date(BASE), clock).kind).toBe('quiet');
+  });
 
-    b.neoImagery.data!.neo = null;
-    expect(selectHeadline(b, NOW, clock).kind).toBe('planet-high');
-
-    // Jupiter was the only planet above the threshold — the rest of the fixture
-    // sits below it — so dropping it clears the whole planet rung.
-    b = withPlanet(b, 'jupiter', 5);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('moon-phase');
-
-    b = withMoonPhase(b, 'waningGibbous', 0.8);
-    expect(selectHeadline(b, NOW, clock).kind).toBe('quiet');
+  it('a single valid candidate is picked every time, regardless of hour', () => {
+    const b = withPlanet(quietBrief(), 'jupiter', 70);
+    for (let h = 0; h < 5; h++) {
+      expect(selectHeadline(b, new Date(BASE + h * HOUR), clock).kind).toBe('planet-high');
+    }
   });
 });
 
@@ -383,11 +478,13 @@ describe('selectHeadline — degraded input', () => {
   it('always produces text matching its own parts', () => {
     const cases = [
       withAurora(quietBrief(), 0.2),
-      withCme(quietBrief(), 12),
+      withCme(quietBrief(), 3),
       withPass(quietBrief(), NOW.getTime() + HOUR, NOW.getTime() + HOUR + 600_000),
       withNeo(quietBrief(), '2026-08-26', 2),
       withPlanet(quietBrief(), 'venus', 40),
       withMoonPhase(quietBrief(), 'full', 1),
+      withBortle(quietBrief(), 5),
+      withCloudCover(quietBrief(), 90, 10),
       quietBrief(),
     ];
     for (const b of cases) {

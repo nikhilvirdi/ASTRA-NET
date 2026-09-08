@@ -1,5 +1,15 @@
 import React from 'react';
-import { activeShowers, formatShowerDate, type MeteorShower } from '../../lib/meteor-showers';
+import {
+  activeShowers,
+  formatShowerDate,
+  selectPrimaryShower,
+  type MeteorShower,
+} from '../../lib/meteor-showers';
+
+// Re-exported for existing consumers (MeteorShowerCard.test.ts) — the real
+// implementation lives in lib/meteor-showers.ts so lib/brief-headline.ts can
+// use it too without a lib -> components dependency.
+export { selectPrimaryShower };
 
 const DAYS_BEFORE_MONTH = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
 
@@ -36,16 +46,6 @@ export function computeActivityProgress(
   const todayPct = Math.max(0, Math.min(100, (currentOffset / totalDays) * 100));
 
   return { peakPct, todayPct };
-}
-
-/** Selects highest-rate shower from active list, matching visibleShowerRadiant's ranking. */
-export function selectPrimaryShower(showers: readonly MeteorShower[]): MeteorShower | null {
-  if (showers.length === 0) return null;
-  return showers.reduce((best, current) => {
-    const currentRate = typeof current.zhr === 'number' ? current.zhr : 5;
-    const bestRate = typeof best.zhr === 'number' ? best.zhr : 5;
-    return currentRate > bestRate ? current : best;
-  });
 }
 
 export interface MeteorShowerCardProps {
@@ -129,7 +129,7 @@ export function MeteorShowerCard({
             </span>
           </div>
 
-          <div className="relative w-full pt-4 pb-7 px-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
+          <div className="relative w-full pt-8 md:pt-4 pb-7 px-3 bg-sky-950/40 border border-sky-800/50 rounded-sm">
             {/* Track Rail */}
             <div className="relative w-full h-1.5 bg-sky-900/60 rounded-full overflow-visible">
               {/* Progress fill up to today */}
@@ -175,7 +175,7 @@ export function MeteorShowerCard({
                   <div className="w-1.5 h-1.5 rounded-full bg-black" />
                 </div>
                 <div
-                  className="absolute -top-6 flex flex-col items-center whitespace-nowrap"
+                  className="absolute -top-5 md:-top-6 flex flex-col items-center whitespace-nowrap"
                   style={{
                     transform:
                       todayDisplayPct < 15
