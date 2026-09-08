@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useAppStore } from './index';
+import { useAppStore, SATELLITE_CATEGORIES } from './index';
 
 describe('useAppStore - Location History', () => {
   beforeEach(() => {
@@ -86,5 +86,114 @@ describe('useAppStore - Location History', () => {
     store.clearLocalData();
     expect(useAppStore.getState().locationHistory).toHaveLength(0);
     expect(useAppStore.getState().location).toBeNull();
+  });
+});
+
+describe('useAppStore — Task A: satellite category filters, Constellations', () => {
+  beforeEach(() => {
+    useAppStore.getState().clearLocalData();
+  });
+
+  it('defaults every satellite category to visible', () => {
+    const visibility = useAppStore.getState().satelliteCategoryVisibility;
+    for (const category of SATELLITE_CATEGORIES) {
+      expect(visibility[category], `${category} should default true`).toBe(true);
+    }
+  });
+
+  it('covers all 9 real categories, no more, no fewer', () => {
+    expect(SATELLITE_CATEGORIES).toHaveLength(9);
+    expect(Object.keys(useAppStore.getState().satelliteCategoryVisibility).sort()).toEqual(
+      [...SATELLITE_CATEGORIES].sort(),
+    );
+  });
+
+  it('toggles one category off without affecting the others', () => {
+    useAppStore.getState().setSatelliteCategoryVisible('starlink', false);
+
+    const visibility = useAppStore.getState().satelliteCategoryVisibility;
+    expect(visibility.starlink).toBe(false);
+    for (const category of SATELLITE_CATEGORIES) {
+      if (category === 'starlink') continue;
+      expect(visibility[category]).toBe(true);
+    }
+  });
+
+  it('toggles a category back on', () => {
+    const store = useAppStore.getState();
+    store.setSatelliteCategoryVisible('debris', false);
+    expect(useAppStore.getState().satelliteCategoryVisibility.debris).toBe(false);
+
+    store.setSatelliteCategoryVisible('debris', true);
+    expect(useAppStore.getState().satelliteCategoryVisibility.debris).toBe(true);
+  });
+
+  it('defaults constellationsVisible to true', () => {
+    expect(useAppStore.getState().constellationsVisible).toBe(true);
+  });
+
+  it('toggles constellationsVisible', () => {
+    useAppStore.getState().setConstellationsVisible(false);
+    expect(useAppStore.getState().constellationsVisible).toBe(false);
+
+    useAppStore.getState().setConstellationsVisible(true);
+    expect(useAppStore.getState().constellationsVisible).toBe(true);
+  });
+
+  it('resets both fields on clearLocalData', () => {
+    const store = useAppStore.getState();
+    store.setSatelliteCategoryVisible('hubble', false);
+    store.setConstellationsVisible(false);
+
+    store.clearLocalData();
+
+    expect(useAppStore.getState().satelliteCategoryVisibility.hubble).toBe(true);
+    expect(useAppStore.getState().constellationsVisible).toBe(true);
+  });
+});
+
+describe('useAppStore — Task B: reduced motion override, default landing page', () => {
+  beforeEach(() => {
+    useAppStore.getState().clearLocalData();
+  });
+
+  it('defaults reducedMotion to "system"', () => {
+    expect(useAppStore.getState().reducedMotion).toBe('system');
+  });
+
+  it('sets reducedMotion to each valid value', () => {
+    const store = useAppStore.getState();
+    store.setReducedMotion('on');
+    expect(useAppStore.getState().reducedMotion).toBe('on');
+
+    store.setReducedMotion('off');
+    expect(useAppStore.getState().reducedMotion).toBe('off');
+
+    store.setReducedMotion('system');
+    expect(useAppStore.getState().reducedMotion).toBe('system');
+  });
+
+  it('defaults defaultLandingPage to "home"', () => {
+    expect(useAppStore.getState().defaultLandingPage).toBe('home');
+  });
+
+  it('sets defaultLandingPage to "explore" and back', () => {
+    const store = useAppStore.getState();
+    store.setDefaultLandingPage('explore');
+    expect(useAppStore.getState().defaultLandingPage).toBe('explore');
+
+    store.setDefaultLandingPage('home');
+    expect(useAppStore.getState().defaultLandingPage).toBe('home');
+  });
+
+  it('resets both fields on clearLocalData', () => {
+    const store = useAppStore.getState();
+    store.setReducedMotion('on');
+    store.setDefaultLandingPage('explore');
+
+    store.clearLocalData();
+
+    expect(useAppStore.getState().reducedMotion).toBe('system');
+    expect(useAppStore.getState().defaultLandingPage).toBe('home');
   });
 });

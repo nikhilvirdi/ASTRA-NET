@@ -1,6 +1,8 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { PersistentNav } from '@/components/nav/PersistentNav';
+import { useAppStore } from '@/store';
+import { shouldRedirectToExplore } from '@/lib/landing-page';
 
 // Pages
 import { BriefPage } from '@/pages/BriefPage';
@@ -24,8 +26,27 @@ import { AboutPage } from '@/pages/AboutPage';
  *   /settings    public  Location, local data controls
  *   /status      public  System status
  *   /about       public  About & Causal Engine explanation
+ *
+ * `defaultLandingPage` (Settings) redirects "/" to "/explore" exactly once,
+ * on this component's mount — i.e. the first load of a session, not every
+ * visit to "/". The effect's empty dependency array is deliberate: it must
+ * NOT re-run on later navigation, or clicking Home (which routes to "/")
+ * would bounce back to Explore forever, making the Brief page unreachable.
+ * See lib/landing-page.ts's `shouldRedirectToExplore` for the decision logic.
  */
 export function App(): React.ReactElement {
+  const defaultLandingPage = useAppStore((s) => s.defaultLandingPage);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (shouldRedirectToExplore(location.pathname, defaultLandingPage)) {
+      navigate('/explore', { replace: true });
+    }
+    // Mount-only: see the doc comment above for why this must not depend on
+    // `location`/`defaultLandingPage` re-running it on later navigation.
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-sky-950 text-white">
       {/* Skip link for keyboard navigation — §6 Quality Floor */}

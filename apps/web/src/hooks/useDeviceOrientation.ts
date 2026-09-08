@@ -34,6 +34,34 @@ export interface OrientationReading {
 
 export type PermissionState = 'granted' | 'denied' | 'unsupported' | 'idle';
 
+/**
+ * Combines the raw `DeviceOrientationEvent` existence check with
+ * `navigator.maxTouchPoints > 0`, a much stronger real-device signal.
+ *
+ * There is no universal, perfectly reliable way to detect "this is a real
+ * mobile device with a working orientation sensor" from the web platform —
+ * this is a best-effort heuristic, not a guarantee. `DeviceOrientationEvent`
+ * alone is a weak signal: many desktop browsers (Chrome, Edge) define it
+ * globally with no real sensor behind it, which is exactly why POINT could
+ * previously show up on a laptop. `maxTouchPoints > 0` is a standards-based
+ * signal that real hardware advertises truthfully far more often than not,
+ * so requiring both together rules out the common desktop-false-positive
+ * case. It is not flawless either — a touch-enabled laptop or Chromebook
+ * with no orientation sensor can still slip through — but that is a much
+ * narrower, rarer category of false positive than "any desktop Chrome tab."
+ *
+ * Deliberately not layering in `navigator.userAgent` sniffing on top: it is
+ * easily spoofed/inaccurate and was called out as unreliable as a sole
+ * signal — combining two platform capability checks that are themselves
+ * imperfect but non-fragile is a better bar than adding a fragile one.
+ */
+export function detectOrientationSupport(
+  hasDeviceOrientationEvent: boolean,
+  maxTouchPoints: number,
+): boolean {
+  return hasDeviceOrientationEvent && maxTouchPoints > 0;
+}
+
 export interface UseDeviceOrientationResult {
   /** Whether the device orientation API exists in this environment. */
   supported: boolean;
@@ -60,7 +88,9 @@ export function useDeviceOrientation(enabled: boolean): UseDeviceOrientationResu
 
   // Determine API support on mount.
   useEffect(() => {
-    const has = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window;
+    const hasApi = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window;
+    const maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0;
+    const has = detectOrientationSupport(hasApi, maxTouchPoints);
     setSupported(has);
     if (!has) setPermissionState('unsupported');
   }, []);

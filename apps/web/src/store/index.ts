@@ -25,6 +25,59 @@ export interface SavedLocationEntry {
   savedAt: string;
 }
 
+// ─── Task A: satellite category filters, Constellations persistence ──────────
+
+/** Mirrors the api's category taxonomy (apps/api/src/poller/store.ts's SatelliteCategory) — CelesTrak/Space-Track's real category set, one source of truth for the web app. */
+export type SatelliteCategory =
+  'stations' | 'starlink' | 'oneweb' | 'gps' | 'weather' | 'geo' | 'cubesat' | 'debris' | 'hubble';
+
+export const SATELLITE_CATEGORIES: readonly SatelliteCategory[] = [
+  'stations',
+  'starlink',
+  'oneweb',
+  'gps',
+  'weather',
+  'geo',
+  'cubesat',
+  'debris',
+  'hubble',
+];
+
+export const SATELLITE_CATEGORY_LABELS: Record<SatelliteCategory, string> = {
+  stations: 'Stations',
+  starlink: 'Starlink',
+  oneweb: 'OneWeb',
+  gps: 'GPS',
+  weather: 'Weather',
+  geo: 'Geo',
+  cubesat: 'CubeSat',
+  debris: 'Debris',
+  hubble: 'Hubble',
+};
+
+/** Every category visible by default — a category never explicitly toggled off stays visible. */
+function defaultSatelliteCategoryVisibility(): Record<SatelliteCategory, boolean> {
+  return {
+    stations: true,
+    starlink: true,
+    oneweb: true,
+    gps: true,
+    weather: true,
+    geo: true,
+    cubesat: true,
+    debris: true,
+    hubble: true,
+  };
+}
+
+// ─── Task B: reduced-motion override, default landing page ───────────────────
+
+/** 'system' follows the OS prefers-reduced-motion media query (today's only behavior); 'on'/'off' force it either way. */
+export type ReducedMotionPreference = 'system' | 'on' | 'off';
+
+/** Which page the site's root ('/') shows on the first load of a session. Does not affect direct navigation to '/' or '/explore' afterward. */
+export type DefaultLandingPage = 'home' | 'explore';
+
 export interface AppState {
   // Location — a single client-side setting anyone can change, no account
   // required. Defaults to null (falls back to DEFAULT_OBSERVER_LOCATION,
@@ -58,6 +111,24 @@ export interface AppState {
   // Nav state — used by PersistentNav on /explore. Session-only, not persisted.
   navVisible: boolean;
   setNavVisible: (visible: boolean) => void;
+
+  // ── Task A: Explore overlay persistence ──────────────────────────────────
+  /** Per-category satellite visibility in Explore. Any category never explicitly set defaults to visible (true). */
+  satelliteCategoryVisibility: Record<SatelliteCategory, boolean>;
+  setSatelliteCategoryVisible: (category: SatelliteCategory, visible: boolean) => void;
+
+  /** Constellation lines overlay in Explore — moved from local component state (ExplorePage.tsx) so the choice persists across visits. Default: true. */
+  constellationsVisible: boolean;
+  setConstellationsVisible: (visible: boolean) => void;
+
+  // ── Task B: motion & landing-page preferences ────────────────────────────
+  /** Overrides the OS prefers-reduced-motion signal for Explore's camera cinematics (CameraController.tsx). Default: 'system' — unchanged behavior until a visitor opts in. */
+  reducedMotion: ReducedMotionPreference;
+  setReducedMotion: (pref: ReducedMotionPreference) => void;
+
+  /** Which page loads at the site's root ('/') on the first load of a session. Default: 'home' — unchanged behavior. */
+  defaultLandingPage: DefaultLandingPage;
+  setDefaultLandingPage: (page: DefaultLandingPage) => void;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -113,6 +184,12 @@ export const useAppStore = create<AppState>()(
           locationHistory: [],
           timeFormat: '24h',
           units: 'metric',
+          // Task A
+          satelliteCategoryVisibility: defaultSatelliteCategoryVisibility(),
+          constellationsVisible: true,
+          // Task B
+          reducedMotion: 'system',
+          defaultLandingPage: 'home',
         }),
 
       timeFormat: '24h',
@@ -127,6 +204,26 @@ export const useAppStore = create<AppState>()(
 
       navVisible: true,
       setNavVisible: (navVisible) => set({ navVisible }),
+
+      // ── Task A: Explore overlay persistence ──────────────────────────────
+      satelliteCategoryVisibility: defaultSatelliteCategoryVisibility(),
+      setSatelliteCategoryVisible: (category, visible) =>
+        set((state) => ({
+          satelliteCategoryVisibility: {
+            ...state.satelliteCategoryVisibility,
+            [category]: visible,
+          },
+        })),
+
+      constellationsVisible: true,
+      setConstellationsVisible: (constellationsVisible) => set({ constellationsVisible }),
+
+      // ── Task B: motion & landing-page preferences ────────────────────────
+      reducedMotion: 'system',
+      setReducedMotion: (reducedMotion) => set({ reducedMotion }),
+
+      defaultLandingPage: 'home',
+      setDefaultLandingPage: (defaultLandingPage) => set({ defaultLandingPage }),
     }),
     {
       name: 'astranet-store',
@@ -138,6 +235,12 @@ export const useAppStore = create<AppState>()(
         redLightMode: state.redLightMode,
         timeFormat: state.timeFormat,
         units: state.units,
+        // Task A
+        satelliteCategoryVisibility: state.satelliteCategoryVisibility,
+        constellationsVisible: state.constellationsVisible,
+        // Task B
+        reducedMotion: state.reducedMotion,
+        defaultLandingPage: state.defaultLandingPage,
       }),
     },
   ),

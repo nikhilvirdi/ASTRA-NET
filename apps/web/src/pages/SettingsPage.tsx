@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '@/store';
+import {
+  useAppStore,
+  SATELLITE_CATEGORIES,
+  SATELLITE_CATEGORY_LABELS,
+  type ReducedMotionPreference,
+  type DefaultLandingPage,
+} from '@/store';
 import { DEFAULT_OBSERVER_LOCATION } from '@/lib/api';
 
 /** Format decimal lat/lon with correct N/S and E/W direction letters (negative longitude = West). */
@@ -22,6 +28,18 @@ export function SettingsPage(): React.ReactElement {
   const setTimeFormat = useAppStore((s) => s.setTimeFormat);
   const units = useAppStore((s) => s.units);
   const setUnits = useAppStore((s) => s.setUnits);
+
+  // Task A — satellite category filters, Constellations
+  const satelliteCategoryVisibility = useAppStore((s) => s.satelliteCategoryVisibility);
+  const setSatelliteCategoryVisible = useAppStore((s) => s.setSatelliteCategoryVisible);
+  const constellationsVisible = useAppStore((s) => s.constellationsVisible);
+  const setConstellationsVisible = useAppStore((s) => s.setConstellationsVisible);
+
+  // Task B — reduced motion override, default landing page
+  const reducedMotion = useAppStore((s) => s.reducedMotion);
+  const setReducedMotion = useAppStore((s) => s.setReducedMotion);
+  const defaultLandingPage = useAppStore((s) => s.defaultLandingPage);
+  const setDefaultLandingPage = useAppStore((s) => s.setDefaultLandingPage);
 
   const effectiveLocation = location ?? DEFAULT_OBSERVER_LOCATION;
 
@@ -615,6 +633,176 @@ export function SettingsPage(): React.ReactElement {
                   IMPERIAL
                 </span>
               </div>
+            </div>
+
+            {/* ── Task B: Reduced Motion override ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+              <div>
+                <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+                  REDUCED MOTION
+                </span>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {reducedMotion === 'system'
+                    ? 'Follow System Setting'
+                    : reducedMotion === 'on'
+                      ? 'Always On'
+                      : 'Always Off'}
+                </span>
+                <span className="type-body text-xs text-sky-300 block mt-0.5">
+                  Overrides your device&apos;s motion preference for Explore&apos;s camera
+                  cinematics.
+                </span>
+              </div>
+              <div
+                role="group"
+                aria-label="Reduced motion override"
+                className="inline-flex rounded-sm border border-sky-800 bg-sky-950/80 p-0.5 shrink-0 self-start sm:self-auto items-center"
+              >
+                {(['system', 'on', 'off'] as ReducedMotionPreference[]).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={reducedMotion === option}
+                    onClick={() => setReducedMotion(option)}
+                    className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                      reducedMotion === option
+                        ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                        : 'text-sky-400 hover:text-sky-200'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Task B: Default Landing Page ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+              <div>
+                <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+                  DEFAULT LANDING PAGE
+                </span>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {defaultLandingPage === 'home' ? 'Daily Brief' : 'Explore'}
+                </span>
+                <span className="type-body text-xs text-sky-300 block mt-0.5">
+                  Which page loads first when you visit the site. You can still navigate to either
+                  page anytime.
+                </span>
+              </div>
+              <div
+                role="group"
+                aria-label="Default landing page"
+                className="inline-flex rounded-sm border border-sky-800 bg-sky-950/80 p-0.5 shrink-0 self-start sm:self-auto items-center"
+              >
+                {(['home', 'explore'] as DefaultLandingPage[]).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={defaultLandingPage === option}
+                    onClick={() => setDefaultLandingPage(option)}
+                    className={`px-3 py-2 text-xs font-jost uppercase tracking-wider rounded-sm transition-colors cursor-pointer min-h-[38px] ${
+                      defaultLandingPage === option
+                        ? 'bg-brass-400 text-sky-950 font-bold shadow-sm'
+                        : 'text-sky-400 hover:text-sky-200'
+                    }`}
+                  >
+                    {option === 'home' ? 'Home' : 'Explore'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 2B: EXPLORE DISPLAY (Task A) */}
+        <section className="pt-10 space-y-6">
+          <div>
+            <h2 className="font-jost text-xl font-medium text-sky-100">Explore Display</h2>
+            <p className="type-body text-sm text-sky-300 mt-1 leading-relaxed">
+              Controls what renders in Explore&apos;s 3D sky map.
+            </p>
+          </div>
+
+          <div className="divide-y divide-sky-800/30">
+            {/* Constellations */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+              <div>
+                <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block mb-1">
+                  CONSTELLATIONS
+                </span>
+                <span className="type-body text-base font-medium text-sky-100 block">
+                  {constellationsVisible ? 'Visible' : 'Hidden'}
+                </span>
+                <span className="type-body text-xs text-sky-300 block mt-0.5">
+                  Lines connecting real star positions in Explore.
+                </span>
+              </div>
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={constellationsVisible}
+                  aria-label="Toggle constellation lines in Explore"
+                  onClick={() => setConstellationsVisible(!constellationsVisible)}
+                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:border-brass-400 p-0.5 ${
+                    constellationsVisible
+                      ? 'bg-brass-500/30 border-brass-400/70'
+                      : 'bg-sky-950/80 border-sky-800'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                      constellationsVisible
+                        ? 'translate-x-7 bg-brass-400 ring-1 ring-brass-200'
+                        : 'translate-x-0 bg-sky-600 ring-1 ring-sky-400'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Satellite Categories */}
+          <div className="space-y-3 pt-2">
+            <span className="font-jost text-xs font-semibold text-brass-400 uppercase tracking-wider block">
+              SATELLITE CATEGORIES
+            </span>
+            <p className="type-body text-xs text-sky-300 leading-relaxed">
+              A category turned off never renders in Explore. All categories are visible by default.
+            </p>
+
+            <div className="divide-y divide-sky-800/30 border-y border-sky-800/30">
+              {SATELLITE_CATEGORIES.map((category) => {
+                const visible = satelliteCategoryVisibility[category] ?? true;
+                return (
+                  <div key={category} className="flex items-center justify-between gap-4 py-3">
+                    <span className="type-body text-sm font-medium text-sky-100">
+                      {SATELLITE_CATEGORY_LABELS[category]}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={visible}
+                      aria-label={`Toggle ${SATELLITE_CATEGORY_LABELS[category]} satellites in Explore`}
+                      onClick={() => setSatelliteCategoryVisible(category, !visible)}
+                      className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus:border-brass-400 p-0.5 ${
+                        visible
+                          ? 'bg-brass-500/30 border-brass-400/70'
+                          : 'bg-sky-950/80 border-sky-800'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                          visible
+                            ? 'translate-x-7 bg-brass-400 ring-1 ring-brass-200'
+                            : 'translate-x-0 bg-sky-600 ring-1 ring-sky-400'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

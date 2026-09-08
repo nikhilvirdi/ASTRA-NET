@@ -97,6 +97,27 @@ export const OPENING_SEQUENCE = {
 /** §7.6 — under prefers-reduced-motion, load/opening sequences collapse to a single 200ms fade. */
 export const DUR_REDUCED_MOTION_FADE = 0.2;
 
+/**
+ * Resolves the effective reduced-motion state for CameraController's two
+ * cinematic tweens, combining the Settings override (store's `reducedMotion`
+ * preference) with the OS's own `prefers-reduced-motion` media query.
+ * `systemPrefersReduced` is passed in rather than read via `window.matchMedia`
+ * here so this stays a pure, DOM-free function — the caller reads the real
+ * media query and passes the result in.
+ *
+ *   'system' — today's only behavior: follow the OS setting exactly.
+ *   'on'     — force reduced motion regardless of the OS setting.
+ *   'off'    — force full motion regardless of the OS setting.
+ */
+export function resolveReducedMotion(
+  override: 'system' | 'on' | 'off',
+  systemPrefersReduced: boolean,
+): boolean {
+  if (override === 'on') return true;
+  if (override === 'off') return false;
+  return systemPrefersReduced;
+}
+
 export const PAGE_LOAD = {
   surfaceStart: 0,
   surfaceEnd: 0.4,

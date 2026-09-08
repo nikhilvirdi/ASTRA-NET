@@ -30,9 +30,11 @@ import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 export function ExplorePage(): React.ReactElement {
   const setNavVisible = useAppStore((s) => s.setNavVisible);
+  // Persisted (Settings) — no in-scene control for this anymore.
+  const constellationsVisible = useAppStore((s) => s.constellationsVisible);
+  const reducedMotion = useAppStore((s) => s.reducedMotion);
 
   const [sceneTime, setSceneTime] = useState(new Date());
-  const [constellationsVisible, setConstellationsVisible] = useState<boolean>(true);
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [selectedObject, setSelectedObject] = useState<CelestialObject | null>(null);
   const [activeObjects, setActiveObjects] = useState<CelestialObject[]>([]);
@@ -265,6 +267,7 @@ export function ExplorePage(): React.ReactElement {
           pointerPos={pointerPos}
           orientationActive={orientationModeActive && orientation.permissionState === 'granted'}
           orientationReading={orientation.reading}
+          reducedMotionOverride={reducedMotion}
         />
         <StarField observerLat={loc.lat} observerLon={loc.lon} currentTime={sceneTime} />
         <ConstellationLines
@@ -301,44 +304,12 @@ export function ExplorePage(): React.ReactElement {
         <OpeningSequence overlayText={overlayText} onDone={() => setOpeningActive(false)} />
       )}
 
-      {/* Constellation Overlay Toggle (reusing SettingsPage segmented pill button pattern) */}
-      <div className="absolute bottom-4 left-4 z-20 pointer-events-auto flex flex-col gap-2 items-start">
-        <div
-          role="group"
-          aria-label="Constellation lines overlay toggle"
-          className="inline-flex rounded-sm border border-sky-800/80 bg-sky-950/90 backdrop-blur-sm p-0.5 items-center shadow-lg"
-        >
-          <span className="px-2 font-jost text-[10px] sm:text-xs uppercase tracking-wider text-sky-400 select-none">
-            Constellations
-          </span>
-          <button
-            type="button"
-            aria-pressed={constellationsVisible}
-            onClick={() => setConstellationsVisible(true)}
-            className={`px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
-              constellationsVisible
-                ? 'bg-brass-400 text-sky-950 font-bold shadow-xs'
-                : 'text-sky-400 hover:text-sky-200'
-            }`}
-          >
-            ON
-          </button>
-          <button
-            type="button"
-            aria-pressed={!constellationsVisible}
-            onClick={() => setConstellationsVisible(false)}
-            className={`px-2.5 py-1 text-[10px] sm:text-xs font-jost uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
-              !constellationsVisible
-                ? 'bg-brass-400 text-sky-950 font-bold shadow-xs'
-                : 'text-sky-400 hover:text-sky-200'
-            }`}
-          >
-            OFF
-          </button>
-        </div>
-
-        {/* POINT (device-orientation) mode toggle — hidden entirely on unsupported devices */}
-        {orientation.supported && (
+      {/* POINT (device-orientation) mode toggle — Explore's only remaining
+          persistent overlay control (Constellations moved to Settings).
+          Bottom-center now that it doesn't have to share the strip with
+          Constellations. Hidden entirely on unsupported devices. */}
+      {orientation.supported && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
           <div className="inline-flex rounded-sm border border-sky-800/80 bg-sky-950/90 backdrop-blur-sm p-0.5 items-center shadow-lg gap-0.5">
             <button
               id="explore-point-mode-toggle"
@@ -365,8 +336,8 @@ export function ExplorePage(): React.ReactElement {
               </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* DESIGN_SPEC.md §11 - Tethered Info Panel (Static 2-Part Card: Object heading, sentence description, ALT/AZ coordinates) */}
       {selectedObject && selectedPos && selectedPos.inView && (

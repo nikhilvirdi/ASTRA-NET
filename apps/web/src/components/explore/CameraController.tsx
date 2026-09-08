@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { DUR_REDUCED_MOTION_FADE, OPENING_SEQUENCE } from '@/lib/motion';
+import { DUR_REDUCED_MOTION_FADE, OPENING_SEQUENCE, resolveReducedMotion } from '@/lib/motion';
+import type { ReducedMotionPreference } from '@/store';
 import {
   computeGravityBias,
   computeOrbitDropState,
@@ -75,6 +76,8 @@ interface CameraControllerProps {
   orientationActive?: boolean;
   /** Device orientation reading. */
   orientationReading?: { heading: number; pitch: number } | null;
+  /** Settings' reduced-motion override — 'system' (default) still follows the OS media query; 'on'/'off' force it. */
+  reducedMotionOverride?: ReducedMotionPreference;
 }
 
 /** Camera yaw (YXZ order, radians) that looks toward an azimuth, nearest-turn from `fromYaw`. */
@@ -97,6 +100,7 @@ export function CameraController({
   pointerPos = null,
   orientationActive = false,
   orientationReading = null,
+  reducedMotionOverride = 'system',
 }: CameraControllerProps): React.ReactElement | null {
   const { camera, gl } = useThree();
 
@@ -147,7 +151,8 @@ export function CameraController({
     if (!openingActive || openingDropRan.current) return;
     openingDropRan.current = true;
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const systemPrefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = resolveReducedMotion(reducedMotionOverride, systemPrefersReduced);
     if (reduced) return;
 
     // Start camera high in orbital vantage point looking down toward earth/horizon
@@ -184,7 +189,7 @@ export function CameraController({
     return () => {
       dropTween.kill();
     };
-  }, [openingActive]);
+  }, [openingActive, reducedMotionOverride]);
 
   // Start/replace the cinematic when a (new) focus target arrives.
   const focusId = focusTarget?.id ?? null;
@@ -207,7 +212,8 @@ export function CameraController({
     const endPitch = Math.max(minPitch, Math.min(maxPitch, (target.altitudeDeg * Math.PI) / 180));
     const endFov = Math.max(minFov, Math.min(maxFov, target.fovDeg ?? targetFov.current));
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const systemPrefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = resolveReducedMotion(reducedMotionOverride, systemPrefersReduced);
     const proxy = { y: targetYaw.current, p: targetPitch.current, f: targetFov.current };
     focusTween.current = gsap.to(proxy, {
       y: endYaw,
@@ -235,7 +241,7 @@ export function CameraController({
       focusTween.current?.kill();
       focusTween.current = null;
     };
-  }, [focusId, focusMode, minPitch, maxPitch, minFov, maxFov]);
+  }, [focusId, focusMode, minPitch, maxPitch, minFov, maxFov, reducedMotionOverride]);
 
   useEffect(() => {
     const dom = gl.domElement;

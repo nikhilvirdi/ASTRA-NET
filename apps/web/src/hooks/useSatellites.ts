@@ -2,24 +2,15 @@ import { API_BASE } from '@/lib/config';
 import { useState, useEffect, useRef } from 'react';
 import * as satellite from 'satellite.js';
 import { isAboveHorizon, type SkyObjectInput } from '@/lib/semantic-zoom';
-import { useAppStore } from '@/store';
+import { useAppStore, type SatelliteCategory } from '@/store';
 
 export interface SatelliteElementSet {
   id: string;
   name: string;
   line1: string;
   line2: string;
-  /** Which CelesTrak group/catnr this record came from — for future filtering/grouping by category. */
-  category?:
-    | 'stations'
-    | 'starlink'
-    | 'oneweb'
-    | 'gps'
-    | 'weather'
-    | 'geo'
-    | 'cubesat'
-    | 'debris'
-    | 'hubble';
+  /** Which CelesTrak group/catnr this record came from — used below to respect the Settings category filters. */
+  category?: SatelliteCategory;
 }
 
 export interface SatellitesPayload {
@@ -41,6 +32,7 @@ const PROPAGATE_INTERVAL_MS = 2000;
  */
 export function useSatellites(): PropagatedSatellite[] {
   const loc = useAppStore((state) => state.location);
+  const satelliteCategoryVisibility = useAppStore((state) => state.satelliteCategoryVisibility);
   const [tleData, setTleData] = useState<SatelliteElementSet[]>([]);
   const [propagated, setPropagated] = useState<PropagatedSatellite[]>([]);
 
@@ -68,7 +60,14 @@ export function useSatellites(): PropagatedSatellite[] {
   }, []);
 
   useEffect(() => {
-    satrecsRef.current = tleData
+    // A category toggled off in Settings shouldn't even be parsed/propagated
+    // below — not just hidden after the fact. Records with no category at
+    // all (shouldn't happen in practice, but the field is optional) are
+    // never filtered out by a toggle they have no category to match.
+    const visibleTle = tleData.filter(
+      (s) => s.category === undefined || satelliteCategoryVisibility[s.category] !== false,
+    );
+    satrecsRef.current = visibleTle
       .map((s) => {
         try {
           return { id: s.id, name: s.name, satrec: satellite.twoline2satrec(s.line1, s.line2) };
@@ -77,7 +76,7 @@ export function useSatellites(): PropagatedSatellite[] {
         }
       })
       .filter((s): s is { id: string; name: string; satrec: satellite.SatRec } => s !== null);
-  }, [tleData]);
+  }, [tleData, satelliteCategoryVisibility]);
 
   useEffect(() => {
     // No observer location yet — `state.location` is null until something
@@ -133,7 +132,13 @@ export function useSatellites(): PropagatedSatellite[] {
     propagate(); // immediate first tick
     const intervalId = setInterval(propagate, PROPAGATE_INTERVAL_MS);
     return () => clearInterval(intervalId);
-  }, [tleData, loc]);
+    // `satelliteCategoryVisibility` isn't read directly in this effect, but
+    // it changes what `satrecsRef.current` (built above, from the same
+    // `tleData`) actually holds — including it here means re-enabling a
+    // category while `satrecsRef.current` was previously empty (every
+    // category off) restarts propagation instead of waiting on `tleData`/
+    // `loc` to change again for an unrelated reason.
+  }, [tleData, loc, satelliteCategoryVisibility]);
 
   return propagated;
 }
