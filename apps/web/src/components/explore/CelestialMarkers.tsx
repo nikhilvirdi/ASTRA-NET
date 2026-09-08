@@ -96,13 +96,27 @@ type MarkerPhase = 'live' | 'out';
 const ORBITAL_COLOR = '#A8B4BC';
 const BRASS_LINE_COLOR = '#C9B187';
 
-function altAzToVector3(altDeg: number, azDeg: number, radius = MARKER_RADIUS): THREE.Vector3 {
+/**
+ * `target`, when given, is written into and returned instead of allocating a
+ * new Vector3 — the THREE.js convention (e.g. `Object3D.getWorldPosition`)
+ * for a function called every frame in a hot loop. Only the per-frame
+ * screen-position projection below passes one; the per-component-render
+ * call sites (IndividualMarker/ShellMarker, which run once per marker per
+ * ~2s propagation tick, not per frame) still get a fresh Vector3 each call,
+ * unchanged.
+ */
+function altAzToVector3(
+  altDeg: number,
+  azDeg: number,
+  radius = MARKER_RADIUS,
+  target?: THREE.Vector3,
+): THREE.Vector3 {
   const rAlt = altDeg * (Math.PI / 180);
   const rAz = azDeg * (Math.PI / 180);
   const x = radius * Math.cos(rAlt) * Math.sin(rAz);
   const y = radius * Math.sin(rAlt);
   const z = -radius * Math.cos(rAlt) * Math.cos(rAz);
-  return new THREE.Vector3(x, y, z);
+  return (target ?? new THREE.Vector3()).set(x, y, z);
 }
 
 function fadeDuration(): number {

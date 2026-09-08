@@ -4,9 +4,9 @@ import { LivePulse } from '@/components/common/LivePulse';
 import { formatRelativeTime } from '@/lib/space-weather-status';
 
 /** Which network source served a satellite category's last successful fetch — mirrors the api's `SatelliteSource` (apps/api/src/poller/store.ts). */
-type SatelliteSourceValue = 'celestrak' | 'space-track-fallback' | null;
+export type SatelliteSourceValue = 'celestrak' | 'space-track-fallback' | null;
 
-interface HealthSource {
+export interface HealthSource {
   healthy: boolean;
   fetchedAt: string | null;
   /** Present only on the `satellites` entry — see `SATELLITE_CATEGORY_LABELS` below. */
@@ -60,7 +60,7 @@ const SATELLITE_SOURCE_LABELS: Record<'celestrak' | 'space-track-fallback', stri
   'space-track-fallback': 'Space-Track Fallback',
 };
 
-interface StatusRow {
+export interface StatusRow {
   key: string;
   label: string;
   healthy: boolean;
@@ -78,7 +78,7 @@ interface StatusRow {
  * unavailable state as any other never-fetched source rather than a
  * distinct error treatment.
  */
-function buildStatusRows(sources: Record<string, HealthSource>): StatusRow[] {
+export function buildStatusRows(sources: Record<string, HealthSource>): StatusRow[] {
   const rows: StatusRow[] = [];
 
   for (const [key, source] of Object.entries(sources)) {
