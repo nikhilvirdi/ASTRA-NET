@@ -185,7 +185,7 @@
     --sky-950: #0a0e0e;
 
     /* Semantic surface slots — pure dark base globally */
-    --surface: var(--sky-950);
+    --surface: #000000;
     --surface-secondary: #0a0a0a;
     --surface-tertiary: #141414;
     --on-surface: var(--sky-100);
@@ -248,6 +248,7 @@
   body {
     margin: 0;
     min-height: 100dvh;
+    background-color: var(--surface);
   }
 
   /* §6 Quality Floor: "visible keyboard focus on every interactive element,

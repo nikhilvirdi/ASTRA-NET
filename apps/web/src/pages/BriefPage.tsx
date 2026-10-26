@@ -4,7 +4,6 @@ import { motion, type Variants } from 'framer-motion';
 import { twilightStateForSunAltitude } from '@astranet/shared';
 import { fetchBrief, DEFAULT_OBSERVER_LOCATION, type DailyBrief } from '@/lib/api';
 import { useAppStore } from '@/store';
-import { HorizonBand } from '@/components/brief/HorizonBand';
 import { MoonPhaseGraphic } from '@/components/brief/MoonPhaseGraphic';
 import { MoonTimeline } from '@/components/brief/MoonTimeline';
 import { IssTrajectoryArc } from '@/components/brief/IssTrajectoryArc';
@@ -21,6 +20,9 @@ import { formatTime, formatDistance } from '@/lib/format-preferences';
 import { selectHeadline } from '@/lib/brief-headline';
 import { LEARNING_MOMENT_BUCKET_MS, selectLearningMoment } from '@/lib/learning-moments';
 import { PAGE_LOAD } from '@/lib/motion';
+import { CelestialHorizon } from '@/components/horizon';
+import { extractHorizonObjects } from '@/lib/celestial-horizon-data';
+import { useSpaceWeather } from '@/hooks/useSpaceWeather';
 
 const Hero = lazy(() => import('@/components/brief/Hero'));
 
@@ -158,6 +160,8 @@ export function BriefPage(): React.ReactElement {
     };
   }, [location.lat, location.lon]);
 
+  const spaceWeather = useSpaceWeather();
+
   // Dimming, live pulse and status notice for the space-weather section.
   // Derived in one place so the three cannot disagree — they did: the pulse
   // was driven by `status === 'ok'` alone and lit through a total outage.
@@ -208,6 +212,17 @@ export function BriefPage(): React.ReactElement {
   const learningMoment = useMemo(
     () => selectLearningMoment(headline.kind, nowBucketed),
     [headline.kind, nowBucketed],
+  );
+
+  const horizonObjects = useMemo(
+    () =>
+      extractHorizonObjects({
+        brief,
+        issLivePosition: spaceWeather.issPosition,
+        currentTime: nowBucketed,
+        includeBelowHorizon: true,
+      }),
+    [brief, spaceWeather.issPosition, nowBucketed],
   );
 
   const composedHeadline: React.ReactNode = (
@@ -271,8 +286,30 @@ export function BriefPage(): React.ReactElement {
           )}
         </section>
 
-        {/* ── 3. The Horizon Band Signature Element (§9) ────────────────────── */}
-        <HorizonBand brief={brief} loading={loading} />
+        {/* ── 3. The Horizon Band Section (§9) ──────────────────────────────── */}
+        <section aria-label="The Horizon Band" className="w-full flex flex-col gap-3">
+          <div className="flex justify-between items-baseline px-1">
+            <h2 className="font-jost text-2xl sm:text-3xl text-white font-medium tracking-tight">
+              Horizon Band
+            </h2>
+            {brief?.skyAnchor?.status === 'unavailable' ? (
+              <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-ember-400 whitespace-nowrap">
+                HALTED
+              </span>
+            ) : (
+              <span className="font-jost text-xs sm:text-sm font-semibold tracking-wider text-aurora whitespace-nowrap">
+                LIVE
+              </span>
+            )}
+          </div>
+
+          <CelestialHorizon
+            objects={horizonObjects}
+            observerLatitudeDeg={location.lat}
+            observerLongitudeDeg={location.lon}
+            height={300}
+          />
+        </section>
 
         {/* ── 4. Vertical Stack of Entries (§10) ────────────────────────────── */}
         <div className="flex flex-col divide-y divide-sky-800/40">

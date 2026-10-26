@@ -241,7 +241,7 @@ export function ExplorePage(): React.ReactElement {
   return (
     <div
       id="main-content"
-      className="fixed inset-0 bg-sky-950 flex flex-col select-none overflow-hidden"
+      className="fixed inset-0 bg-[#000000] flex flex-col select-none overflow-hidden"
       aria-label="Explorable Universe — 3D scene"
       onPointerMove={onContainerPointerMove}
     >

@@ -16,3 +16,4 @@ export * from './engines/cme-arrival.js';
 export * from './engines/aurora.js';
 export * from './engines/causal-engine.js';
 export * from './engines/neo.js';
+export * from './engines/horizon-coordinates.js';

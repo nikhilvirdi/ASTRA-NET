@@ -48,7 +48,7 @@ export function App(): React.ReactElement {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-sky-950 text-white">
+    <div className="min-h-screen flex flex-col bg-[#000000] text-white">
       {/* Skip link for keyboard navigation — §6 Quality Floor */}
       <a
         href="#main-content"
