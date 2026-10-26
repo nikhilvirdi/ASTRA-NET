@@ -4,14 +4,14 @@ import { NavLink } from 'react-router-dom';
 /**
  * PersistentNav — ASTRANET top navigation
  *
- * Fixed navigation header pinned to the top of the viewport.
+ * Top navigation header in normal document flow.
  */
 export function PersistentNav(): React.ReactElement {
   return (
     <header
       role="banner"
       aria-label="ASTRANET navigation"
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-8 h-12 bg-transparent"
+      className="w-full relative z-50 flex items-center justify-between px-4 sm:px-8 h-12 bg-transparent border-none border-b-0 -mb-12 pointer-events-auto"
     >
       {/* Wordmark Logo */}
       <NavLink
