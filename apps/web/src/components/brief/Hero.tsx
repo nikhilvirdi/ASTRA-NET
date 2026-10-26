@@ -1,5 +1,5 @@
-import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useRef, useMemo, Suspense, useState, useEffect, useLayoutEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useTexture, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
@@ -369,6 +369,33 @@ const AsteroidBelt = ({
   );
 };
 
+function CameraController() {
+  const { camera, size } = useThree();
+
+  useLayoutEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+
+    // On desktop (lg breakpoint: >= 1024px), apply a view offset to anchor the scene
+    // origin (0, 0, 0) in the right-hand portion of the viewport without translating meshes in world space.
+    // This ensures OrbitControls revolves around the moon's true center, eliminating unintended orbital swing.
+    const isDesktop = size.width >= 1024;
+    if (isDesktop) {
+      const offsetX = -size.width * 0.22;
+      camera.setViewOffset(size.width, size.height, offsetX, 0, size.width, size.height);
+    } else {
+      camera.clearViewOffset();
+    }
+    camera.updateProjectionMatrix();
+
+    return () => {
+      camera.clearViewOffset();
+      camera.updateProjectionMatrix();
+    };
+  }, [camera, size.width, size.height]);
+
+  return null;
+}
+
 function MoonScene({
   ringState,
   setRingState,
@@ -428,7 +455,14 @@ export default function Hero() {
             />
             <directionalLight position={[-5, -3, -5]} intensity={0.2} color="#8b9898" />
 
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
+            <CameraController />
+
+            <OrbitControls
+              target={[0, 0, 0]}
+              enableZoom={false}
+              enablePan={false}
+              autoRotate={false}
+            />
 
             <MoonScene
               ringState={ringState}
@@ -442,32 +476,41 @@ export default function Hero() {
       {/* Gradient overlay to smoothly blend with the dark page content below */}
       <div className="absolute inset-x-0 bottom-0 h-72 md:h-96 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent z-10 pointer-events-none" />
 
-      {/* Centered Overlay Content */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-4 sm:px-8 min-h-[100vh] flex flex-col items-center justify-center text-center py-16 pointer-events-none">
-        <div className="relative flex flex-col items-center justify-center pointer-events-auto">
-          {/* Wordmark lockup (pre-aligned SVG asset) */}
-          <motion.div
-            initial={false}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.2 }}
-            className="flex flex-col items-center justify-center m-0 p-0"
-          >
-            <img
-              src="/astra-net-wordmark.svg"
-              alt="ASTRA NET"
-              className="w-[240px] sm:w-[380px] md:w-[560px] lg:w-[680px] max-w-full h-auto select-none pointer-events-none"
-            />
-          </motion.div>
+      {/* Two-Column Overlay Content */}
+      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-4 sm:px-8 min-h-[100vh] flex items-center py-24 sm:py-28 lg:py-0 pointer-events-none">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Left Column: Brand Lockup & Subtitle */}
+          <div className="lg:col-span-7 xl:col-span-6 flex flex-col items-start text-left pointer-events-auto">
+            {/* Wordmark lockup (pre-aligned SVG asset, original proportions preserved) */}
+            <motion.div
+              initial={false}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+              className="flex flex-col items-start justify-center m-0 p-0"
+            >
+              <img
+                src="/astra-net-wordmark.svg"
+                alt="ASTRA NET"
+                className="w-[260px] sm:w-[360px] md:w-[440px] lg:w-[480px] xl:w-[520px] max-w-full h-auto select-none pointer-events-none"
+              />
+            </motion.div>
 
-          {/* Centered Tagline */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, ease: 'easeOut', delay: 1.0 }}
-            className="mt-6 sm:mt-8 text-[18px] sm:text-[24px] md:text-[28px] font-jost font-medium text-sky-200 max-w-xl md:max-w-2xl leading-snug text-center mx-auto px-2"
-          >
-            What's overhead, right now.
-          </motion.p>
+            {/* Subtitle beneath logo with clean spacing and strong visual hierarchy */}
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
+              className="mt-3 sm:mt-4 text-xs sm:text-sm lg:text-[17px] font-jost font-medium text-sky-200 tracking-wide leading-relaxed max-w-xl lg:max-w-none lg:whitespace-nowrap"
+            >
+              The universe, as it unfolds above you. Discover what lies beyond.
+            </motion.p>
+          </div>
+
+          {/* Right Column: Spatial area for freely floating 3D planet */}
+          <div
+            className="lg:col-span-5 xl:col-span-6 hidden lg:block pointer-events-none min-h-[300px]"
+            aria-hidden="true"
+          />
         </div>
       </div>
     </section>
