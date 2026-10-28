@@ -438,7 +438,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative w-full min-h-[100vh] bg-[#000000] overflow-hidden flex items-center justify-center">
+    <section className="relative w-full min-h-[100vh] min-h-[100dvh] bg-[#000000] overflow-hidden flex items-center justify-center">
       {/* 3D Canvas Layer — centered full-viewport background with no particle clipping */}
       <div className="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing">
         {mounted && (
@@ -476,12 +476,46 @@ export default function Hero() {
       {/* Gradient overlay to smoothly blend with the dark page content below */}
       <div className="absolute inset-x-0 bottom-0 h-72 md:h-96 bg-gradient-to-t from-[var(--surface)] via-[var(--surface)]/60 to-transparent z-10 pointer-events-none" />
 
-      {/* Two-Column Overlay Content */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto px-4 sm:px-8 min-h-[100vh] flex items-center py-24 sm:py-28 lg:py-0 pointer-events-none">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Column: Brand Lockup & Subtitle */}
-          <div className="lg:col-span-7 xl:col-span-6 flex flex-col items-start text-left pointer-events-auto">
-            {/* Wordmark lockup (pre-aligned SVG asset, original proportions preserved) */}
+      {/* ── 1. Mobile Composition (< 1024px) ── */}
+      {/* Retains reference screenshot design: large centered stacked ASTRA / NET wordmark positioned directly over the centered textured planet, with tagline beneath */}
+      <div className="relative z-20 w-full min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center text-center px-4 sm:px-8 pt-16 pb-12 pointer-events-none lg:hidden">
+        <div className="relative flex flex-col items-center justify-center pointer-events-auto">
+          {/* Stacked Wordmark (ASTRA over NET) directly over the centered 3D planet */}
+          <motion.div
+            initial={false}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+            className="flex flex-col items-center justify-center m-0 p-0"
+          >
+            <img
+              src="/astra-net-wordmark.svg"
+              alt="ASTRA NET"
+              className="w-[240px] sm:w-[320px] md:w-[380px] max-w-[82vw] h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+            />
+          </motion.div>
+
+          {/* Centered Tagline beneath the planet and wordmark */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
+            className="mt-6 sm:mt-8 text-[18px] sm:text-[22px] md:text-[24px] font-jost font-medium text-sky-100 max-w-sm sm:max-w-md leading-snug text-center mx-auto px-2"
+            style={{
+              textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.9)',
+            }}
+          >
+            What&apos;s overhead, right now.
+          </motion.p>
+        </div>
+      </div>
+
+      {/* ── 2. Desktop Composition (>= 1024px) ── */}
+      {/* Matches Reference 2: Large stacked ASTRA / NET wordmark on the left, left-aligned tagline directly beneath, and independent 3D textured planet on the right */}
+      <div className="relative z-20 w-full min-h-[100vh] min-h-[100dvh] hidden lg:flex items-center px-4 sm:px-8 lg:px-12 xl:px-16 pointer-events-none">
+        <div className="w-full grid grid-cols-12 gap-8 xl:gap-12 items-center">
+          {/* Left Column: Stacked Brand Wordmark & Subtitle */}
+          <div className="col-span-7 xl:col-span-6 flex flex-col items-start text-left pointer-events-auto">
+            {/* Large stacked wordmark (ASTRA over NET) matching Reference 2 */}
             <motion.div
               initial={false}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -491,16 +525,19 @@ export default function Hero() {
               <img
                 src="/astra-net-wordmark.svg"
                 alt="ASTRA NET"
-                className="w-[260px] sm:w-[360px] md:w-[440px] lg:w-[480px] xl:w-[520px] max-w-full h-auto select-none pointer-events-none"
+                className="w-[360px] sm:w-[440px] lg:w-[480px] xl:w-[560px] 2xl:w-[620px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
               />
             </motion.div>
 
-            {/* Subtitle beneath logo with clean spacing and strong visual hierarchy */}
+            {/* Desktop tagline directly beneath wordmark — verbatim from Reference 2 */}
             <motion.p
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
-              className="mt-3 sm:mt-4 text-xs sm:text-sm lg:text-[17px] font-jost font-medium text-sky-200 tracking-wide leading-relaxed max-w-xl lg:max-w-none lg:whitespace-nowrap"
+              className="mt-3 sm:mt-4 text-xs sm:text-sm lg:text-[17px] xl:text-[18px] font-jost font-medium text-sky-200 tracking-wide leading-relaxed max-w-xl"
+              style={{
+                textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.85)',
+              }}
             >
               The universe, as it unfolds above you. Discover what lies beyond.
             </motion.p>
@@ -508,7 +545,7 @@ export default function Hero() {
 
           {/* Right Column: Spatial area for freely floating 3D planet */}
           <div
-            className="lg:col-span-5 xl:col-span-6 hidden lg:block pointer-events-none min-h-[300px]"
+            className="col-span-5 xl:col-span-6 pointer-events-none min-h-[300px]"
             aria-hidden="true"
           />
         </div>
