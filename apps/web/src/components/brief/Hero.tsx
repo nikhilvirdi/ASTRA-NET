@@ -376,11 +376,25 @@ function CameraController() {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
 
     // On desktop (lg breakpoint: >= 1024px), apply a view offset to anchor the scene
-    // origin (0, 0, 0) in the right-hand portion of the viewport without translating meshes in world space.
-    // This ensures OrbitControls revolves around the moon's true center, eliminating unintended orbital swing.
+    // origin (0, 0, 0) directly in the center of the right column of the max-w-[1200px] container.
+    // This aligns the 3D planet with the hero's right column and lower data sections.
     const isDesktop = size.width >= 1024;
     if (isDesktop) {
-      const offsetX = -size.width * 0.22;
+      const containerWidth = Math.min(size.width, 1200);
+      const padding = size.width >= 640 ? 64 : 32;
+      const contentWidth = containerWidth - padding;
+
+      // In the 12-column grid:
+      // On xl (>= 1280px): left is col-span-6, right is col-span-6 with gap-12 (48px)
+      // On lg (< 1280px): left is col-span-7, right is col-span-5 with gap-8 (32px)
+      const isXl = size.width >= 1280;
+      const gap = isXl ? 48 : 32;
+      const colWidth = (contentWidth - 11 * gap) / 12;
+      const rightColWidth = isXl ? colWidth * 6 + gap * 5 : colWidth * 5 + gap * 4;
+      const rightColCenterFromRight = rightColWidth / 2;
+      const rightColCenterFromScreenCenter = contentWidth / 2 - rightColCenterFromRight;
+
+      const offsetX = -rightColCenterFromScreenCenter;
       camera.setViewOffset(size.width, size.height, offsetX, 0, size.width, size.height);
     } else {
       camera.clearViewOffset();
@@ -405,8 +419,12 @@ function MoonScene({
   setRingState: (s: 'hidden' | 'animating' | 'visible') => void;
   massiveAsteroidsRef: React.MutableRefObject<Float32Array>;
 }) {
+  const { size } = useThree();
+  const isDesktop = size.width >= 1024;
+  const scale = isDesktop ? (size.width >= 1280 ? 0.65 : 0.55) : 1.0;
+
   return (
-    <group rotation={[Math.PI / 8, 0, 0]} position={[0, 0, 0]}>
+    <group rotation={[Math.PI / 8, 0, 0]} scale={scale} position={[0, 0, 0]}>
       <Suspense fallback={null}>
         <RealisticMoon
           onClick={() => {
@@ -510,12 +528,12 @@ export default function Hero() {
       </div>
 
       {/* ── 2. Desktop Composition (>= 1024px) ── */}
-      {/* Matches Reference 2: Large stacked ASTRA / NET wordmark on the left, left-aligned tagline directly beneath, and independent 3D textured planet on the right */}
-      <div className="relative z-20 w-full min-h-[100vh] min-h-[100dvh] hidden lg:flex items-center px-4 sm:px-8 lg:px-12 xl:px-16 pointer-events-none">
+      {/* Wordmark and tagline on the left, aligned within the shared max-w-[1200px] content container matching the data sections */}
+      <div className="relative z-20 w-full max-w-[1200px] mx-auto min-h-[100vh] min-h-[100dvh] hidden lg:flex items-center px-4 sm:px-8 pointer-events-none">
         <div className="w-full grid grid-cols-12 gap-8 xl:gap-12 items-center">
           {/* Left Column: Stacked Brand Wordmark & Subtitle */}
           <div className="col-span-7 xl:col-span-6 flex flex-col items-start text-left pointer-events-auto">
-            {/* Large stacked wordmark (ASTRA over NET) matching Reference 2 */}
+            {/* Proportionate stacked wordmark (ASTRA over NET) */}
             <motion.div
               initial={false}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -525,16 +543,16 @@ export default function Hero() {
               <img
                 src="/astra-net-wordmark.svg"
                 alt="ASTRA NET"
-                className="w-[360px] sm:w-[440px] lg:w-[480px] xl:w-[560px] 2xl:w-[620px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                className="w-[280px] lg:w-[320px] xl:w-[360px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
               />
             </motion.div>
 
-            {/* Desktop tagline directly beneath wordmark — verbatim from Reference 2 */}
+            {/* Desktop tagline directly beneath wordmark */}
             <motion.p
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
-              className="mt-3 sm:mt-4 text-xs sm:text-sm lg:text-[17px] xl:text-[18px] font-jost font-medium text-sky-200 tracking-wide leading-relaxed max-w-xl"
+              className="mt-4 sm:mt-5 text-sm lg:text-[12px] xl:text-[16px] font-jost font-medium text-sky-200/90 tracking-wide leading-relaxed lg:whitespace-nowrap"
               style={{
                 textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.85)',
               }}
