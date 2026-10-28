@@ -11,35 +11,37 @@ export function PersistentNav(): React.ReactElement {
     <header
       role="banner"
       aria-label="ASTRANET navigation"
-      className="w-full relative z-50 flex items-center justify-between px-4 sm:px-8 lg:px-12 xl:px-16 h-14 bg-transparent border-none border-b-0 -mb-14 pointer-events-auto"
+      className="w-full relative z-50 h-14 bg-transparent border-none border-b-0 -mb-14 pointer-events-auto"
     >
-      {/* Wordmark Logo */}
-      <NavLink
-        to="/"
-        aria-label="ASTRANET — go to Daily Brief"
-        className="flex items-center transition-opacity hover:opacity-80 flex-shrink-0"
-        style={{ transitionDuration: 'var(--dur-micro)' }}
-      >
-        <img src="/logo.svg" alt="ASTRANET" className="h-4 sm:h-5 w-auto object-contain" />
-      </NavLink>
+      <div className="w-full max-w-[1200px] mx-auto h-full flex items-center justify-between px-4 sm:px-8">
+        {/* Wordmark Logo */}
+        <NavLink
+          to="/"
+          aria-label="ASTRANET — go to Daily Brief"
+          className="flex items-center transition-opacity hover:opacity-80 flex-shrink-0"
+          style={{ transitionDuration: 'var(--dur-micro)' }}
+        >
+          <img src="/logo.svg" alt="ASTRANET" className="h-4 sm:h-5 w-auto object-contain" />
+        </NavLink>
 
-      {/* Primary nav links */}
-      <nav role="navigation" aria-label="Primary navigation">
-        <ul className="flex items-center gap-1.5 sm:gap-6 md:gap-8 list-none m-0 p-0">
-          <li>
-            <NavItem to="/" label="Home" end />
-          </li>
-          <li>
-            <NavItem to="/explore" label="Explore" />
-          </li>
-          <li>
-            <NavItem to="/settings" label="Settings" />
-          </li>
-          <li>
-            <NavItem to="/about" label="About" />
-          </li>
-        </ul>
-      </nav>
+        {/* Primary nav links */}
+        <nav role="navigation" aria-label="Primary navigation">
+          <ul className="flex items-center gap-1.5 sm:gap-6 md:gap-8 list-none m-0 p-0">
+            <li>
+              <NavItem to="/" label="Home" end />
+            </li>
+            <li>
+              <NavItem to="/explore" label="Explore" />
+            </li>
+            <li>
+              <NavItem to="/settings" label="Settings" />
+            </li>
+            <li>
+              <NavItem to="/about" label="About" />
+            </li>
+          </ul>
+        </nav>
+      </div>
     </header>
   );
 }
