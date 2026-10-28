@@ -47,13 +47,12 @@ async function cleanup(): Promise<void> {
   await prisma.cache.deleteMany({ where: { key: { startsWith: KEY_PREFIX } } });
 }
 
-beforeEach(cleanup);
-afterAll(async () => {
-  await cleanup();
-  await prisma.$disconnect();
-});
-
 describe('cache/store against real Postgres', () => {
+  beforeEach(cleanup);
+  afterAll(async () => {
+    await cleanup();
+    await prisma.$disconnect();
+  });
   it('returns null for a key that was never set', async () => {
     const result = await getCached(prisma, `${KEY_PREFIX}never-set`, new Date());
     expect(result).toBeNull();
@@ -167,6 +166,7 @@ describe('startCacheSweepLoop', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -193,9 +193,13 @@ describe('startCacheSweepLoop', () => {
   it('does not throw out of the tick when the sweep rejects', async () => {
     const mockSweep = vi.fn().mockRejectedValue(new Error('sweep failed'));
 
-    expect(() => startCacheSweepLoop({ prisma, sweepExpiredCache: mockSweep })).not.toThrow();
+    let stop: (() => void) | undefined;
+    expect(() => {
+      stop = startCacheSweepLoop({ prisma, sweepExpiredCache: mockSweep });
+    }).not.toThrow();
     await vi.advanceTimersByTimeAsync(0);
 
     expect(mockSweep).toHaveBeenCalledTimes(1);
+    stop?.();
   });
 });

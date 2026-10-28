@@ -46,6 +46,7 @@ const DB_SERIAL_FILES = [
   'src/predictions/history.test.ts',
   'src/cache/store.test.ts',
   'src/brief/visual-passes-cache.test.ts',
+  'src/db/client.test.ts',
 ];
 
 export default defineWorkspace([

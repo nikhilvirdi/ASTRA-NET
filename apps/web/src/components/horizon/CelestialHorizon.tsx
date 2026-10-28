@@ -34,7 +34,7 @@ export const CelestialHorizon: React.FC<CelestialHorizonProps> = ({
   const orbitControlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
-    selectedObjectId ?? (objects.length > 0 ? objects[0].id : null),
+    selectedObjectId ?? objects[0]?.id ?? null,
   );
   const [belowHorizonPolicy] = useState<BelowHorizonPolicy>(initialBelowHorizonPolicy);
   const [inspectedCoords, setInspectedCoords] = useState<HorizontalCoordinates | null>(null);

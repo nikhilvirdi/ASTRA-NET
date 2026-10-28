@@ -193,10 +193,36 @@ export const SelectionGuides: React.FC<SelectionGuidesProps> = ({
     vecPosAttr.needsUpdate = true;
   });
 
-  if (!selectedObject) return null;
-
-  const isAboveHorizon = selectedObject.altitudeDeg >= 0;
+  const isAboveHorizon =
+    selectedObject?.altitudeDeg !== undefined && selectedObject.altitudeDeg >= 0;
   const guideColor = isAboveHorizon ? '#c9b187' : '#e0614c'; // --color-brass-300 or --color-ember-400
+
+  const lines = useMemo(() => {
+    const altLine = new THREE.Line(
+      altArcGeometry,
+      new THREE.LineDashedMaterial({
+        color: guideColor,
+        dashSize: 0.3,
+        gapSize: 0.2,
+        transparent: true,
+        opacity: 0.8,
+      }),
+    );
+    const azLine = new THREE.Line(
+      azArcGeometry,
+      new THREE.LineBasicMaterial({ color: guideColor, transparent: true, opacity: 0.7 }),
+    );
+    return { altLine, azLine };
+  }, [altArcGeometry, azArcGeometry, guideColor]);
+
+  useEffect(() => {
+    return () => {
+      lines.altLine.material.dispose();
+      lines.azLine.material.dispose();
+    };
+  }, [lines]);
+
+  if (!selectedObject) return null;
 
   // Anchor midpoints for badges
   const altMid = horizontalToCartesian(
@@ -211,20 +237,10 @@ export const SelectionGuides: React.FC<SelectionGuidesProps> = ({
   return (
     <group name="selection-guides">
       {/* 1. Dashed Altitude Meridian Arc along Dome Surface */}
-      <line ref={altArcLineRef} geometry={altArcGeometry}>
-        <lineDashedMaterial
-          color={guideColor}
-          dashSize={0.3}
-          gapSize={0.2}
-          transparent
-          opacity={0.8}
-        />
-      </line>
+      <primitive ref={altArcLineRef} object={lines.altLine} />
 
       {/* 2. Clockwise Azimuth Arc on Horizon Plane */}
-      <line ref={azArcLineRef} geometry={azArcGeometry}>
-        <lineBasicMaterial color={guideColor} transparent opacity={0.7} />
-      </line>
+      <primitive ref={azArcLineRef} object={lines.azLine} />
 
       {/* 3. Subdued Shaded Azimuth Sector on Horizon Plane */}
       <mesh ref={azSectorMeshRef} geometry={azSectorGeometry}>

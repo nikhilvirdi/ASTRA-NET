@@ -35,9 +35,12 @@ const CARDINALS = [
 function pointsToGeometry(points: [number, number, number][]): THREE.BufferGeometry {
   const flat = new Float32Array(points.length * 3);
   for (let i = 0; i < points.length; i++) {
-    flat[i * 3] = points[i][0];
-    flat[i * 3 + 1] = points[i][1];
-    flat[i * 3 + 2] = points[i][2];
+    const pt = points[i];
+    if (pt) {
+      flat[i * 3] = pt[0];
+      flat[i * 3 + 1] = pt[1];
+      flat[i * 3 + 2] = pt[2];
+    }
   }
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(flat, 3));
@@ -127,12 +130,66 @@ export const HorizonDome: React.FC<HorizonDomeProps> = ({
     };
   }, [radius]);
 
-  // Clean up geometries on unmount
+  const lines = useMemo(() => {
+    return {
+      horizonRing: new THREE.Line(
+        geometries.horizonRing,
+        new THREE.LineBasicMaterial({ color: '#c9b187', transparent: true, opacity: 0.45 }),
+      ),
+      innerRing1: new THREE.Line(
+        geometries.innerRing1,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.2 }),
+      ),
+      innerRing2: new THREE.Line(
+        geometries.innerRing2,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.2 }),
+      ),
+      alt30Ring: new THREE.Line(
+        geometries.alt30Ring,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.25 }),
+      ),
+      alt60Ring: new THREE.Line(
+        geometries.alt60Ring,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.25 }),
+      ),
+      altMinus30Ring: new THREE.Line(
+        geometries.altMinus30Ring,
+        new THREE.LineBasicMaterial({ color: '#1c2424', transparent: true, opacity: 0.15 }),
+      ),
+      meridianNS: new THREE.Line(
+        geometries.meridianNS,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.3 }),
+      ),
+      meridianEW: new THREE.Line(
+        geometries.meridianEW,
+        new THREE.LineBasicMaterial({ color: '#2a3434', transparent: true, opacity: 0.3 }),
+      ),
+      meridianNESW: new THREE.Line(
+        geometries.meridianNESW,
+        new THREE.LineBasicMaterial({ color: '#1c2424', transparent: true, opacity: 0.15 }),
+      ),
+      meridianNWSE: new THREE.Line(
+        geometries.meridianNWSE,
+        new THREE.LineBasicMaterial({ color: '#1c2424', transparent: true, opacity: 0.15 }),
+      ),
+    };
+  }, [geometries]);
+
+  // Clean up geometries and materials on unmount
   useEffect(() => {
     return () => {
       Object.values(geometries).forEach((geom) => geom.dispose());
+      Object.values(lines).forEach((line) => {
+        if (Array.isArray(line.material)) {
+          line.material.forEach((m: THREE.Material) => {
+            m.dispose();
+          });
+        } else {
+          line.material.dispose();
+        }
+      });
     };
-  }, [geometries]);
+  }, [geometries, lines]);
 
   const inspectedPos = useMemo(() => {
     if (!inspectedCoords) return null;
@@ -171,48 +228,26 @@ export const HorizonDome: React.FC<HorizonDomeProps> = ({
       </mesh>
 
       {/* 2. Horizon Ring (Alt = 0°) — restrained brass calibration ring */}
-      <line geometry={geometries.horizonRing}>
-        <lineBasicMaterial color="#c9b187" transparent opacity={0.45} />
-      </line>
+      <primitive object={lines.horizonRing} />
 
       {/* 4. Concentric planar reference rings */}
-      <line geometry={geometries.innerRing1}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.2} />
-      </line>
-      <line geometry={geometries.innerRing2}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.2} />
-      </line>
+      <primitive object={lines.innerRing1} />
+      <primitive object={lines.innerRing2} />
 
       {/* 5. Upper Altitude Rings (+30°, +60°) — subdued hairline gridlines */}
-      <line geometry={geometries.alt30Ring}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.25} />
-      </line>
-      <line geometry={geometries.alt60Ring}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.25} />
-      </line>
+      <primitive object={lines.alt30Ring} />
+      <primitive object={lines.alt60Ring} />
 
       {/* 6. Lower Altitude Ring (-30°) when enabled */}
-      {showLowerHemisphere && (
-        <line geometry={geometries.altMinus30Ring}>
-          <lineBasicMaterial color="#1c2424" transparent opacity={0.15} />
-        </line>
-      )}
+      {showLowerHemisphere && <primitive object={lines.altMinus30Ring} />}
 
       {/* 7. Principal Meridian Arcs */}
-      <line geometry={geometries.meridianNS}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.3} />
-      </line>
-      <line geometry={geometries.meridianEW}>
-        <lineBasicMaterial color="#2a3434" transparent opacity={0.3} />
-      </line>
+      <primitive object={lines.meridianNS} />
+      <primitive object={lines.meridianEW} />
 
       {/* 8. Intercardinal Meridian Arcs */}
-      <line geometry={geometries.meridianNESW}>
-        <lineBasicMaterial color="#1c2424" transparent opacity={0.15} />
-      </line>
-      <line geometry={geometries.meridianNWSE}>
-        <lineBasicMaterial color="#1c2424" transparent opacity={0.15} />
-      </line>
+      <primitive object={lines.meridianNESW} />
+      <primitive object={lines.meridianNWSE} />
 
       {/* 9. Horizon Ticks, Crosshairs & Zenith Axis */}
       <lineSegments geometry={geometries.ticksGeometry}>

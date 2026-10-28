@@ -280,6 +280,7 @@ describe('startAccuracyJobLoop', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -307,11 +308,13 @@ describe('startAccuracyJobLoop', () => {
     const mockJob = vi.fn<typeof runAccuracyJob>().mockRejectedValue(new Error('job failed'));
     const fetchSwpcSlow = fakeFetchSwpcSlow(null);
 
-    expect(() =>
-      startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob: mockJob }),
-    ).not.toThrow();
+    let stop: (() => void) | undefined;
+    expect(() => {
+      stop = startAccuracyJobLoop({ prisma, fetchSwpcSlow, runAccuracyJob: mockJob });
+    }).not.toThrow();
     await vi.advanceTimersByTimeAsync(0);
 
     expect(mockJob).toHaveBeenCalledTimes(1);
+    stop?.();
   });
 });

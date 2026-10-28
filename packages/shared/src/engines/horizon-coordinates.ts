@@ -195,7 +195,7 @@ export function getCompassBearingLabel(azimuthDeg: number): string {
   const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const norm = normalizeAzimuthDeg(azimuthDeg);
   const index = Math.round(norm / 45) % 8;
-  return directions[index] ?? 'N';
+  return directions[index]!;
 }
 
 /**

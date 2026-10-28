@@ -26,6 +26,7 @@ describe('normalizeAzimuthDeg', () => {
   it('normalizes 360 to 0', () => {
     expect(normalizeAzimuthDeg(360)).toBe(0);
     expect(normalizeAzimuthDeg(720)).toBe(0);
+    expect(normalizeAzimuthDeg(360 - 1e-12)).toBe(0);
   });
 
   it('wraps negative angles into [0, 360)', () => {
@@ -135,6 +136,11 @@ describe('horizontalToHorizonProjection', () => {
     expect(x).toBeCloseTo(R * 0.5, 6);
     expect(y).toBe(0);
     expect(z).toBeCloseTo(0, 6);
+
+    const [nx, ny, nz] = horizontalToHorizonProjection(45, 0, R, false);
+    expect(nx).toBeCloseTo(0, 6);
+    expect(ny).toBe(0);
+    expect(nz).toBeCloseTo(-R * Math.SQRT1_2, 6);
   });
 
   it('projects coordinate onto outer ring when projectToOuterRing is true', () => {
@@ -269,6 +275,7 @@ describe('formatting and compass labels', () => {
   it('formats azimuth with padding and cardinal indicator', () => {
     expect(formatAzimuthDeg(45, 1, true)).toBe('045.0° NE');
     expect(formatAzimuthDeg(45, 1, false)).toBe('045.0°');
+    expect(formatAzimuthDeg(45, 0, true)).toBe('045° NE');
     expect(formatAzimuthDeg(270.4, 1, true)).toBe('270.4° W');
   });
 });

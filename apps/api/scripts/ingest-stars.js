@@ -107,7 +107,9 @@ async function ingestStars() {
     starsData.push(raDeg, decDeg, distPc, mag, colorIndex);
   }
 
-  console.log(`Extracted ${starsData.length / 5} bright stars. Skipped ${skipped} invalid entries.`);
+  console.log(
+    `Extracted ${starsData.length / 5} bright stars. Skipped ${skipped} invalid entries.`,
+  );
 
   const floatArray = new Float32Array(starsData);
   const outDir = path.join(__dirname, '..', '..', 'web', 'public', 'data');

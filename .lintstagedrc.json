@@ -1,12 +1,5 @@
 {
-    "*.{ts,tsx}": [
-        "eslint --fix",
-        "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-        "prettier --write"
-    ],
-    "packages/shared/**/*.ts": [
-        "vitest related --run"
-    ]
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{json,md,yml,yaml}": ["prettier --write"],
+  "packages/shared/**/*.ts": ["vitest related --run"]
 }

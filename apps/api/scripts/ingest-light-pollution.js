@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 // asset for this dataset but still decodes to >1GB of working memory in
 // jpeg-js, exceeding its default maxMemoryUsageInMB; this 01deg variant is
 // the smallest full-globe JPEG NASA publishes and needs no resizing at all.
-const VIIRS_IMAGE_URL = 'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg';
+const VIIRS_IMAGE_URL =
+  'https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg';
 const LOCAL_IMG = path.join(__dirname, 'BlackMarble.jpg');
 
 const RESOLUTION_DEG = 0.1;
@@ -28,7 +29,9 @@ async function ingestLightPollution() {
     console.log(`Downloading Black Marble image from NASA...`);
     const res = await fetch(VIIRS_IMAGE_URL);
     if (!res.ok) {
-      throw new Error(`Failed to download image: ${res.status} ${res.statusText}. Please manually download a Black Marble equirectangular JPEG and place it at ${LOCAL_IMG}`);
+      throw new Error(
+        `Failed to download image: ${res.status} ${res.statusText}. Please manually download a Black Marble equirectangular JPEG and place it at ${LOCAL_IMG}`,
+      );
     }
     const buffer = await res.arrayBuffer();
     fs.writeFileSync(LOCAL_IMG, Buffer.from(buffer));
@@ -37,7 +40,7 @@ async function ingestLightPollution() {
 
   console.log(`Loading image via Jimp... (this may take a moment for large images)`);
   const image = await Jimp.read(imagePath);
-  
+
   console.log(`Resizing image to ${WIDTH}x${HEIGHT} to match ${RESOLUTION_DEG}° resolution...`);
   image.resize(WIDTH, HEIGHT);
 
@@ -49,12 +52,12 @@ async function ingestLightPollution() {
       // Get pixel color
       const hex = image.getPixelColor(x, y);
       const rgba = Jimp.intToRGBA(hex);
-      
+
       // Calculate luma (grayscale brightness 0-255)
       const luma = 0.2126 * rgba.r + 0.7152 * rgba.g + 0.0722 * rgba.b;
 
       // Approximate VIIRS radiance to Bortle (1-9)
-      // True VIIRS conversion is non-linear, but for this static asset we use a 
+      // True VIIRS conversion is non-linear, but for this static asset we use a
       // standard heuristic mapping where 0 luma = Bortle 1 (pristine dark),
       // and max luma (255) = Bortle 9 (inner city).
       let bortle = 1;
@@ -77,7 +80,9 @@ async function ingestLightPollution() {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(outFile, Buffer.from(grid.buffer));
 
-  console.log(`Success! Saved Bortle grid to ${outFile} (${(grid.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+  console.log(
+    `Success! Saved Bortle grid to ${outFile} (${(grid.byteLength / 1024 / 1024).toFixed(2)} MB)`,
+  );
 }
 
 ingestLightPollution().catch(console.error);

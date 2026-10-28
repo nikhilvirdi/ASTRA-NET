@@ -1,0 +1,6 @@
+package-lock.json
+dist
+build
+.next
+coverage
+

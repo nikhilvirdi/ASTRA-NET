@@ -288,7 +288,7 @@ export function extractHorizonObjects(options: ExtractHorizonObjectsOptions): Ho
 
       if (above || includeBelowHorizon) {
         objects.push({
-          id: `meteor-${activeRadiant.shower.id}`,
+          id: `meteor-${activeRadiant.shower.code.toLowerCase()}`,
           name: `${activeRadiant.shower.name} Radiant`,
           category: 'meteor',
           altitudeDeg: alt,
