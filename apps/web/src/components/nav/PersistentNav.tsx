@@ -11,7 +11,7 @@ export function PersistentNav(): React.ReactElement {
     <header
       role="banner"
       aria-label="ASTRANET navigation"
-      className="w-full relative z-50 flex items-center justify-between px-4 sm:px-8 h-12 bg-transparent border-none border-b-0 -mb-12 pointer-events-auto"
+      className="w-full relative z-50 flex items-center justify-between px-4 sm:px-8 lg:px-12 xl:px-16 h-14 bg-transparent border-none border-b-0 -mb-14 pointer-events-auto"
     >
       {/* Wordmark Logo */}
       <NavLink
