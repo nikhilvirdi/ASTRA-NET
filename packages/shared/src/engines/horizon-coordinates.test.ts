@@ -209,35 +209,41 @@ describe('geometry generators', () => {
     const points = buildAltitudeRingPoints(30, 10, segments);
     expect(points).toHaveLength(segments + 1);
     // Closed ring: first and last point match
-    expect(points[0][0]).toBeCloseTo(points[segments][0], 5);
-    expect(points[0][1]).toBeCloseTo(points[segments][1], 5);
-    expect(points[0][2]).toBeCloseTo(points[segments][2], 5);
+    const pFirst = points[0]!;
+    const pLast = points[segments]!;
+    expect(pFirst[0]).toBeCloseTo(pLast[0], 5);
+    expect(pFirst[1]).toBeCloseTo(pLast[1], 5);
+    expect(pFirst[2]).toBeCloseTo(pLast[2], 5);
   });
 
   it('generates vertical meridian arc between start and end altitudes', () => {
     const segments = 10;
     const points = buildAltitudeArcPoints(90, 0, 90, 10, segments);
     expect(points).toHaveLength(segments + 1);
+    const pFirst = points[0]!;
+    const pLast = points[segments]!;
     // At Az 90, start is East horizon: [10, 0, 0]
-    expect(points[0][0]).toBeCloseTo(10, 5);
-    expect(points[0][1]).toBeCloseTo(0, 5);
+    expect(pFirst[0]).toBeCloseTo(10, 5);
+    expect(pFirst[1]).toBeCloseTo(0, 5);
     // End is Zenith: [0, 10, 0]
-    expect(points[segments][0]).toBeCloseTo(0, 5);
-    expect(points[segments][1]).toBeCloseTo(10, 5);
+    expect(pLast[0]).toBeCloseTo(0, 5);
+    expect(pLast[1]).toBeCloseTo(10, 5);
   });
 
   it('generates azimuth arc on the horizon plane', () => {
     const segments = 20;
     const points = buildAzimuthArcPoints(90, 10, segments);
     expect(points).toHaveLength(segments + 1);
+    const pFirst = points[0]!;
+    const pLast = points[segments]!;
     // Starts at True North [0, 0, -10]
-    expect(points[0][0]).toBeCloseTo(0, 5);
-    expect(points[0][1]).toBe(0);
-    expect(points[0][2]).toBeCloseTo(-10, 5);
+    expect(pFirst[0]).toBeCloseTo(0, 5);
+    expect(pFirst[1]).toBe(0);
+    expect(pFirst[2]).toBeCloseTo(-10, 5);
     // Ends at East [10, 0, 0]
-    expect(points[segments][0]).toBeCloseTo(10, 5);
-    expect(points[segments][1]).toBe(0);
-    expect(points[segments][2]).toBeCloseTo(0, 5);
+    expect(pLast[0]).toBeCloseTo(10, 5);
+    expect(pLast[1]).toBe(0);
+    expect(pLast[2]).toBeCloseTo(0, 5);
   });
 });
 
