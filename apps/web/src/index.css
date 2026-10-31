@@ -102,6 +102,7 @@
   --font-jost: 'Jost', system-ui, sans-serif;
   --font-mono: 'Martian Mono', ui-monospace, SFMono-Regular, monospace;
   --font-newsreader: 'Newsreader', Georgia, serif;
+  --font-playfair: 'Playfair Display', Georgia, serif;
 
   /* ─ §6.4 Elevation — no shadows ───────────────────────────────────────── */
   /* §6.4: "There are no drop shadows in the 2D interface."

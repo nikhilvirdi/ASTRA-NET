@@ -420,10 +420,13 @@ function MoonScene({
 }) {
   const { size } = useThree();
   const isDesktop = size.width >= 1024;
-  const scale = isDesktop ? (size.width >= 1280 ? 0.85 : 0.7) : 1.0;
+  const scale = isDesktop ? (size.width >= 1280 ? 1.06 : 0.875) : 1.0;
 
+  // Initial scene orientation matching Reference Image 2:
+  // Tilted forward along X (-1.22 rad / ~-70°) so the particle ring passes across the lower hemisphere of the planet,
+  // with yaw along Y (-0.22 rad / ~-12.6°) and roll along Z (-0.42 rad / ~-24°) creating the diagonal elliptical inclination.
   return (
-    <group rotation={[Math.PI / 8, 0, 0]} scale={scale} position={[0, 0, 0]}>
+    <group rotation={[-1.22, -0.22, -0.42]} scale={scale} position={[0, 0, 0]}>
       <Suspense fallback={null}>
         <RealisticMoon
           onClick={() => {
@@ -542,7 +545,7 @@ export default function Hero() {
               <img
                 src="/astra-net-wordmark.svg"
                 alt="ASTRA NET"
-                className="w-[280px] lg:w-[320px] xl:w-[380px] 2xl:w-[440px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                className="w-[360px] lg:w-[420px] xl:w-[500px] 2xl:w-[580px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
               />
             </motion.div>
 
@@ -551,12 +554,30 @@ export default function Hero() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, ease: 'easeOut', delay: 0.8 }}
-              className="mt-4 sm:mt-5 text-sm lg:text-[12px] xl:text-[16px] font-jost font-medium text-sky-200/90 tracking-wide leading-relaxed lg:whitespace-nowrap"
+              className="mt-4 sm:mt-5 text-base lg:text-[23.5px] xl:text-[28px] 2xl:text-[32px] font-jost font-medium text-sky-200/90 tracking-wide leading-relaxed"
               style={{
                 textShadow: '0 2px 12px rgba(0,0,0,0.95), 0 0 20px rgba(0,0,0,0.85)',
               }}
             >
-              The universe, as it unfolds above you. Discover what lies beyond.
+              <span className="block">
+                Discover what{' '}
+                <span
+                  className="font-playfair italic font-normal"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                >
+                  unfolds
+                </span>{' '}
+                above you, from
+              </span>
+              <span className="block">
+                <span
+                  className="font-playfair italic font-normal"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                >
+                  distant worlds
+                </span>{' '}
+                to the skies around you.
+              </span>
             </motion.p>
           </div>
 
