@@ -243,7 +243,7 @@ export function BriefPage(): React.ReactElement {
         </Suspense>
         <main
           id="main-content"
-          className="w-full max-w-[1200px] mx-auto pt-12 sm:pt-16 px-4 sm:px-8 pb-24 flex flex-col gap-8 sm:gap-12"
+          className="w-full pt-12 sm:pt-16 px-4 sm:px-8 lg:px-12 xl:px-16 pb-24 flex flex-col gap-8 sm:gap-12"
         >
           <section aria-label="Error state">
             <h1 className="type-display-l text-ember-400 max-w-[900px] leading-tight text-3xl sm:text-4xl md:text-5xl">
@@ -269,7 +269,7 @@ export function BriefPage(): React.ReactElement {
       </Suspense>
       <main
         id="main-content"
-        className="w-full max-w-[1200px] mx-auto pt-12 sm:pt-16 px-4 sm:px-8 pb-24 flex flex-col gap-8 sm:gap-12"
+        className="w-full pt-12 sm:pt-16 px-4 sm:px-8 lg:px-12 xl:px-16 pb-24 flex flex-col gap-8 sm:gap-12"
       >
         {/* ── 2. The Headline (§10) ──────────────────────────────────────────── */}
         <section aria-label="Daily Brief Headline">

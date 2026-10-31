@@ -376,23 +376,22 @@ function CameraController() {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
 
     // On desktop (lg breakpoint: >= 1024px), apply a view offset to anchor the scene
-    // origin (0, 0, 0) directly in the center of the right column of the max-w-[1200px] container.
+    // origin (0, 0, 0) directly in the center of the right column of the full-width grid.
     // This aligns the 3D planet with the hero's right column and lower data sections.
     const isDesktop = size.width >= 1024;
     if (isDesktop) {
-      const containerWidth = Math.min(size.width, 1200);
-      const padding = size.width >= 640 ? 64 : 32;
-      const contentWidth = containerWidth - padding;
+      const isXl = size.width >= 1280;
+      const padding = isXl ? 128 : 96; // matches xl:px-16 (64px each side) and lg:px-12 (48px each side)
+      const contentWidth = size.width - padding;
 
       // In the 12-column grid:
       // On xl (>= 1280px): left is col-span-6, right is col-span-6 with gap-12 (48px)
       // On lg (< 1280px): left is col-span-7, right is col-span-5 with gap-8 (32px)
-      const isXl = size.width >= 1280;
       const gap = isXl ? 48 : 32;
       const colWidth = (contentWidth - 11 * gap) / 12;
       const rightColWidth = isXl ? colWidth * 6 + gap * 5 : colWidth * 5 + gap * 4;
-      const rightColCenterFromRight = rightColWidth / 2;
-      const rightColCenterFromScreenCenter = contentWidth / 2 - rightColCenterFromRight;
+      const rightColCenterFromRight = (isXl ? 64 : 48) + rightColWidth / 2;
+      const rightColCenterFromScreenCenter = size.width / 2 - rightColCenterFromRight;
 
       const offsetX = -rightColCenterFromScreenCenter;
       camera.setViewOffset(size.width, size.height, offsetX, 0, size.width, size.height);
@@ -421,7 +420,7 @@ function MoonScene({
 }) {
   const { size } = useThree();
   const isDesktop = size.width >= 1024;
-  const scale = isDesktop ? (size.width >= 1280 ? 0.65 : 0.55) : 1.0;
+  const scale = isDesktop ? (size.width >= 1280 ? 0.85 : 0.7) : 1.0;
 
   return (
     <group rotation={[Math.PI / 8, 0, 0]} scale={scale} position={[0, 0, 0]}>
@@ -528,8 +527,8 @@ export default function Hero() {
       </div>
 
       {/* ── 2. Desktop Composition (>= 1024px) ── */}
-      {/* Wordmark and tagline on the left, aligned within the shared max-w-[1200px] content container matching the data sections */}
-      <div className="relative z-20 w-full max-w-[1200px] mx-auto min-h-[100vh] min-h-[100dvh] hidden lg:flex items-center px-4 sm:px-8 pointer-events-none">
+      {/* Wordmark and tagline on the left, right column for 3D planet across full viewport width */}
+      <div className="relative z-20 w-full min-h-[100vh] min-h-[100dvh] hidden lg:flex items-center px-4 sm:px-8 lg:px-12 xl:px-16 pointer-events-none">
         <div className="w-full grid grid-cols-12 gap-8 xl:gap-12 items-center">
           {/* Left Column: Stacked Brand Wordmark & Subtitle */}
           <div className="col-span-7 xl:col-span-6 flex flex-col items-start text-left pointer-events-auto">
@@ -543,7 +542,7 @@ export default function Hero() {
               <img
                 src="/astra-net-wordmark.svg"
                 alt="ASTRA NET"
-                className="w-[280px] lg:w-[320px] xl:w-[360px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                className="w-[280px] lg:w-[320px] xl:w-[380px] 2xl:w-[440px] max-w-full h-auto select-none pointer-events-none drop-shadow-[0_12px_48px_rgba(0,0,0,0.95)] drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
               />
             </motion.div>
 
