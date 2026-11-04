@@ -610,7 +610,7 @@ function EtchedHero() {
             className="h-auto w-44 max-w-[82vw] select-none sm:w-56 md:w-64"
           />
           <p
-            className="mt-3 font-jost text-base leading-snug text-white/85 sm:text-lg"
+            className="mt-3 font-jost text-[15px] leading-snug text-white/85 sm:text-[17px]"
             style={{ textShadow: '0 2px 12px rgba(0,0,0,0.95)' }}
           >
             The universe, as it unfolds above you.
