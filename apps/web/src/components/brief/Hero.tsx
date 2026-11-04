@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useTexture, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
+import EtchedAccretion from './EtchedAccretion';
 
 const RADIUS = 1.3;
 
@@ -440,7 +441,7 @@ function MoonScene({
   );
 }
 
-export default function Hero() {
+function PlanetHero() {
   const [ringState, setRingState] = useState<'hidden' | 'animating' | 'visible'>('hidden');
   const massiveAsteroidsRef = useRef<Float32Array>(new Float32Array(75 * 4));
   const [mounted, setMounted] = useState(false);
@@ -590,4 +591,38 @@ export default function Hero() {
       </div>
     </section>
   );
+}
+
+function EtchedHero() {
+  return (
+    <EtchedAccretion
+      preset="crimson"
+      height="100dvh"
+      params={{ background: '#000000' }}
+      className="bg-[#000000]"
+      aria-label="Black hole surrounded by a crimson accretion disk"
+    >
+      <div className="pointer-events-none flex h-full flex-col justify-end p-6 text-white sm:p-10">
+        <div className="flex max-w-xl flex-col items-start">
+          <img
+            src="/astra-net-wordmark.svg"
+            alt="ASTRA-NET"
+            className="h-auto w-44 max-w-[82vw] select-none sm:w-56 md:w-64"
+          />
+          <p
+            className="mt-3 font-jost text-base leading-snug text-white/85 sm:text-lg"
+            style={{ textShadow: '0 2px 12px rgba(0,0,0,0.95)' }}
+          >
+            The universe, as it unfolds above you.
+          </p>
+        </div>
+      </div>
+    </EtchedAccretion>
+  );
+}
+
+const USE_ETCHED_ACCRETION_HERO = true;
+
+export default function Hero() {
+  return USE_ETCHED_ACCRETION_HERO ? <EtchedHero /> : <PlanetHero />;
 }
