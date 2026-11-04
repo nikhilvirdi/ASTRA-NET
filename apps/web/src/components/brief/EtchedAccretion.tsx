@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 
 /**
  * Etched Accretion — a black hole drawn like an engraving: a tilted accretion
@@ -16,65 +16,65 @@ import * as React from "react"
  * prefers-reduced-motion by drawing one still frame.
  */
 
-type Hex = string
+type Hex = string;
 
 export type AccretionParams = {
   // ---- palette (hex, #rgb or #rrggbb) -------------------------------------
   /** Crimson bands in the disk. */
-  diskColor: Hex
+  diskColor: Hex;
   /** The un-banded streaks, and the hot inner edge. */
-  streakColor: Hex
+  streakColor: Hex;
   /** Photon crown, ring and flare. */
-  glowColor: Hex
+  glowColor: Hex;
   /** Contour lines of the nebula banks. */
-  cloudColor: Hex
+  cloudColor: Hex;
   /** Deep space. */
-  background: Hex
+  background: Hex;
 
   // ---- geometry ------------------------------------------------------------
   /** Where the singularity sits, as fractions of the box — [x, y] from top-left. */
-  center: [number, number]
+  center: [number, number];
   /** Horizon radius as a fraction of the box height. */
-  holeSize: number
+  holeSize: number;
   /** Clockwise roll of the disk, degrees. */
-  angle: number
+  angle: number;
   /** How open the disk is: 0.1 is edge-on, 0.8 is nearly face-on. */
-  inclination: number
+  inclination: number;
   /** How far the disk reaches, in box heights. */
-  diskRadius: number
+  diskRadius: number;
 
   // ---- motion --------------------------------------------------------------
   /** Global time scale. 0 freezes the orbit but keeps grain alive. */
-  speed: number
+  speed: number;
   /** Differential rotation — how much faster the inner disk orbits. */
-  shear: number
+  shear: number;
 
   // ---- texture -------------------------------------------------------------
   /** Orbital lines per box height. Higher is finer and busier. */
-  streakDensity: number
+  streakDensity: number;
   /** 0 is all silver streaks, 1 is all crimson. */
-  crimson: number
+  crimson: number;
   /** Relativistic beaming: how much brighter the approaching side is. */
-  doppler: number
+  doppler: number;
   /** Crown, rays and plane flare. */
-  flare: number
+  flare: number;
   /** Bending of starlight and nebula around the horizon. */
-  lensing: number
+  lensing: number;
   /** Nebula coverage. 0 removes the banks entirely. */
-  clouds: number
+  clouds: number;
   /** Contour lines per unit density — the engraving. */
-  cloudLines: number
+  cloudLines: number;
   /** Star field density. */
-  stars: number
+  stars: number;
   /** Film grain strength. 1 is heavy, 2 is torn film. */
-  grain: number
+  grain: number;
   /** Darkening toward the corners. */
-  vignette: number
+  vignette: number;
   /** Overall exposure. */
-  exposure: number
-}
+  exposure: number;
+};
 
-export type AccretionPreset = "crimson" | "ember" | "glacier" | "ash" | "orchid"
+export type AccretionPreset = 'crimson' | 'ember' | 'glacier' | 'ash' | 'orchid';
 
 export type EtchedAccretionProps = {
   /**
@@ -82,30 +82,30 @@ export type EtchedAccretionProps = {
    * length — "100%" only works if every ancestor also has one, which an
    * installed page usually does not.
    */
-  height?: string
+  height?: string;
   /** Named look. `params` layers over it. */
-  preset?: AccretionPreset
+  preset?: AccretionPreset;
   /** Any subset of the parameters, layered over the preset. */
-  params?: Partial<AccretionParams>
+  params?: Partial<AccretionParams>;
   /** Pointer parallax and hold-to-feed. */
-  interactive?: boolean
+  interactive?: boolean;
   /**
    * Drawing-buffer scale on top of devicePixelRatio (capped at 1.5). The piece
    * lowers it by itself if frames run long; set it to trade sharpness for cost.
    */
-  renderScale?: number
+  renderScale?: number;
   /** Content laid over the background — a hero, a headline. */
-  children?: React.ReactNode
-  className?: string
-  "aria-label"?: string
-}
+  children?: React.ReactNode;
+  className?: string;
+  'aria-label'?: string;
+};
 
 export const ACCRETION_DEFAULTS: AccretionParams = {
-  diskColor: "#d3121f",
-  streakColor: "#e9e4df",
-  glowColor: "#ffffff",
-  cloudColor: "#c9d0e2",
-  background: "#030307",
+  diskColor: '#d3121f',
+  streakColor: '#e9e4df',
+  glowColor: '#ffffff',
+  cloudColor: '#c9d0e2',
+  background: '#030307',
 
   center: [0.5, 0.49],
   holeSize: 0.052,
@@ -127,61 +127,61 @@ export const ACCRETION_DEFAULTS: AccretionParams = {
   grain: 1,
   vignette: 0.55,
   exposure: 1.25,
-}
+};
 
 export const ACCRETION_PRESETS: Record<AccretionPreset, Partial<AccretionParams>> = {
   crimson: {},
   ember: {
-    diskColor: "#ff6a13",
-    streakColor: "#ffe2b8",
-    glowColor: "#fff1d6",
-    cloudColor: "#d8c3a8",
-    background: "#060302",
+    diskColor: '#ff6a13',
+    streakColor: '#ffe2b8',
+    glowColor: '#fff1d6',
+    cloudColor: '#d8c3a8',
+    background: '#060302',
     crimson: 0.65,
   },
   glacier: {
-    diskColor: "#2f6bff",
-    streakColor: "#dbe8ff",
-    glowColor: "#eaf4ff",
-    cloudColor: "#b9cdf0",
-    background: "#02040a",
+    diskColor: '#2f6bff',
+    streakColor: '#dbe8ff',
+    glowColor: '#eaf4ff',
+    cloudColor: '#b9cdf0',
+    background: '#02040a',
     crimson: 0.5,
     angle: -9,
   },
   ash: {
-    diskColor: "#8d8d8d",
-    streakColor: "#f2f2f2",
-    glowColor: "#ffffff",
-    cloudColor: "#d6d6d6",
-    background: "#040404",
+    diskColor: '#8d8d8d',
+    streakColor: '#f2f2f2',
+    glowColor: '#ffffff',
+    cloudColor: '#d6d6d6',
+    background: '#040404',
     crimson: 0.35,
     grain: 1.35,
   },
   orchid: {
-    diskColor: "#b3219e",
-    streakColor: "#f3dcf4",
-    glowColor: "#fff0fb",
-    cloudColor: "#d6c4e8",
-    background: "#050309",
+    diskColor: '#b3219e',
+    streakColor: '#f3dcf4',
+    glowColor: '#fff0fb',
+    cloudColor: '#d6c4e8',
+    background: '#050309',
     inclination: 0.34,
     angle: 6,
   },
-}
+};
 
 // #region logic
 /** "#rgb" / "#rrggbb" → [r, g, b] in 0..1. Anything unparseable is black. */
 export function hexToRgb(hex: string): [number, number, number] {
-  let h = String(hex).trim().replace(/^#/, "")
-  if (/^[0-9a-f]{3}$/i.test(h)) h = h.replace(/./g, (c) => c + c)
-  if (!/^[0-9a-f]{6}$/i.test(h)) return [0, 0, 0]
-  const n = parseInt(h, 16)
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
+  let h = String(hex).trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(h)) h = h.replace(/./g, (c) => c + c);
+  if (!/^[0-9a-f]{6}$/i.test(h)) return [0, 0, 0];
+  const n = parseInt(h, 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
 /** Frame-rate independent ease toward a target; never overshoots. */
 export function approach(current: number, target: number, dt: number, rate: number) {
-  const k = 1 - Math.exp(-Math.max(dt, 0) * rate)
-  return current + (target - current) * k
+  const k = 1 - Math.exp(-Math.max(dt, 0) * rate);
+  return current + (target - current) * k;
 }
 
 /** Pointer inside a rect → parallax in -1..1 on both axes, y up. */
@@ -190,22 +190,25 @@ export function pointerToParallax(
   y: number,
   rect: { left: number; top: number; width: number; height: number },
 ): [number, number] {
-  const clamp = (v: number) => Math.max(-1, Math.min(1, v))
-  const w = Math.max(rect.width, 1)
-  const h = Math.max(rect.height, 1)
-  return [clamp(((x - rect.left) / w) * 2 - 1), clamp(1 - ((y - rect.top) / h) * 2)]
+  const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+  const w = Math.max(rect.width, 1);
+  const h = Math.max(rect.height, 1);
+  return [clamp(((x - rect.left) / w) * 2 - 1), clamp(1 - ((y - rect.top) / h) * 2)];
 }
 
 /** The drift that stands in for a pointer when nobody is touching it. */
 export function idleDrift(t: number): [number, number] {
-  return [0.45 * Math.sin(t * 0.13) + 0.15 * Math.sin(t * 0.31 + 1.7), 0.3 * Math.sin(t * 0.17 + 0.6)]
+  return [
+    0.45 * Math.sin(t * 0.13) + 0.15 * Math.sin(t * 0.31 + 1.7),
+    0.3 * Math.sin(t * 0.17 + 0.6),
+  ];
 }
 
 /** Keep every numeric parameter in a range the shader is tuned for. */
 export function sanitize(p: AccretionParams): AccretionParams {
   const c = (v: number, lo: number, hi: number, d: number) =>
-    Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d
-  const D = ACCRETION_DEFAULTS
+    Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
+  const D = ACCRETION_DEFAULTS;
   return {
     ...p,
     center: [c(p.center?.[0], -0.5, 1.5, D.center[0]), c(p.center?.[1], -0.5, 1.5, D.center[1])],
@@ -226,7 +229,7 @@ export function sanitize(p: AccretionParams): AccretionParams {
     grain: c(p.grain, 0, 3, D.grain),
     vignette: c(p.vignette, 0, 1, D.vignette),
     exposure: c(p.exposure, 0.1, 5, D.exposure),
-  }
+  };
 }
 // #endregion
 
@@ -234,7 +237,7 @@ const VERT = /* glsl */ `#version 300 es
 void main() {
   vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
   gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
-}`
+}`;
 
 const FRAG = /* glsl */ `#version 300 es
 precision highp float;
@@ -493,302 +496,307 @@ void main() {
   col += fleck * uGrain * 0.12;
 
   outColor = vec4(max(col, 0.0), 1.0);
-}`
+}`;
 
 // Every uniform the shader declares, grouped by how it is fed.
 const COLOR_UNIFORMS = [
-  ["uDisk", "diskColor"],
-  ["uStreak", "streakColor"],
-  ["uGlow", "glowColor"],
-  ["uCloud", "cloudColor"],
-  ["uBg", "background"],
-] as const
+  ['uDisk', 'diskColor'],
+  ['uStreak', 'streakColor'],
+  ['uGlow', 'glowColor'],
+  ['uCloud', 'cloudColor'],
+  ['uBg', 'background'],
+] as const;
 const FLOAT_UNIFORMS = [
-  ["uHole", "holeSize"],
-  ["uAngle", "angle"],
-  ["uIncl", "inclination"],
-  ["uDiskRadius", "diskRadius"],
-  ["uShear", "shear"],
-  ["uDensity", "streakDensity"],
-  ["uCrimson", "crimson"],
-  ["uDoppler", "doppler"],
-  ["uFlare", "flare"],
-  ["uLensing", "lensing"],
-  ["uClouds", "clouds"],
-  ["uCloudLines", "cloudLines"],
-  ["uStars", "stars"],
-  ["uGrain", "grain"],
-  ["uVignette", "vignette"],
-  ["uExposure", "exposure"],
-] as const
-const FRAME_UNIFORMS = ["uRes", "uTime", "uClock", "uFeed", "uParallax", "uCenter"] as const
+  ['uHole', 'holeSize'],
+  ['uAngle', 'angle'],
+  ['uIncl', 'inclination'],
+  ['uDiskRadius', 'diskRadius'],
+  ['uShear', 'shear'],
+  ['uDensity', 'streakDensity'],
+  ['uCrimson', 'crimson'],
+  ['uDoppler', 'doppler'],
+  ['uFlare', 'flare'],
+  ['uLensing', 'lensing'],
+  ['uClouds', 'clouds'],
+  ['uCloudLines', 'cloudLines'],
+  ['uStars', 'stars'],
+  ['uGrain', 'grain'],
+  ['uVignette', 'vignette'],
+  ['uExposure', 'exposure'],
+] as const;
+const FRAME_UNIFORMS = ['uRes', 'uTime', 'uClock', 'uFeed', 'uParallax', 'uCenter'] as const;
 
-const INTERACTIVE = "a,button,input,textarea,select,label,summary,[role=button],[contenteditable]"
+const INTERACTIVE = 'a,button,input,textarea,select,label,summary,[role=button],[contenteditable]';
 
 export default function EtchedAccretion({
-  height = "clamp(280px, 42vw, 560px)",
-  preset = "crimson",
+  height = 'clamp(280px, 42vw, 560px)',
+  preset = 'crimson',
   params,
   interactive = true,
   renderScale = 1,
   children,
-  className = "",
-  "aria-label": ariaLabel = "A black hole wrapped in a crimson accretion disk",
+  className = '',
+  'aria-label': ariaLabel = 'A black hole wrapped in a crimson accretion disk',
 }: EtchedAccretionProps) {
-  const rootRef = React.useRef<HTMLElement>(null)
-  const canvasRef = React.useRef<HTMLCanvasElement>(null)
-  const [failed, setFailed] = React.useState(false)
-  const [generation, setGeneration] = React.useState(0)
-  const [reduced, setReduced] = React.useState(false)
+  const rootRef = React.useRef<HTMLElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const [failed, setFailed] = React.useState(false);
+  const [generation, setGeneration] = React.useState(0);
+  const [reduced, setReduced] = React.useState(false);
 
   React.useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const sync = () => setReduced(mq.matches)
-    sync()
-    mq.addEventListener("change", sync)
-    return () => mq.removeEventListener("change", sync)
-  }, [])
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduced(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const P = React.useMemo(
-    () => sanitize({ ...ACCRETION_DEFAULTS, ...(ACCRETION_PRESETS[preset] ?? {}), ...(params ?? {}) }),
+    () =>
+      sanitize({ ...ACCRETION_DEFAULTS, ...(ACCRETION_PRESETS[preset] ?? {}), ...(params ?? {}) }),
     [preset, params],
-  )
+  );
   // The loop reads through a ref, so retuning never rebuilds WebGL.
-  const paramsRef = React.useRef(P)
-  paramsRef.current = P
-  const repaintRef = React.useRef<() => void>(() => {})
+  const paramsRef = React.useRef(P);
+  paramsRef.current = P;
+  const repaintRef = React.useRef<() => void>(() => {});
 
   React.useEffect(() => {
-    repaintRef.current()
-  }, [P])
+    repaintRef.current();
+  }, [P]);
 
   React.useEffect(() => {
-    const canvas = canvasRef.current
-    const root = rootRef.current
-    if (!canvas || !root) return
+    const canvas = canvasRef.current;
+    const root = rootRef.current;
+    if (!canvas || !root) return;
 
-    const gl = canvas.getContext("webgl2", {
+    const gl = canvas.getContext('webgl2', {
       antialias: false,
       alpha: false,
       depth: false,
       stencil: false,
-      powerPreference: "high-performance",
-    })
+      powerPreference: 'high-performance',
+    });
     if (!gl) {
-      setFailed(true)
-      return
+      setFailed(true);
+      return;
     }
 
     const compile = (type: number, src: string) => {
-      const s = gl.createShader(type)
-      if (!s) return null
-      gl.shaderSource(s, src)
-      gl.compileShader(s)
+      const s = gl.createShader(type);
+      if (!s) return null;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        console.error("etched-accretion:", gl.getShaderInfoLog(s))
-        gl.deleteShader(s)
-        return null
+        console.error('etched-accretion:', gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
       }
-      return s
-    }
-    const vs = compile(gl.VERTEX_SHADER, VERT)
-    const fs = compile(gl.FRAGMENT_SHADER, FRAG)
-    const program = vs && fs ? gl.createProgram() : null
+      return s;
+    };
+    const vs = compile(gl.VERTEX_SHADER, VERT);
+    const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    const program = vs && fs ? gl.createProgram() : null;
     if (!program || !vs || !fs) {
-      if (vs) gl.deleteShader(vs)
-      if (fs) gl.deleteShader(fs)
-      setFailed(true)
-      return
+      if (vs) gl.deleteShader(vs);
+      if (fs) gl.deleteShader(fs);
+      setFailed(true);
+      return;
     }
-    gl.attachShader(program, vs)
-    gl.attachShader(program, fs)
-    gl.linkProgram(program)
-    gl.deleteShader(vs)
-    gl.deleteShader(fs)
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error("etched-accretion:", gl.getProgramInfoLog(program))
-      gl.deleteProgram(program)
-      setFailed(true)
-      return
+      console.error('etched-accretion:', gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
+      setFailed(true);
+      return;
     }
-    gl.useProgram(program)
-    const vao = gl.createVertexArray()
-    gl.bindVertexArray(vao)
+    gl.useProgram(program);
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
 
-    const loc = (n: string) => gl.getUniformLocation(program, n)
-    const colorLocs = COLOR_UNIFORMS.map(([u, k]) => [loc(u), k] as const)
-    const floatLocs = FLOAT_UNIFORMS.map(([u, k]) => [loc(u), k] as const)
+    const loc = (n: string) => gl.getUniformLocation(program, n);
+    const colorLocs = COLOR_UNIFORMS.map(([u, k]) => [loc(u), k] as const);
+    const floatLocs = FLOAT_UNIFORMS.map(([u, k]) => [loc(u), k] as const);
     const U = Object.fromEntries(FRAME_UNIFORMS.map((n) => [n, loc(n)])) as Record<
       (typeof FRAME_UNIFORMS)[number],
       WebGLUniformLocation | null
-    >
+    >;
 
     // ---- sizing, from the element rather than the window --------------------
     // The shader is per-pixel heavy, so the buffer scale adapts: long frames
     // pull it down, and it never climbs back mid-session (no oscillation).
-    let quality = 1
+    let quality = 1;
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * Math.max(0.25, renderScale) * quality
-      const w = Math.max(1, Math.floor(canvas.clientWidth * dpr))
-      const h = Math.max(1, Math.floor(canvas.clientHeight * dpr))
+      const dpr =
+        Math.min(window.devicePixelRatio || 1, 1.5) * Math.max(0.25, renderScale) * quality;
+      const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+      const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
       if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w
-        canvas.height = h
+        canvas.width = w;
+        canvas.height = h;
       }
-    }
-    resize()
+    };
+    resize();
 
     // ---- state the loop eases ------------------------------------------------
-    let time = 7.3 // start mid-orbit, so the first frame is already sheared
-    let clock = 0
-    let feed = 0
-    let feeding = false
-    let par: [number, number] = [0, 0]
-    let target: [number, number] | null = null
-    let lastPointer = -Infinity
+    let time = 7.3; // start mid-orbit, so the first frame is already sheared
+    let clock = 0;
+    let feed = 0;
+    let feeding = false;
+    let par: [number, number] = [0, 0];
+    let target: [number, number] | null = null;
+    let lastPointer = -Infinity;
 
     const draw = () => {
-      const p = paramsRef.current
-      const fit = Math.min(1, canvas.width / canvas.height / (p.diskRadius * 2))
-      gl.viewport(0, 0, canvas.width, canvas.height)
+      const p = paramsRef.current;
+      const fit = Math.min(1, canvas.width / canvas.height / (p.diskRadius * 2));
+      gl.viewport(0, 0, canvas.width, canvas.height);
       for (const [l, k] of colorLocs) {
-        const [r, g, b] = hexToRgb(p[k])
-        gl.uniform3f(l, r, g, b)
+        const [r, g, b] = hexToRgb(p[k]);
+        gl.uniform3f(l, r, g, b);
       }
       for (const [l, k] of floatLocs) {
-        gl.uniform1f(l, p[k] * (k === "holeSize" || k === "diskRadius" ? fit : 1))
+        gl.uniform1f(l, p[k] * (k === 'holeSize' || k === 'diskRadius' ? fit : 1));
       }
-      gl.uniform2f(U.uRes, canvas.width, canvas.height)
-      gl.uniform2f(U.uCenter, p.center[0], p.center[1])
-      gl.uniform1f(U.uTime, time)
-      gl.uniform1f(U.uClock, clock)
-      gl.uniform1f(U.uFeed, feed)
-      gl.uniform2f(U.uParallax, par[0], par[1])
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
-    }
+      gl.uniform2f(U.uRes, canvas.width, canvas.height);
+      gl.uniform2f(U.uCenter, p.center[0], p.center[1]);
+      gl.uniform1f(U.uTime, time);
+      gl.uniform1f(U.uClock, clock);
+      gl.uniform1f(U.uFeed, feed);
+      gl.uniform2f(U.uParallax, par[0], par[1]);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
     repaintRef.current = () => {
-      if (reduced) draw()
-    }
+      if (reduced) draw();
+    };
 
     const observer = new ResizeObserver(() => {
-      resize()
-      if (reduced) draw()
-    })
-    observer.observe(canvas)
+      resize();
+      if (reduced) draw();
+    });
+    observer.observe(canvas);
 
     // ---- pointer -------------------------------------------------------------
     const onMove = (e: PointerEvent) => {
-      if (!interactive) return
-      target = pointerToParallax(e.clientX, e.clientY, root.getBoundingClientRect())
-      lastPointer = clock
-    }
+      if (!interactive) return;
+      target = pointerToParallax(e.clientX, e.clientY, root.getBoundingClientRect());
+      lastPointer = clock;
+    };
     const onLeave = () => {
-      target = null
-      feeding = false
-    }
+      target = null;
+      feeding = false;
+    };
     const onDown = (e: PointerEvent) => {
-      if (!interactive) return
-      const el = e.target as Element | null
-      if (el && el.closest && el.closest(INTERACTIVE)) return
-      feeding = true
-      onMove(e)
-    }
+      if (!interactive) return;
+      const el = e.target as Element | null;
+      if (el && el.closest && el.closest(INTERACTIVE)) return;
+      feeding = true;
+      onMove(e);
+    };
     const onUp = () => {
-      feeding = false
-    }
-    root.addEventListener("pointermove", onMove)
-    root.addEventListener("pointerdown", onDown)
-    root.addEventListener("pointerleave", onLeave)
-    window.addEventListener("pointerup", onUp)
-    window.addEventListener("pointercancel", onUp)
+      feeding = false;
+    };
+    root.addEventListener('pointermove', onMove);
+    root.addEventListener('pointerdown', onDown);
+    root.addEventListener('pointerleave', onLeave);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
 
     // ---- context loss --------------------------------------------------------
-    let raf = 0
+    let raf = 0;
     const onLost = (e: Event) => {
-      e.preventDefault()
-      cancelAnimationFrame(raf)
-      raf = 0
-    }
-    const onRestored = () => setGeneration((g) => g + 1)
-    canvas.addEventListener("webglcontextlost", onLost)
-    canvas.addEventListener("webglcontextrestored", onRestored)
+      e.preventDefault();
+      cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const onRestored = () => setGeneration((g) => g + 1);
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
 
     // ---- only spend the GPU while it is on screen ---------------------------
-    let visible = true
+    let visible = true;
     const io = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting
+      if (!entry) return;
+      visible = entry.isIntersecting;
       if (visible && !reduced && !raf) {
-        last = performance.now()
-        raf = requestAnimationFrame(frame)
+        last = performance.now();
+        raf = requestAnimationFrame(frame);
       }
-    })
-    io.observe(root)
+    });
+    io.observe(root);
 
-    let last = performance.now()
-    let slowFrames = 0
-    let sampled = 0
+    let last = performance.now();
+    let slowFrames = 0;
+    let sampled = 0;
     const frame = (now: number) => {
-      raf = 0
-      if (!visible) return
-      const dt = Math.min((now - last) / 1000, 0.05)
-      const raw = now - last
-      last = now
-      const p = paramsRef.current
+      raf = 0;
+      if (!visible) return;
+      const dt = Math.min((now - last) / 1000, 0.05);
+      const raw = now - last;
+      last = now;
+      const p = paramsRef.current;
 
-      feed = approach(feed, feeding ? 1 : 0, dt, feeding ? 1.6 : 0.9)
-      clock += dt
-      time += dt * p.speed * (1 + 2.6 * feed)
+      feed = approach(feed, feeding ? 1 : 0, dt, feeding ? 1.6 : 0.9);
+      clock += dt;
+      time += dt * p.speed * (1 + 2.6 * feed);
 
-      const idle = clock - lastPointer > 4
-      const goal = target && !idle ? target : idleDrift(clock)
-      par = [approach(par[0], goal[0], dt, 2.2), approach(par[1], goal[1], dt, 2.2)]
+      const idle = clock - lastPointer > 4;
+      const goal = target && !idle ? target : idleDrift(clock);
+      par = [approach(par[0], goal[0], dt, 2.2), approach(par[1], goal[1], dt, 2.2)];
 
       // Adaptive resolution: a run of long frames drops the buffer scale.
       if (sampled < 240 && raw < 250) {
-        sampled++
-        if (raw > 28) slowFrames++
+        sampled++;
+        if (raw > 28) slowFrames++;
         if (sampled % 60 === 0) {
           if (slowFrames > 30 && quality > 0.5) {
-            quality *= 0.8
-            resize()
+            quality *= 0.8;
+            resize();
           }
-          slowFrames = 0
+          slowFrames = 0;
         }
       }
 
-      draw()
-      raf = requestAnimationFrame(frame)
-    }
+      draw();
+      raf = requestAnimationFrame(frame);
+    };
 
     if (reduced) {
-      draw()
+      draw();
     } else {
-      raf = requestAnimationFrame(frame)
+      raf = requestAnimationFrame(frame);
     }
 
     return () => {
-      cancelAnimationFrame(raf)
-      repaintRef.current = () => {}
-      observer.disconnect()
-      io.disconnect()
-      root.removeEventListener("pointermove", onMove)
-      root.removeEventListener("pointerdown", onDown)
-      root.removeEventListener("pointerleave", onLeave)
-      window.removeEventListener("pointerup", onUp)
-      window.removeEventListener("pointercancel", onUp)
-      canvas.removeEventListener("webglcontextlost", onLost)
-      canvas.removeEventListener("webglcontextrestored", onRestored)
-      gl.deleteVertexArray(vao)
-      gl.deleteProgram(program)
-    }
-  }, [interactive, reduced, renderScale, generation])
+      cancelAnimationFrame(raf);
+      repaintRef.current = () => {};
+      observer.disconnect();
+      io.disconnect();
+      root.removeEventListener('pointermove', onMove);
+      root.removeEventListener('pointerdown', onDown);
+      root.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+      gl.deleteVertexArray(vao);
+      gl.deleteProgram(program);
+    };
+  }, [interactive, reduced, renderScale, generation]);
 
-  const fallback = hexToRgb(P.diskColor).map((v) => Math.round(v * 255)).join(",")
+  const fallback = hexToRgb(P.diskColor)
+    .map((v) => Math.round(v * 255))
+    .join(',');
 
   return (
     <section
       ref={rootRef}
-      className={"relative isolate w-full overflow-hidden " + className}
+      className={'relative isolate w-full overflow-hidden ' + className}
       style={{ height, backgroundColor: P.background }}
       aria-label={ariaLabel}
     >
@@ -809,10 +817,10 @@ export default function EtchedAccretion({
           ref={canvasRef}
           aria-hidden="true"
           className="absolute inset-0 block h-full w-full"
-          style={{ maxWidth: "none", width: "100%", height: "100%" }}
+          style={{ maxWidth: 'none', width: '100%', height: '100%' }}
         />
       )}
       {children ? <div className="absolute inset-0 z-10">{children}</div> : null}
     </section>
-  )
+  );
 }
